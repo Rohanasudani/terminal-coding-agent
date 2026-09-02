@@ -37,6 +37,31 @@ def test_plan_patch_previews_without_writing(tmp_path: Path):
     assert "content_sha256" in result.metadata
 
 
+def test_patch_set_previews_and_writes_grouped_diff(tmp_path: Path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    first = repo / "first.py"
+    second = repo / "second.py"
+    first.write_text("value = 1\n", encoding="utf-8")
+    second.write_text("name = 'old'\n", encoding="utf-8")
+    files = [
+        {"path": "first.py", "content": "value = 2\n"},
+        {"path": "second.py", "content": "name = 'new'\n"},
+    ]
+
+    tools = ToolRegistry(repo, "auto")
+    planned = tools.call("plan_patch_set", {"files": files})
+    written = tools.call("write_patch_set", {"files": files})
+
+    assert planned.status == "ok"
+    assert written.status == "ok"
+    assert "a/first.py" in planned.output
+    assert "a/second.py" in planned.output
+    assert first.read_text(encoding="utf-8") == "value = 2\n"
+    assert second.read_text(encoding="utf-8") == "name = 'new'\n"
+    assert len(written.metadata["files"]) == 2
+
+
 def test_shell_blocks_destructive_commands(tmp_path: Path):
     tools = ToolRegistry(tmp_path, "auto")
 

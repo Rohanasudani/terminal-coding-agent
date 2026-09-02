@@ -10,7 +10,7 @@ def test_benchmark_persists_trace_dirs_and_reports_metadata(tmp_path: Path):
 
     results = run_benchmark(repo_root, tasks_dir=tasks_dir, artifacts_dir=artifacts_dir)
 
-    assert len(results) >= 6
+    assert len(results) >= 7
     assert all(result.passed for result in results)
     assert all(Path(result.trace_dir).exists() for result in results)
     assert {result.language for result in results} == {"python"}

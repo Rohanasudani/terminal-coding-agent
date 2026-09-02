@@ -38,7 +38,7 @@ Status: complete
 
 Status: complete
 
-- expanded local benchmark suite to six tasks
+- expanded local benchmark suite to seven tasks
 - JSON and Markdown benchmark reports
 - persistent per-task traces
 - pass-rate and cost summary
@@ -55,12 +55,21 @@ Status: complete
 
 ## Milestone 6: Multi-File Edit Strategy
 
+Status: complete
+
 - coordinated plans across multiple files
 - grouped diffs before applying edits
 - rollback guidance for partial failures
 - final summary by changed subsystem
 
-## Milestone 7: Repository Intelligence
+## Milestone 7: Live Provider Hardening
+
+- live run smoke tests with a tiny fixture
+- provider-specific prompt profiles
+- structured failure recovery when plans do not apply
+- cost ceilings per run
+
+## Milestone 8: Repository Intelligence
 
 - symbol index
 - import graph
@@ -68,13 +77,13 @@ Status: complete
 - AST-aware edit checks
 - tree-sitter exploration
 
-## Milestone 8: Terminal-Bench Direction
+## Milestone 9: Terminal-Bench Direction
 
 - baseline comparisons against simple agents
 - benchmark report in the README
 - Harbor/Terminal-Bench adapter
 
-## Milestone 9: Product Polish
+## Milestone 10: Product Polish
 
 - demo GIF
 - richer README

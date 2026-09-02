@@ -31,13 +31,14 @@ Reports also include provider, model, token usage, and estimated model cost. Det
 | Task | Bug Shape |
 | --- | --- |
 | `bugfix_calculator` | arithmetic operator repair |
+| `bugfix_checkout_pipeline` | coordinated multi-file pricing repair |
 | `bugfix_clamp_score` | bounds checking |
 | `bugfix_divide` | arithmetic operator repair |
 | `bugfix_email_normalization` | string normalization |
 | `bugfix_slugify` | whitespace and separator normalization |
 | `bugfix_word_count` | character count vs. token count |
 
-Current deterministic baseline: `6/6` tasks pass with the `repair` provider.
+Current deterministic baseline: `7/7` tasks pass with the `repair` provider.
 
 ## Why Start Local
 
@@ -52,6 +53,7 @@ Local tasks are cheap, deterministic, and fast. They help catch regressions in:
 - test-first repair behavior
 - report generation
 - trace persistence
+- grouped multi-file patch planning
 
 ## Terminal-Bench Direction
 

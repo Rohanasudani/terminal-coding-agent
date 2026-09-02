@@ -19,6 +19,12 @@ class ToolSpec:
     schema: dict[str, object]
 
 
+@dataclass(frozen=True)
+class PatchFile:
+    path: str
+    content: str
+
+
 class ToolRegistry:
     def __init__(self, repo: Path, approval_mode: ApprovalMode) -> None:
         self.repo = repo.resolve()
@@ -43,9 +49,19 @@ class ToolRegistry:
                 {"path": "string", "content": "string"},
             ),
             ToolSpec(
+                "plan_patch_set",
+                "Preview multiple UTF-8 file writes as one grouped diff without modifying files.",
+                {"files": [{"path": "string", "content": "string"}]},
+            ),
+            ToolSpec(
                 "write_file",
                 "Write a UTF-8 text file inside the repository and return a unified diff.",
                 {"path": "string", "content": "string"},
+            ),
+            ToolSpec(
+                "write_patch_set",
+                "Write multiple UTF-8 files after a grouped plan and return a grouped diff.",
+                {"files": [{"path": "string", "content": "string"}]},
             ),
             ToolSpec(
                 "run_shell",
@@ -67,8 +83,12 @@ class ToolRegistry:
                 )
             if name == "plan_patch":
                 return self.plan_patch(str(arguments.get("path", "")), str(arguments.get("content", "")))
+            if name == "plan_patch_set":
+                return self.plan_patch_set(arguments.get("files"))
             if name == "write_file":
                 return self.write_file(str(arguments.get("path", "")), str(arguments.get("content", "")))
+            if name == "write_patch_set":
+                return self.write_patch_set(arguments.get("files"))
             if name == "run_shell":
                 return self.run_shell(str(arguments.get("command", "")), int(arguments.get("timeout", 30)))
             if name == "git_diff":
@@ -124,6 +144,26 @@ class ToolRegistry:
             {"path": str(target), "relative_path": relative_path, "content_sha256": sha256_text(content)},
         )
 
+    def plan_patch_set(self, files: object) -> ToolResult:
+        patch_files = coerce_patch_files(files)
+        chunks: list[str] = []
+        metadata_files: list[dict[str, str]] = []
+        for patch_file in patch_files:
+            target = resolve_inside_root(self.repo, patch_file.path)
+            relative_path = os.fspath(target.relative_to(self.repo))
+            before = target.read_text(encoding="utf-8").splitlines(keepends=True) if target.exists() else []
+            after = patch_file.content.splitlines(keepends=True)
+            chunks.append(self._unified_diff(relative_path, before, after))
+            metadata_files.append(
+                {
+                    "path": str(target),
+                    "relative_path": relative_path,
+                    "content_sha256": sha256_text(patch_file.content),
+                }
+            )
+
+        return ToolResult("ok", "\n".join(chunk for chunk in chunks if chunk).strip() or "files unchanged", {"files": metadata_files})
+
     def write_file(self, path: str, content: str) -> ToolResult:
         target = resolve_inside_root(self.repo, path)
         relative_path = os.fspath(target.relative_to(self.repo))
@@ -138,6 +178,32 @@ class ToolRegistry:
             diff or "file unchanged",
             {"path": str(target), "relative_path": relative_path, "content_sha256": sha256_text(content)},
         )
+
+    def write_patch_set(self, files: object) -> ToolResult:
+        patch_files = coerce_patch_files(files)
+        planned: list[tuple[PatchFile, Path, str, list[str], list[str]]] = []
+        for patch_file in patch_files:
+            target = resolve_inside_root(self.repo, patch_file.path)
+            relative_path = os.fspath(target.relative_to(self.repo))
+            before = target.read_text(encoding="utf-8").splitlines(keepends=True) if target.exists() else []
+            after = patch_file.content.splitlines(keepends=True)
+            planned.append((patch_file, target, relative_path, before, after))
+
+        chunks: list[str] = []
+        metadata_files: list[dict[str, str]] = []
+        for patch_file, target, relative_path, before, after in planned:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(patch_file.content, encoding="utf-8")
+            chunks.append(self._unified_diff(relative_path, before, after))
+            metadata_files.append(
+                {
+                    "path": str(target),
+                    "relative_path": relative_path,
+                    "content_sha256": sha256_text(patch_file.content),
+                }
+            )
+
+        return ToolResult("ok", "\n".join(chunk for chunk in chunks if chunk).strip() or "files unchanged", {"files": metadata_files})
 
     def run_shell(self, command: str, timeout: int = 30) -> ToolResult:
         decision = classify_command(command, self.approval_mode)
@@ -235,3 +301,22 @@ class ToolRegistry:
 
 def sha256_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def coerce_patch_files(files: object) -> list[PatchFile]:
+    if not isinstance(files, list) or not files:
+        raise ValueError("files must be a non-empty list")
+
+    patch_files: list[PatchFile] = []
+    for item in files:
+        if not isinstance(item, dict):
+            raise TypeError("each patch file must be an object")
+        path = item.get("path")
+        content = item.get("content")
+        if not isinstance(path, str) or not path:
+            raise ValueError("each patch file requires a path")
+        if not isinstance(content, str):
+            raise TypeError("each patch file requires string content")
+        patch_files.append(PatchFile(path=path, content=content))
+
+    return patch_files

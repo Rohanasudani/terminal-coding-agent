@@ -1,0 +1,7 @@
+{
+  "instruction": "Fix the checkout pricing pipeline so discounts reduce totals and tax increases totals, then run the test suite.",
+  "category": "multi-file bugfix",
+  "language": "python",
+  "verify": "{python} -m pytest -q",
+  "max_steps": 8
+}

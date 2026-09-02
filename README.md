@@ -32,7 +32,7 @@ This project treats the agent as an engineering system:
 - OpenAI-compatible provider with strict structured tool-call output and retry handling
 - `termagent.toml` project config
 - token usage and estimated model cost reporting
-- six-task local benchmark suite with JSON and Markdown reports
+- seven-task local benchmark suite with JSON and Markdown reports
 - persistent per-task trace artifacts for benchmark debugging
 - JSONL traces for tool calls, observations, and final answers
 
@@ -106,7 +106,7 @@ Current local baseline:
 
 | Provider | Tasks | Passed | Pass Rate | Model Cost |
 | --- | ---: | ---: | ---: | ---: |
-| repair | 6 | 6 | 100% | $0.000000 |
+| repair | 7 | 7 | 100% | $0.000000 |
 
 This is the bridge to Terminal-Bench-style evaluation: the agent is designed around reproducible tasks, verifier commands, execution logs, and pass/fail reports from day one.
 

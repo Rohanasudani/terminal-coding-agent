@@ -25,6 +25,7 @@ class RepairProvider(Provider):
 
     test_command: str = f"{sys.executable} -m pytest -q"
     pending_patch: dict[str, str] | None = field(default=None, init=False)
+    pending_patch_set: list[dict[str, str]] | None = field(default=None, init=False)
 
     def next_action(self, task: str, observations: list[str]) -> ProviderOutput:
         return ProviderOutput(self._choose_tool(task, observations))
@@ -38,6 +39,11 @@ class RepairProvider(Provider):
 
         if latest.startswith("run_shell: ok") and tests_passed(latest):
             return ToolCall("git_diff", {})
+
+        patch_set = patch_set_from_task(task)
+        if latest.startswith("run_shell: ok") and patch_set:
+            self.pending_patch_set = patch_set
+            return ToolCall("plan_patch_set", {"files": patch_set})
 
         if latest.startswith("run_shell: ok"):
             failure = parse_pytest_failure(observations[-1])
@@ -59,8 +65,15 @@ class RepairProvider(Provider):
             self.pending_patch = None
             return ToolCall("run_shell", {"command": self.test_command, "timeout": 60})
 
+        if latest.startswith("write_patch_set: ok"):
+            self.pending_patch_set = None
+            return ToolCall("run_shell", {"command": self.test_command, "timeout": 60})
+
         if latest.startswith("plan_patch: ok") and self.pending_patch:
             return ToolCall("write_file", self.pending_patch)
+
+        if latest.startswith("plan_patch_set: ok") and self.pending_patch_set:
+            return ToolCall("write_patch_set", {"files": self.pending_patch_set})
 
         if latest.startswith("read_file: ok"):
             imported_symbol = symbol_imported_by_test(observations[-1])
@@ -155,9 +168,10 @@ def provider_system_prompt() -> str:
         "You are TermAgent, a terminal coding agent. Choose exactly one tool call. "
         "Start by gathering evidence with run_shell, search, or read_file. Prefer minimal edits. "
         "Before writing a file, call plan_patch with the exact path and content you intend to write. "
-        "Only call write_file after reviewing the matching plan_patch diff. After writing files, rerun "
-        "the configured tests. Use git_diff only when the work is done or you are blocked. Return only "
-        "the structured tool call."
+        "For coordinated multi-file edits, call plan_patch_set with all files in the group. Only call "
+        "write_file or write_patch_set after reviewing the matching plan diff. After writing files, "
+        "rerun the configured tests. Use git_diff only when the work is done or you are blocked. "
+        "Return only the structured tool call."
     )
 
 
@@ -173,7 +187,16 @@ def tool_call_response_format() -> dict[str, object]:
             "properties": {
                 "name": {
                     "type": "string",
-                    "enum": ["search", "read_file", "plan_patch", "write_file", "run_shell", "git_diff"],
+                    "enum": [
+                        "search",
+                        "read_file",
+                        "plan_patch",
+                        "plan_patch_set",
+                        "write_file",
+                        "write_patch_set",
+                        "run_shell",
+                        "git_diff",
+                    ],
                 },
                 "arguments": {
                     "type": "object",
@@ -299,6 +322,23 @@ def patch_from_read_output(task: str, output: str) -> dict[str, str] | None:
         return {"path": path, "content": content.replace("return len(text)", "return len(text.split())")}
 
     return None
+
+
+def patch_set_from_task(task: str) -> list[dict[str, str]] | None:
+    lowered_task = task.lower()
+    if "checkout" not in lowered_task or "discount" not in lowered_task or "tax" not in lowered_task:
+        return None
+
+    return [
+        {
+            "path": "pricing.py",
+            "content": "def apply_discount(total, rate):\n    return total * (1 - rate)\n",
+        },
+        {
+            "path": "tax.py",
+            "content": "def add_tax(total, rate):\n    return total * (1 + rate)\n",
+        },
+    ]
 
 
 def symbol_imported_by_test(output: str) -> str | None:

@@ -93,6 +93,8 @@ class TerminalAgent:
                 if isinstance(relative_path, str) and isinstance(content_hash, str):
                     self.planned_writes.add((relative_path, content_hash))
                     state.patch_plans += 1
+            if call.name == "plan_patch_set" and result.status == "ok":
+                state.patch_plans += self._remember_grouped_plan(result.metadata)
 
             if result.status == "blocked":
                 state.final_answer = (
@@ -108,6 +110,8 @@ class TerminalAgent:
                 content_hash = result.metadata.get("content_sha256")
                 if isinstance(relative_path, str) and isinstance(content_hash, str):
                     self.planned_writes.discard((relative_path, content_hash))
+            if call.name == "write_patch_set" and result.status == "ok":
+                self._record_grouped_write(state, result.metadata)
 
             if call.name == "run_shell" and result.status == "ok":
                 command = call.arguments.get("command", "")
@@ -142,13 +146,17 @@ class TerminalAgent:
         test_status = "passed" if state.tests_passed else "not confirmed"
         files = ", ".join(state.changed_files) if state.changed_files else "none"
         residual_risk = "none known" if state.tests_passed else "tests did not confirm the change"
+        subsystems = summarize_subsystems(state.changed_files)
+        rollback = rollback_guidance(state.changed_files)
         lines = [
             f"Completed in {state.steps} steps.",
             f"Files changed: {files}.",
+            f"Subsystems changed: {subsystems}.",
             f"Patch plans reviewed: {state.patch_plans}.",
             f"Tests run: {len(state.test_runs)}; status: {test_status}.",
             f"Failed test attempts before completion: {state.failed_test_runs}.",
             f"Residual risk: {residual_risk}.",
+            f"Rollback guidance: {rollback}.",
         ]
         if state.input_tokens or state.output_tokens:
             lines.append(
@@ -166,7 +174,9 @@ class TerminalAgent:
             "search": {"query"},
             "read_file": {"path"},
             "plan_patch": {"path", "content"},
+            "plan_patch_set": {"files"},
             "write_file": {"path", "content"},
+            "write_patch_set": {"files"},
             "run_shell": {"command"},
             "git_diff": set(),
         }[call.name]
@@ -175,6 +185,10 @@ class TerminalAgent:
             return f"missing required argument(s): {', '.join(missing)}"
         if call.name == "write_file":
             plan_error = self._validate_planned_write(call)
+            if plan_error:
+                return plan_error
+        if call.name == "write_patch_set":
+            plan_error = self._validate_planned_write_set(call)
             if plan_error:
                 return plan_error
         return None
@@ -192,3 +206,68 @@ class TerminalAgent:
         if planned_key not in self.planned_writes:
             return "write_file requires a matching plan_patch first"
         return None
+
+    def _validate_planned_write_set(self, call: ToolCall) -> str | None:
+        files = call.arguments.get("files")
+        if not isinstance(files, list) or not files:
+            return "write_patch_set requires a non-empty files list"
+
+        for item in files:
+            if not isinstance(item, dict):
+                return "write_patch_set files must be objects"
+            path = item.get("path")
+            content = item.get("content")
+            if not isinstance(path, str) or not isinstance(content, str):
+                return "write_patch_set files require path and content strings"
+            try:
+                target = resolve_inside_root(self.tools.repo, path)
+            except ValueError as exc:
+                return str(exc)
+            relative_path = str(target.relative_to(self.tools.repo))
+            if (relative_path, sha256_text(content)) not in self.planned_writes:
+                return "write_patch_set requires a matching plan_patch_set first"
+        return None
+
+    def _remember_grouped_plan(self, metadata: dict[str, object]) -> int:
+        files = metadata.get("files")
+        if not isinstance(files, list):
+            return 0
+
+        count = 0
+        for item in files:
+            if not isinstance(item, dict):
+                continue
+            relative_path = item.get("relative_path")
+            content_hash = item.get("content_sha256")
+            if isinstance(relative_path, str) and isinstance(content_hash, str):
+                self.planned_writes.add((relative_path, content_hash))
+                count += 1
+        return count
+
+    def _record_grouped_write(self, state: AgentState, metadata: dict[str, object]) -> None:
+        files = metadata.get("files")
+        if not isinstance(files, list):
+            return
+
+        for item in files:
+            if not isinstance(item, dict):
+                continue
+            relative_path = item.get("relative_path")
+            content_hash = item.get("content_sha256")
+            if isinstance(relative_path, str) and relative_path not in state.changed_files:
+                state.changed_files.append(relative_path)
+            if isinstance(relative_path, str) and isinstance(content_hash, str):
+                self.planned_writes.discard((relative_path, content_hash))
+
+
+def summarize_subsystems(paths: list[str]) -> str:
+    if not paths:
+        return "none"
+    subsystems = sorted({path.split("/", maxsplit=1)[0] if "/" in path else "root" for path in paths})
+    return ", ".join(subsystems)
+
+
+def rollback_guidance(paths: list[str]) -> str:
+    if not paths:
+        return "no file changes to roll back"
+    return "revert the listed files from the final diff if follow-up validation fails"

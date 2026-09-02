@@ -39,8 +39,9 @@ The live provider does not execute model text directly. It only accepts a struct
 
 File edits go through a two-step contract:
 
-1. `plan_patch` previews the exact diff without modifying the repository.
-2. `write_file` is allowed only when its path and content hash match a previously reviewed plan.
+1. `plan_patch` previews a single-file diff without modifying the repository.
+2. `plan_patch_set` previews a grouped multi-file diff without modifying the repository.
+3. `write_file` and `write_patch_set` are allowed only when their path/content hashes match a previously reviewed plan.
 
 This catches accidental direct writes from live providers and makes traces easier to audit. Every successful final answer includes changed files, patch plans reviewed, tests run, failed test attempts, and residual risk.
 
@@ -50,7 +51,10 @@ The tool registry exposes a small set of high-leverage operations:
 
 - `search`: find relevant files and symbols
 - `read_file`: inspect source with line numbers
+- `plan_patch`: preview a single-file edit
+- `plan_patch_set`: preview coordinated multi-file edits as one grouped diff
 - `write_file`: patch files and return unified diffs
+- `write_patch_set`: apply coordinated multi-file edits after a grouped plan
 - `run_shell`: execute commands under a safety policy
 - `git_diff`: show the final repository diff
 
@@ -74,12 +78,11 @@ Local benchmark tasks live under `bench/tasks`. Each task has:
 - a natural-language instruction
 - a verifier command
 
-The harness copies each fixture into a temporary workspace, runs the agent, executes the verifier, and writes a JSON report. This design makes it straightforward to add Terminal-Bench/Harbor adapters later.
+The harness copies each fixture into a temporary workspace, runs the agent, executes the verifier, persists per-task traces, and writes JSON plus Markdown reports. This design makes it straightforward to add Terminal-Bench/Harbor adapters later.
 
 ## Next Technical Bets
 
 - AST/code-map indexing with tree-sitter
-- retry/reflection loop after repeated failing tests
+- stronger live-provider repair strategies
 - sub-agent orchestration experiments
-- cost/token accounting
 - Harbor/Terminal-Bench adapter
