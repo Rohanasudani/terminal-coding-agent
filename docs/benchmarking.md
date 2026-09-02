@@ -20,6 +20,8 @@ Each task can define its own verifier command. The default command uses the curr
 
 That placeholder makes benchmarks more portable across virtual environments and CI.
 
+Reports also include provider, model, token usage, and estimated model cost. Deterministic local providers report zero model tokens; live provider runs include usage returned by the model API.
+
 ## Why Start Local
 
 Local tasks are cheap, deterministic, and fast. They help catch regressions in:

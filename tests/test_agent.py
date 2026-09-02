@@ -1,8 +1,9 @@
 import shutil
 from pathlib import Path
 
+import termagent.agent as agent_module
 from termagent.agent import TerminalAgent
-from termagent.models import AgentConfig
+from termagent.models import AgentConfig, ProviderOutput, ToolCall
 
 
 def test_mock_agent_fixes_calculator_fixture(tmp_path: Path):
@@ -47,3 +48,17 @@ def test_repair_agent_stops_when_test_command_needs_approval(tmp_path: Path):
     assert state.completed is False
     assert state.final_answer is not None
     assert "Blocked by safety policy" in state.final_answer
+
+
+def test_agent_rejects_invalid_provider_tool_call(tmp_path: Path, monkeypatch):
+    class BadProvider:
+        def next_action(self, task: str, observations: list[str]) -> ProviderOutput:
+            return ProviderOutput(ToolCall("unknown_tool", {}))
+
+    monkeypatch.setattr(agent_module, "build_provider", lambda *args, **kwargs: BadProvider())
+
+    state = TerminalAgent(AgentConfig(repo=tmp_path, task="fix tests", provider="openai")).run()
+
+    assert state.completed is False
+    assert state.final_answer is not None
+    assert "invalid tool call" in state.final_answer

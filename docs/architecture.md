@@ -25,6 +25,16 @@ The Milestone 2 loop starts by running the configured verifier command. When tes
 
 This keeps the agent behavior measurable: each improvement should increase benchmark pass rate, reduce unnecessary tool calls, or improve the final trace.
 
+## Provider Modes
+
+The provider boundary returns a structured tool call plus usage metadata. Local modes return zero-token usage, while live OpenAI-compatible mode parses usage from the Responses API result and rolls it into the final report.
+
+- `repair`: deterministic test-first loop for cheap regression tests and benchmark tasks
+- `mock`: stable alias for local tests and demos
+- `openai`: live provider that requests strict JSON schema output, validates the selected tool, retries malformed responses, and estimates cost from token usage
+
+The live provider does not execute model text directly. It only accepts a structured `{name, arguments}` tool call, and the agent validates that tool call before handing it to the tool registry.
+
 ## Tool Layer
 
 The tool registry exposes a small set of high-leverage operations:
@@ -60,7 +70,6 @@ The harness copies each fixture into a temporary workspace, runs the agent, exec
 ## Next Technical Bets
 
 - AST/code-map indexing with tree-sitter
-- OpenAI-compatible live provider with strict tool-call JSON
 - retry/reflection loop after repeated failing tests
 - sub-agent orchestration experiments
 - cost/token accounting

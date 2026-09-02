@@ -19,6 +19,11 @@ class BenchResult:
     passed: bool
     duration_seconds: float
     steps: int
+    provider: str
+    model: str
+    input_tokens: int
+    output_tokens: int
+    estimated_cost_usd: float
     verifier_output: str
     trace_dir: str
 
@@ -47,7 +52,9 @@ def run_benchmark(repo_root: Path, tasks_dir: Path | None = None) -> list[BenchR
                 max_steps=int(spec.get("max_steps", 8)),
                 log_dir=trace_dir,
                 provider=str(spec.get("provider", "repair")),
+                model=str(spec.get("model", "gpt-5.6-luna")),
                 test_command=verify_command,
+                provider_retries=int(spec.get("provider_retries", 2)),
             )
             state = TerminalAgent(config).run()
             verifier = subprocess.run(
@@ -67,6 +74,11 @@ def run_benchmark(repo_root: Path, tasks_dir: Path | None = None) -> list[BenchR
                     passed=verifier.returncode == 0,
                     duration_seconds=round(duration, 3),
                     steps=state.steps,
+                    provider=config.provider,
+                    model=config.model,
+                    input_tokens=state.input_tokens,
+                    output_tokens=state.output_tokens,
+                    estimated_cost_usd=state.estimated_cost_usd,
                     verifier_output=output,
                     trace_dir=str(trace_dir),
                 )
@@ -80,6 +92,7 @@ def write_report(results: list[BenchResult], path: Path) -> None:
     payload = {
         "passed": sum(1 for result in results if result.passed),
         "total": len(results),
+        "estimated_cost_usd": round(sum(result.estimated_cost_usd for result in results), 6),
         "results": [asdict(result) for result in results],
     }
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")

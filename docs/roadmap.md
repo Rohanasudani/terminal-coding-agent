@@ -27,6 +27,8 @@ Status: complete
 
 ## Milestone 3: Real Provider Mode
 
+Status: complete
+
 - OpenAI-compatible tool-call provider
 - retry loop when tool JSON is invalid
 - token and cost accounting

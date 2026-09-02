@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import argparse
 import json
+from dataclasses import replace
 from pathlib import Path
 
 from .agent import TerminalAgent
 from .bench import run_benchmark, write_report
+from .config import apply_config_file
 from .models import AgentConfig
 from .tools import ToolRegistry
 
@@ -17,11 +19,14 @@ def build_parser() -> argparse.ArgumentParser:
     run = subparsers.add_parser("run", help="Run the agent against a repository task")
     run.add_argument("--repo", required=True, type=Path)
     run.add_argument("--task", required=True)
-    run.add_argument("--provider", default="repair", choices=["mock", "repair", "openai"])
-    run.add_argument("--approval-mode", default="suggest", choices=["never", "suggest", "auto"])
-    run.add_argument("--max-steps", default=12, type=int)
-    run.add_argument("--log-dir", type=Path, default=Path(".termagent/traces"))
-    run.add_argument("--test-command", default="{python} -m pytest -q")
+    run.add_argument("--config", type=Path)
+    run.add_argument("--provider", choices=["mock", "repair", "openai"])
+    run.add_argument("--model")
+    run.add_argument("--approval-mode", choices=["never", "suggest", "auto"])
+    run.add_argument("--max-steps", type=int)
+    run.add_argument("--log-dir", type=Path)
+    run.add_argument("--test-command")
+    run.add_argument("--provider-retries", type=int)
 
     tools = subparsers.add_parser("tools", help="List available tools")
     tools.add_argument("--repo", type=Path, default=Path("."))
@@ -43,14 +48,33 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "run":
-        config = AgentConfig(
+        config_path = args.config or args.repo / "termagent.toml"
+        config = apply_config_file(
+            AgentConfig(
+                repo=args.repo,
+                task=args.task,
+                log_dir=Path(".termagent/traces"),
+            ),
+            config_path,
+        )
+        overrides = {
+            key: value
+            for key, value in {
+                "provider": args.provider,
+                "model": args.model,
+                "approval_mode": args.approval_mode,
+                "max_steps": args.max_steps,
+                "log_dir": args.log_dir,
+                "test_command": args.test_command,
+                "provider_retries": args.provider_retries,
+            }.items()
+            if value is not None
+        }
+        config = replace(
+            config,
             repo=args.repo,
             task=args.task,
-            provider=args.provider,
-            approval_mode=args.approval_mode,
-            max_steps=args.max_steps,
-            log_dir=args.log_dir,
-            test_command=args.test_command,
+            **overrides,
         )
         state = TerminalAgent(config).run()
         print(state.final_answer)
