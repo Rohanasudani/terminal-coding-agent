@@ -7,7 +7,7 @@ import sys
 import urllib.error
 import urllib.request
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from .diagnostics import parse_pytest_failure, tests_passed
 from .models import ProviderOutput, TokenUsage, ToolCall
@@ -19,18 +19,12 @@ class Provider(ABC):
         raise NotImplementedError
 
 
-class MockProvider(Provider):
-    """Deterministic provider for local tests and demos."""
-
-    def next_action(self, task: str, observations: list[str]) -> ProviderOutput:
-        return RepairProvider().next_action(task, observations)
-
-
 @dataclass
 class RepairProvider(Provider):
     """A deterministic test-first repair loop for benchmarks and demos."""
 
     test_command: str = f"{sys.executable} -m pytest -q"
+    pending_patch: dict[str, str] | None = field(default=None, init=False)
 
     def next_action(self, task: str, observations: list[str]) -> ProviderOutput:
         return ProviderOutput(self._choose_tool(task, observations))
@@ -62,7 +56,11 @@ class RepairProvider(Provider):
                 return ToolCall("read_file", {"path": path})
 
         if latest.startswith("write_file: ok"):
+            self.pending_patch = None
             return ToolCall("run_shell", {"command": self.test_command, "timeout": 60})
+
+        if latest.startswith("plan_patch: ok") and self.pending_patch:
+            return ToolCall("write_file", self.pending_patch)
 
         if latest.startswith("read_file: ok"):
             imported_symbol = symbol_imported_by_test(observations[-1])
@@ -70,9 +68,20 @@ class RepairProvider(Provider):
                 return ToolCall("search", {"query": f"def {imported_symbol}", "glob": "*.py"})
             patch = patch_from_read_output(task, observations[-1])
             if patch:
-                return ToolCall("write_file", patch)
+                self.pending_patch = patch
+                return ToolCall("plan_patch", patch)
 
         return ToolCall("git_diff", {})
+
+
+@dataclass
+class MockProvider(Provider):
+    """Deterministic provider for local tests and demos."""
+
+    repair: RepairProvider = field(default_factory=RepairProvider)
+
+    def next_action(self, task: str, observations: list[str]) -> ProviderOutput:
+        return self.repair.next_action(task, observations)
 
 
 class OpenAICompatibleProvider(Provider):
@@ -145,8 +154,10 @@ def provider_system_prompt() -> str:
     return (
         "You are TermAgent, a terminal coding agent. Choose exactly one tool call. "
         "Start by gathering evidence with run_shell, search, or read_file. Prefer minimal edits. "
-        "After writing files, rerun the configured tests. Use git_diff only when the work is done "
-        "or you are blocked. Return only the structured tool call."
+        "Before writing a file, call plan_patch with the exact path and content you intend to write. "
+        "Only call write_file after reviewing the matching plan_patch diff. After writing files, rerun "
+        "the configured tests. Use git_diff only when the work is done or you are blocked. Return only "
+        "the structured tool call."
     )
 
 
@@ -162,7 +173,7 @@ def tool_call_response_format() -> dict[str, object]:
             "properties": {
                 "name": {
                     "type": "string",
-                    "enum": ["search", "read_file", "write_file", "run_shell", "git_diff"],
+                    "enum": ["search", "read_file", "plan_patch", "write_file", "run_shell", "git_diff"],
                 },
                 "arguments": {
                     "type": "object",

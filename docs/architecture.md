@@ -35,6 +35,15 @@ The provider boundary returns a structured tool call plus usage metadata. Local 
 
 The live provider does not execute model text directly. It only accepts a structured `{name, arguments}` tool call, and the agent validates that tool call before handing it to the tool registry.
 
+## Planned Writes
+
+File edits go through a two-step contract:
+
+1. `plan_patch` previews the exact diff without modifying the repository.
+2. `write_file` is allowed only when its path and content hash match a previously reviewed plan.
+
+This catches accidental direct writes from live providers and makes traces easier to audit. Every successful final answer includes changed files, patch plans reviewed, tests run, failed test attempts, and residual risk.
+
 ## Tool Layer
 
 The tool registry exposes a small set of high-leverage operations:

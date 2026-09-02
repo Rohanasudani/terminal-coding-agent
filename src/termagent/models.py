@@ -60,3 +60,7 @@ class AgentState:
     input_tokens: int = 0
     output_tokens: int = 0
     estimated_cost_usd: float = 0.0
+    changed_files: list[str] = field(default_factory=list)
+    test_runs: list[str] = field(default_factory=list)
+    failed_test_runs: int = 0
+    patch_plans: int = 0

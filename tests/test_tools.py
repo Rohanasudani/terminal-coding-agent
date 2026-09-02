@@ -21,6 +21,22 @@ def test_read_and_write_file_stay_inside_repo(tmp_path: Path):
     assert "a/hello.py" in write.output
 
 
+def test_plan_patch_previews_without_writing(tmp_path: Path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    target = repo / "hello.py"
+    target.write_text("print('hi')\n", encoding="utf-8")
+
+    tools = ToolRegistry(repo, "auto")
+    result = tools.call("plan_patch", {"path": "hello.py", "content": "print('bye')\n"})
+
+    assert result.status == "ok"
+    assert "-print('hi')" in result.output
+    assert "+print('bye')" in result.output
+    assert target.read_text(encoding="utf-8") == "print('hi')\n"
+    assert "content_sha256" in result.metadata
+
+
 def test_shell_blocks_destructive_commands(tmp_path: Path):
     tools = ToolRegistry(tmp_path, "auto")
 

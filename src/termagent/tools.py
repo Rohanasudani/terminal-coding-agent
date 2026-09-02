@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import difflib
+import hashlib
 import os
 import shutil
 import subprocess
@@ -37,6 +38,11 @@ class ToolRegistry:
                 {"path": "string", "start": "optional int", "limit": "optional int"},
             ),
             ToolSpec(
+                "plan_patch",
+                "Preview a UTF-8 file write and return a unified diff without modifying the file.",
+                {"path": "string", "content": "string"},
+            ),
+            ToolSpec(
                 "write_file",
                 "Write a UTF-8 text file inside the repository and return a unified diff.",
                 {"path": "string", "content": "string"},
@@ -59,6 +65,8 @@ class ToolRegistry:
                     int(arguments.get("start", 1)),
                     int(arguments.get("limit", 200)),
                 )
+            if name == "plan_patch":
+                return self.plan_patch(str(arguments.get("path", "")), str(arguments.get("content", "")))
             if name == "write_file":
                 return self.write_file(str(arguments.get("path", "")), str(arguments.get("content", "")))
             if name == "run_shell":
@@ -104,6 +112,18 @@ class ToolRegistry:
         numbered = [f"{index + start_index + 1:>4} | {line}" for index, line in enumerate(selected)]
         return ToolResult("ok", "\n".join(numbered), {"path": str(target), "line_count": len(lines)})
 
+    def plan_patch(self, path: str, content: str) -> ToolResult:
+        target = resolve_inside_root(self.repo, path)
+        relative_path = os.fspath(target.relative_to(self.repo))
+        before = target.read_text(encoding="utf-8").splitlines(keepends=True) if target.exists() else []
+        after = content.splitlines(keepends=True)
+        diff = self._unified_diff(relative_path, before, after)
+        return ToolResult(
+            "ok",
+            diff or "file unchanged",
+            {"path": str(target), "relative_path": relative_path, "content_sha256": sha256_text(content)},
+        )
+
     def write_file(self, path: str, content: str) -> ToolResult:
         target = resolve_inside_root(self.repo, path)
         relative_path = os.fspath(target.relative_to(self.repo))
@@ -112,15 +132,12 @@ class ToolRegistry:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
 
-        diff = "".join(
-            difflib.unified_diff(
-                before,
-                after,
-                fromfile=f"a/{relative_path}",
-                tofile=f"b/{relative_path}",
-            )
+        diff = self._unified_diff(relative_path, before, after)
+        return ToolResult(
+            "ok",
+            diff or "file unchanged",
+            {"path": str(target), "relative_path": relative_path, "content_sha256": sha256_text(content)},
         )
-        return ToolResult("ok", diff or "file unchanged", {"path": str(target), "relative_path": relative_path})
 
     def run_shell(self, command: str, timeout: int = 30) -> ToolResult:
         decision = classify_command(command, self.approval_mode)
@@ -203,3 +220,18 @@ class ToolRegistry:
                 )
             )
         return "".join(chunks).strip() or "no diff"
+
+    @staticmethod
+    def _unified_diff(relative_path: str, before: list[str], after: list[str]) -> str:
+        return "".join(
+            difflib.unified_diff(
+                before,
+                after,
+                fromfile=f"a/{relative_path}",
+                tofile=f"b/{relative_path}",
+            )
+        )
+
+
+def sha256_text(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()

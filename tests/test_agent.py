@@ -62,3 +62,18 @@ def test_agent_rejects_invalid_provider_tool_call(tmp_path: Path, monkeypatch):
     assert state.completed is False
     assert state.final_answer is not None
     assert "invalid tool call" in state.final_answer
+
+
+def test_agent_rejects_unplanned_write(tmp_path: Path, monkeypatch):
+    class DirectWriteProvider:
+        def next_action(self, task: str, observations: list[str]) -> ProviderOutput:
+            return ProviderOutput(ToolCall("write_file", {"path": "module.py", "content": "value = 1\n"}))
+
+    monkeypatch.setattr(agent_module, "build_provider", lambda *args, **kwargs: DirectWriteProvider())
+
+    state = TerminalAgent(AgentConfig(repo=tmp_path, task="write a file", provider="openai")).run()
+
+    assert state.completed is False
+    assert state.final_answer is not None
+    assert "matching plan_patch" in state.final_answer
+    assert not (tmp_path / "module.py").exists()

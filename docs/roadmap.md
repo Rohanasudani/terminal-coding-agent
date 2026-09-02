@@ -46,12 +46,21 @@ Status: complete
 
 ## Milestone 5: Better Coding Loop
 
+Status: complete
+
 - patch planning before writes
-- multi-file edit strategy
-- retry/reflection after repeated failing tests
+- planned-write enforcement before file writes
+- retry/reflection after failed test runs
 - final answer with files changed, tests run, and residual risk
 
-## Milestone 6: Repository Intelligence
+## Milestone 6: Multi-File Edit Strategy
+
+- coordinated plans across multiple files
+- grouped diffs before applying edits
+- rollback guidance for partial failures
+- final summary by changed subsystem
+
+## Milestone 7: Repository Intelligence
 
 - symbol index
 - import graph
@@ -59,13 +68,13 @@ Status: complete
 - AST-aware edit checks
 - tree-sitter exploration
 
-## Milestone 7: Terminal-Bench Direction
+## Milestone 8: Terminal-Bench Direction
 
 - baseline comparisons against simple agents
 - benchmark report in the README
 - Harbor/Terminal-Bench adapter
 
-## Milestone 8: Product Polish
+## Milestone 9: Product Polish
 
 - demo GIF
 - richer README

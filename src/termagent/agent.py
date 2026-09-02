@@ -8,7 +8,8 @@ from .logging import TraceLogger
 from .models import AgentConfig, AgentState, ToolCall
 from .pricing import estimate_cost_usd
 from .provider import build_provider
-from .tools import ToolRegistry
+from .safety import resolve_inside_root
+from .tools import ToolRegistry, sha256_text
 
 
 class TerminalAgent:
@@ -24,6 +25,7 @@ class TerminalAgent:
         )
         self.logger = TraceLogger(config.log_dir)
         self.tool_names = {spec.name for spec in self.tools.specs()}
+        self.planned_writes: set[tuple[str, str]] = set()
 
     def run(self) -> AgentState:
         state = AgentState()
@@ -85,6 +87,13 @@ class TerminalAgent:
             observations.append(
                 f"{call.name}: {result.status}\nmetadata: {json.dumps(result.metadata, sort_keys=True)}\n{result.output}"
             )
+            if call.name == "plan_patch" and result.status == "ok":
+                relative_path = result.metadata.get("relative_path")
+                content_hash = result.metadata.get("content_sha256")
+                if isinstance(relative_path, str) and isinstance(content_hash, str):
+                    self.planned_writes.add((relative_path, content_hash))
+                    state.patch_plans += 1
+
             if result.status == "blocked":
                 state.final_answer = (
                     f"Blocked by safety policy while running `{call.name}`.\n\n"
@@ -92,8 +101,30 @@ class TerminalAgent:
                     "Review the command and rerun with `--approval-mode auto` if it is expected."
                 )
                 break
-            if call.name == "run_shell" and result.status == "ok" and tests_passed(result.output):
-                state.tests_passed = True
+            if call.name == "write_file" and result.status == "ok":
+                relative_path = result.metadata.get("relative_path")
+                if isinstance(relative_path, str) and relative_path not in state.changed_files:
+                    state.changed_files.append(relative_path)
+                content_hash = result.metadata.get("content_sha256")
+                if isinstance(relative_path, str) and isinstance(content_hash, str):
+                    self.planned_writes.discard((relative_path, content_hash))
+
+            if call.name == "run_shell" and result.status == "ok":
+                command = call.arguments.get("command", "")
+                if isinstance(command, str):
+                    state.test_runs.append(command)
+                passed = tests_passed(result.output)
+                state.tests_passed = state.tests_passed or passed
+                if not passed:
+                    state.failed_test_runs += 1
+                    self.logger.write(
+                        "reflection",
+                        {
+                            "step": step,
+                            "summary": "test command did not pass; continue with targeted diagnosis",
+                            "failed_test_runs": state.failed_test_runs,
+                        },
+                    )
 
             if call.name == "git_diff" and result.status == "ok":
                 state.completed = True
@@ -109,13 +140,22 @@ class TerminalAgent:
     @staticmethod
     def _format_final_answer(state: AgentState, diff: str) -> str:
         test_status = "passed" if state.tests_passed else "not confirmed"
-        cost_line = ""
+        files = ", ".join(state.changed_files) if state.changed_files else "none"
+        residual_risk = "none known" if state.tests_passed else "tests did not confirm the change"
+        lines = [
+            f"Completed in {state.steps} steps.",
+            f"Files changed: {files}.",
+            f"Patch plans reviewed: {state.patch_plans}.",
+            f"Tests run: {len(state.test_runs)}; status: {test_status}.",
+            f"Failed test attempts before completion: {state.failed_test_runs}.",
+            f"Residual risk: {residual_risk}.",
+        ]
         if state.input_tokens or state.output_tokens:
-            cost_line = (
-                f"\nTokens: {state.input_tokens} input, {state.output_tokens} output."
-                f"\nEstimated model cost: ${state.estimated_cost_usd:.6f}."
+            lines.append(
+                f"Tokens: {state.input_tokens} input, {state.output_tokens} output; "
+                f"estimated model cost: ${state.estimated_cost_usd:.6f}."
             )
-        return f"Completed in {state.steps} steps. Tests: {test_status}.{cost_line}\n\nFinal diff:\n{diff}"
+        return "\n".join(lines) + f"\n\nFinal diff:\n{diff}"
 
     def _validate_tool_call(self, call: ToolCall) -> str | None:
         if call.name not in self.tool_names:
@@ -125,6 +165,7 @@ class TerminalAgent:
         required_args = {
             "search": {"query"},
             "read_file": {"path"},
+            "plan_patch": {"path", "content"},
             "write_file": {"path", "content"},
             "run_shell": {"command"},
             "git_diff": set(),
@@ -132,4 +173,22 @@ class TerminalAgent:
         missing = sorted(name for name in required_args if name not in call.arguments)
         if missing:
             return f"missing required argument(s): {', '.join(missing)}"
+        if call.name == "write_file":
+            plan_error = self._validate_planned_write(call)
+            if plan_error:
+                return plan_error
+        return None
+
+    def _validate_planned_write(self, call: ToolCall) -> str | None:
+        path = str(call.arguments.get("path", ""))
+        content = str(call.arguments.get("content", ""))
+        try:
+            target = resolve_inside_root(self.tools.repo, path)
+        except ValueError as exc:
+            return str(exc)
+
+        relative_path = str(target.relative_to(self.tools.repo))
+        planned_key = (relative_path, sha256_text(content))
+        if planned_key not in self.planned_writes:
+            return "write_file requires a matching plan_patch first"
         return None
