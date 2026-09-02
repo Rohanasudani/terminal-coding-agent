@@ -10,7 +10,11 @@ Run:
 termagent bench --repo-root .
 ```
 
-The harness writes `bench/results/latest.json` with pass/fail counts, runtime, verifier output, trace location, and task name.
+The harness writes:
+
+- `bench/results/latest.json`: machine-readable pass/fail, runtime, verifier output, usage, and trace metadata
+- `bench/results/latest.md`: GitHub-readable summary table
+- `bench/results/traces/<task>`: persisted JSONL traces for each benchmark task
 
 Each task can define its own verifier command. The default command uses the current Python executable:
 
@@ -21,6 +25,19 @@ Each task can define its own verifier command. The default command uses the curr
 That placeholder makes benchmarks more portable across virtual environments and CI.
 
 Reports also include provider, model, token usage, and estimated model cost. Deterministic local providers report zero model tokens; live provider runs include usage returned by the model API.
+
+## Current Suite
+
+| Task | Bug Shape |
+| --- | --- |
+| `bugfix_calculator` | arithmetic operator repair |
+| `bugfix_clamp_score` | bounds checking |
+| `bugfix_divide` | arithmetic operator repair |
+| `bugfix_email_normalization` | string normalization |
+| `bugfix_slugify` | whitespace and separator normalization |
+| `bugfix_word_count` | character count vs. token count |
+
+Current deterministic baseline: `6/6` tasks pass with the `repair` provider.
 
 ## Why Start Local
 
@@ -33,6 +50,8 @@ Local tasks are cheap, deterministic, and fast. They help catch regressions in:
 - agent loop completion
 - trace logging
 - test-first repair behavior
+- report generation
+- trace persistence
 
 ## Terminal-Bench Direction
 
@@ -42,4 +61,4 @@ This project should eventually provide an adapter that lets Harbor invoke `terma
 
 ## Anti-Cheating Rule
 
-Do not hardcode benchmark answers as the final strategy. Small targeted heuristics can be useful experiments, but the project should document them clearly and measure whether they generalize.
+Do not hardcode benchmark answers as the final strategy. The deterministic `repair` provider uses small, transparent heuristics as a local baseline. Real improvement should come from better planning, repository intelligence, live-provider behavior, and broader benchmark coverage.

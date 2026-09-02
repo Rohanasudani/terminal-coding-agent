@@ -34,14 +34,24 @@ Status: complete
 - token and cost accounting
 - model configuration through `termagent.toml`
 
-## Milestone 4: Better Coding Loop
+## Milestone 4: Benchmark Expansion
+
+Status: complete
+
+- expanded local benchmark suite to six tasks
+- JSON and Markdown benchmark reports
+- persistent per-task traces
+- pass-rate and cost summary
+- regression tests for benchmark report generation
+
+## Milestone 5: Better Coding Loop
 
 - patch planning before writes
 - multi-file edit strategy
 - retry/reflection after repeated failing tests
 - final answer with files changed, tests run, and residual risk
 
-## Milestone 5: Repository Intelligence
+## Milestone 6: Repository Intelligence
 
 - symbol index
 - import graph
@@ -49,14 +59,13 @@ Status: complete
 - AST-aware edit checks
 - tree-sitter exploration
 
-## Milestone 6: Benchmarking
+## Milestone 7: Terminal-Bench Direction
 
-- more local tasks across Python and TypeScript
 - baseline comparisons against simple agents
 - benchmark report in the README
 - Harbor/Terminal-Bench adapter
 
-## Milestone 7: Product Polish
+## Milestone 8: Product Polish
 
 - demo GIF
 - richer README

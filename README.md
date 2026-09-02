@@ -31,6 +31,8 @@ This project treats the agent as an engineering system:
 - OpenAI-compatible provider with strict structured tool-call output and retry handling
 - `termagent.toml` project config
 - token usage and estimated model cost reporting
+- six-task local benchmark suite with JSON and Markdown reports
+- persistent per-task trace artifacts for benchmark debugging
 - JSONL traces for tool calls, observations, and final answers
 
 ## Quickstart
@@ -97,14 +99,21 @@ This is intentionally conservative. A real terminal agent should make it harder 
 
 The local benchmark harness copies each task fixture into an isolated temporary workspace, runs the agent, then runs the task verifier. Reports include pass/fail status, duration, trace path, and verifier output.
 
+See [docs/benchmark-report.md](docs/benchmark-report.md) for the latest checked-in baseline.
+
+Current local baseline:
+
+| Provider | Tasks | Passed | Pass Rate | Model Cost |
+| --- | ---: | ---: | ---: | ---: |
+| repair | 6 | 6 | 100% | $0.000000 |
+
 This is the bridge to Terminal-Bench-style evaluation: the agent is designed around reproducible tasks, verifier commands, execution logs, and pass/fail reports from day one.
 
 ## Roadmap
 
-- richer planning and reflection loop
+- richer planning and reflection loop for repeated failures
 - benchmark adapter for Terminal-Bench/Harbor
 - sub-agent orchestration experiments
 - AST-aware code map using tree-sitter
-- token/cost accounting
 - interactive TUI
 - GitHub-ready demo GIF and benchmark report

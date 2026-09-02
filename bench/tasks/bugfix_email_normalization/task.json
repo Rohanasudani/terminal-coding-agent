@@ -1,0 +1,7 @@
+{
+  "instruction": "Fix normalize_email so emails are trimmed and lowercased, then run the test suite.",
+  "category": "bugfix",
+  "language": "python",
+  "verify": "{python} -m pytest -q",
+  "max_steps": 8
+}

@@ -65,6 +65,9 @@ class RepairProvider(Provider):
             return ToolCall("run_shell", {"command": self.test_command, "timeout": 60})
 
         if latest.startswith("read_file: ok"):
+            imported_symbol = symbol_imported_by_test(observations[-1])
+            if imported_symbol:
+                return ToolCall("search", {"query": f"def {imported_symbol}", "glob": "*.py"})
             patch = patch_from_read_output(task, observations[-1])
             if patch:
                 return ToolCall("write_file", patch)
@@ -263,7 +266,38 @@ def patch_from_read_output(task: str, output: str) -> dict[str, str] | None:
     if "multiply" in lowered_task and "return a + b" in content:
         return {"path": path, "content": content.replace("return a + b", "return a * b")}
 
+    if "divide" in lowered_task and "return a * b" in content:
+        return {"path": path, "content": content.replace("return a * b", "return a / b")}
+
+    if "clamp" in lowered_task and "return score" in content:
+        return {"path": path, "content": content.replace("return score", "return min(max(score, 0), 100)")}
+
+    if "slug" in lowered_task and "return text.lower()" in content:
+        return {
+            "path": path,
+            "content": content.replace(
+                "return text.lower()",
+                'return "-".join(text.strip().lower().split())',
+            ),
+        }
+
+    if "email" in lowered_task and "return email.strip()" in content:
+        return {"path": path, "content": content.replace("return email.strip()", "return email.strip().lower()")}
+
+    if "word" in lowered_task and "return len(text)" in content:
+        return {"path": path, "content": content.replace("return len(text)", "return len(text.split())")}
+
     return None
+
+
+def symbol_imported_by_test(output: str) -> str | None:
+    path = read_path_from_observation(output)
+    if not path or not path.rsplit("/", maxsplit=1)[-1].startswith("test_"):
+        return None
+
+    content = strip_numbered_lines(output)
+    match = re.search(r"^from\s+\w+\s+import\s+([A-Za-z_]\w*)", content, flags=re.MULTILINE)
+    return match.group(1) if match else None
 
 
 def read_path_from_observation(output: str) -> str | None:

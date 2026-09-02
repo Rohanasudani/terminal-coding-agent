@@ -3,7 +3,12 @@ import json
 import pytest
 
 from termagent import provider
-from termagent.provider import OpenAICompatibleProvider, parse_tool_call, tool_call_response_format
+from termagent.provider import (
+    OpenAICompatibleProvider,
+    parse_tool_call,
+    symbol_imported_by_test,
+    tool_call_response_format,
+)
 
 
 class FakeResponse:
@@ -57,3 +62,16 @@ def test_openai_provider_retries_invalid_json_and_tracks_usage(monkeypatch):
     assert output.usage.output_tokens == 3
     assert output.attempts == 2
     assert seen_payloads[0]["text"] == {"format": tool_call_response_format()}
+
+
+def test_symbol_imported_by_test_extracts_imported_function():
+    observation = """
+read_file: ok
+metadata: {"path": "/tmp/repo/test_users.py"}
+   1 | from users import normalize_email
+   2 |
+   3 | def test_lowercases_email():
+   4 |     assert normalize_email("MAYA@EXAMPLE.COM") == "maya@example.com"
+"""
+
+    assert symbol_imported_by_test(observation) == "normalize_email"

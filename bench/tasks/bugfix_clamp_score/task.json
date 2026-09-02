@@ -1,0 +1,7 @@
+{
+  "instruction": "Fix clamp_score so scores are clamped between 0 and 100, then run the test suite.",
+  "category": "bugfix",
+  "language": "python",
+  "verify": "{python} -m pytest -q",
+  "max_steps": 8
+}

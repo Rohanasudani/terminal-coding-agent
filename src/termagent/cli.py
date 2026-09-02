@@ -6,7 +6,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from .agent import TerminalAgent
-from .bench import run_benchmark, write_report
+from .bench import run_benchmark, write_markdown_report, write_report
 from .config import apply_config_file
 from .models import AgentConfig
 from .tools import ToolRegistry
@@ -35,6 +35,7 @@ def build_parser() -> argparse.ArgumentParser:
     bench.add_argument("--repo-root", type=Path, default=Path("."))
     bench.add_argument("--tasks-dir", type=Path)
     bench.add_argument("--report", type=Path, default=Path("bench/results/latest.json"))
+    bench.add_argument("--markdown-report", type=Path, default=Path("bench/results/latest.md"))
 
     return parser
 
@@ -83,9 +84,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "bench":
         results = run_benchmark(args.repo_root, args.tasks_dir)
         write_report(results, args.report)
+        write_markdown_report(results, args.markdown_report)
         passed = sum(1 for result in results if result.passed)
         print(f"{passed}/{len(results)} tasks passed")
         print(args.report)
+        print(args.markdown_report)
         return 0 if passed == len(results) else 1
 
     return 1

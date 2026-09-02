@@ -1,0 +1,7 @@
+{
+  "instruction": "Fix word_count so it counts words instead of characters, then run the test suite.",
+  "category": "bugfix",
+  "language": "python",
+  "verify": "{python} -m pytest -q",
+  "max_steps": 8
+}

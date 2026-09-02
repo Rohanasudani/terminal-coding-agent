@@ -1,0 +1,7 @@
+{
+  "instruction": "Fix slugify so it trims text, lowercases it, and joins words with hyphens, then run the test suite.",
+  "category": "bugfix",
+  "language": "python",
+  "verify": "{python} -m pytest -q",
+  "max_steps": 8
+}
