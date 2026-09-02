@@ -27,6 +27,12 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--log-dir", type=Path)
     run.add_argument("--test-command")
     run.add_argument("--provider-retries", type=int)
+    run.add_argument("--prompt-profile", choices=["conservative", "benchmark", "fast"])
+    run.add_argument("--max-cost-usd", type=float)
+    run.add_argument("--max-validation-errors", type=int)
+    run.add_argument("--observation-limit", type=int)
+    run.add_argument("--max-observation-chars", type=int)
+    run.add_argument("--allow-network-commands", action="store_true")
 
     tools = subparsers.add_parser("tools", help="List available tools")
     tools.add_argument("--repo", type=Path, default=Path("."))
@@ -68,6 +74,12 @@ def main(argv: list[str] | None = None) -> int:
                 "log_dir": args.log_dir,
                 "test_command": args.test_command,
                 "provider_retries": args.provider_retries,
+                "prompt_profile": args.prompt_profile,
+                "max_cost_usd": args.max_cost_usd,
+                "max_validation_errors": args.max_validation_errors,
+                "observation_limit": args.observation_limit,
+                "max_observation_chars": args.max_observation_chars,
+                "allow_network_commands": True if args.allow_network_commands else None,
             }.items()
             if value is not None
         }

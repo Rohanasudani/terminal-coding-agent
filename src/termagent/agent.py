@@ -15,13 +15,20 @@ from .tools import ToolRegistry, sha256_text
 class TerminalAgent:
     def __init__(self, config: AgentConfig) -> None:
         self.config = config
-        self.tools = ToolRegistry(config.repo, config.approval_mode)
+        self.tools = ToolRegistry(
+            config.repo,
+            config.approval_mode,
+            allow_network=config.allow_network_commands,
+        )
         self.test_command = config.test_command.format(python=sys.executable)
         self.provider = build_provider(
             config.provider,
             model=config.model,
             test_command=self.test_command,
             max_retries=config.provider_retries,
+            prompt_profile=config.prompt_profile,
+            observation_limit=config.observation_limit,
+            max_observation_chars=config.max_observation_chars,
         )
         self.logger = TraceLogger(config.log_dir)
         self.tool_names = {spec.name for spec in self.tools.specs()}
@@ -37,10 +44,13 @@ class TerminalAgent:
                 "task": self.config.task,
                 "provider": self.config.provider,
                 "model": self.config.model,
-                "approval_mode": self.config.approval_mode,
-                "test_command": self.test_command,
-            },
-        )
+                    "approval_mode": self.config.approval_mode,
+                    "test_command": self.test_command,
+                    "prompt_profile": self.config.prompt_profile,
+                    "max_cost_usd": self.config.max_cost_usd,
+                    "allow_network_commands": self.config.allow_network_commands,
+                },
+            )
 
         for step in range(1, self.config.max_steps + 1):
             state.steps = step
@@ -68,15 +78,48 @@ class TerminalAgent:
                     "estimated_cost_usd": state.estimated_cost_usd,
                 },
             )
+            if self._cost_limit_exceeded(state):
+                state.stopped_by_cost_limit = True
+                state.final_answer = (
+                    f"Stopped before executing `{provider_output.tool_call.name}` because the run exceeded "
+                    f"the configured model cost ceiling of ${self.config.max_cost_usd:.6f}. "
+                    f"Estimated cost so far: ${state.estimated_cost_usd:.6f}."
+                )
+                self.logger.write(
+                    "cost_limit_exceeded",
+                    {
+                        "step": step,
+                        "estimated_cost_usd": state.estimated_cost_usd,
+                        "max_cost_usd": self.config.max_cost_usd,
+                    },
+                )
+                break
 
             validation_error = self._validate_tool_call(call)
             if validation_error:
-                state.final_answer = f"Provider selected an invalid tool call: {validation_error}"
+                state.validation_errors += 1
                 self.logger.write(
                     "invalid_tool_call",
-                    {"step": step, "name": call.name, "arguments": call.arguments, "error": validation_error},
+                    {
+                        "step": step,
+                        "name": call.name,
+                        "arguments": call.arguments,
+                        "error": validation_error,
+                        "validation_errors": state.validation_errors,
+                    },
                 )
-                break
+                observations.append(
+                    "tool_validation: error\n"
+                    f"metadata: {json.dumps({'name': call.name, 'arguments': call.arguments}, sort_keys=True)}\n"
+                    f"{validation_error}"
+                )
+                if state.validation_errors >= self.config.max_validation_errors:
+                    state.final_answer = (
+                        "Provider selected invalid tool calls repeatedly: "
+                        f"{validation_error}"
+                    )
+                    break
+                continue
 
             self.logger.write("tool_call", {"step": step, "name": call.name, "arguments": call.arguments})
             result = self.tools.call(call.name, call.arguments)
@@ -164,6 +207,11 @@ class TerminalAgent:
                 f"estimated model cost: ${state.estimated_cost_usd:.6f}."
             )
         return "\n".join(lines) + f"\n\nFinal diff:\n{diff}"
+
+    def _cost_limit_exceeded(self, state: AgentState) -> bool:
+        if self.config.max_cost_usd is None:
+            return False
+        return state.estimated_cost_usd > self.config.max_cost_usd
 
     def _validate_tool_call(self, call: ToolCall) -> str | None:
         if call.name not in self.tool_names:

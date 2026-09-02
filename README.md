@@ -32,6 +32,9 @@ This project treats the agent as an engineering system:
 - OpenAI-compatible provider with strict structured tool-call output and retry handling
 - `termagent.toml` project config
 - token usage and estimated model cost reporting
+- live-mode cost ceilings, prompt profiles, validation recovery, and observation caps
+- hardened shell execution without `shell=True`
+- network commands blocked by default
 - seven-task local benchmark suite with JSON and Markdown reports
 - persistent per-task trace artifacts for benchmark debugging
 - JSONL traces for tool calls, observations, and final answers
@@ -70,10 +73,13 @@ termagent run \
   --repo /path/to/repo \
   --task "Find the failing test, patch the bug, rerun tests, and show the final diff" \
   --provider openai \
-  --approval-mode auto
+  --approval-mode auto \
+  --max-cost-usd 0.25
 ```
 
 Use `repair` for deterministic local benchmark runs. Use `openai` when you want a real model to choose tools.
+
+By default, live mode uses conservative settings: bounded observation context, a small model-cost ceiling, no network shell commands, and required patch previews before writes. Add `--allow-network-commands` only for trusted repositories and tasks that genuinely need network access. See [docs/security-audit.md](docs/security-audit.md) for the current safety audit and known limitations.
 
 ## Example
 

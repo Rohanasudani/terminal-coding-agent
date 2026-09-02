@@ -3,7 +3,7 @@ from pathlib import Path
 
 import termagent.agent as agent_module
 from termagent.agent import TerminalAgent, summarize_subsystems
-from termagent.models import AgentConfig, ProviderOutput, ToolCall
+from termagent.models import AgentConfig, ProviderOutput, TokenUsage, ToolCall
 
 
 def test_mock_agent_fixes_calculator_fixture(tmp_path: Path):
@@ -61,7 +61,7 @@ def test_agent_rejects_invalid_provider_tool_call(tmp_path: Path, monkeypatch):
 
     assert state.completed is False
     assert state.final_answer is not None
-    assert "invalid tool call" in state.final_answer
+    assert "invalid tool calls repeatedly" in state.final_answer
 
 
 def test_agent_rejects_unplanned_write(tmp_path: Path, monkeypatch):
@@ -76,6 +76,45 @@ def test_agent_rejects_unplanned_write(tmp_path: Path, monkeypatch):
     assert state.completed is False
     assert state.final_answer is not None
     assert "matching plan_patch" in state.final_answer
+    assert not (tmp_path / "module.py").exists()
+
+
+def test_agent_recovers_from_one_invalid_tool_call(tmp_path: Path, monkeypatch):
+    class RecoveringProvider:
+        def next_action(self, task: str, observations: list[str]) -> ProviderOutput:
+            if not observations:
+                return ProviderOutput(ToolCall("write_file", {"path": "module.py", "content": "value = 1\n"}))
+            return ProviderOutput(ToolCall("git_diff", {}))
+
+    monkeypatch.setattr(agent_module, "build_provider", lambda *args, **kwargs: RecoveringProvider())
+
+    state = TerminalAgent(
+        AgentConfig(repo=tmp_path, task="recover", provider="openai", max_validation_errors=2)
+    ).run()
+
+    assert state.completed is True
+    assert state.validation_errors == 1
+    assert not (tmp_path / "module.py").exists()
+
+
+def test_agent_stops_before_tool_execution_when_cost_limit_is_exceeded(tmp_path: Path, monkeypatch):
+    class ExpensiveProvider:
+        def next_action(self, task: str, observations: list[str]) -> ProviderOutput:
+            return ProviderOutput(
+                ToolCall("write_file", {"path": "module.py", "content": "value = 1\n"}),
+                usage=TokenUsage(input_tokens=1_000_000, output_tokens=1_000_000),
+            )
+
+    monkeypatch.setattr(agent_module, "build_provider", lambda *args, **kwargs: ExpensiveProvider())
+
+    state = TerminalAgent(
+        AgentConfig(repo=tmp_path, task="too expensive", provider="openai", max_cost_usd=0.01)
+    ).run()
+
+    assert state.completed is False
+    assert state.stopped_by_cost_limit is True
+    assert state.final_answer is not None
+    assert "cost ceiling" in state.final_answer
     assert not (tmp_path / "module.py").exists()
 
 

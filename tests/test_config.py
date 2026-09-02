@@ -17,6 +17,12 @@ def test_apply_config_file_overrides_agent_defaults(tmp_path: Path):
         max_steps = 20
         test_command = "uv run pytest -q"
         provider_retries = 3
+        prompt_profile = "benchmark"
+        max_cost_usd = 0.75
+        max_validation_errors = 4
+        observation_limit = 3
+        max_observation_chars = 5000
+        allow_network_commands = true
         log_dir = ".termagent/custom"
         """,
         encoding="utf-8",
@@ -30,6 +36,12 @@ def test_apply_config_file_overrides_agent_defaults(tmp_path: Path):
     assert config.max_steps == 20
     assert config.test_command == "uv run pytest -q"
     assert config.provider_retries == 3
+    assert config.prompt_profile == "benchmark"
+    assert config.max_cost_usd == 0.75
+    assert config.max_validation_errors == 4
+    assert config.observation_limit == 3
+    assert config.max_observation_chars == 5000
+    assert config.allow_network_commands is True
     assert config.log_dir == Path(".termagent/custom")
 
 

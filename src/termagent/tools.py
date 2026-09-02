@@ -7,6 +7,7 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from shlex import split
 
 from .models import ApprovalMode, ToolResult
 from .safety import classify_command, resolve_inside_root
@@ -26,9 +27,10 @@ class PatchFile:
 
 
 class ToolRegistry:
-    def __init__(self, repo: Path, approval_mode: ApprovalMode) -> None:
+    def __init__(self, repo: Path, approval_mode: ApprovalMode, allow_network: bool = False) -> None:
         self.repo = repo.resolve()
         self.approval_mode = approval_mode
+        self.allow_network = allow_network
         self._baseline = self._snapshot()
 
     def specs(self) -> list[ToolSpec]:
@@ -93,7 +95,7 @@ class ToolRegistry:
                 return self.run_shell(str(arguments.get("command", "")), int(arguments.get("timeout", 30)))
             if name == "git_diff":
                 return self.git_diff()
-        except (OSError, ValueError, UnicodeError, subprocess.SubprocessError) as exc:
+        except (OSError, TypeError, ValueError, UnicodeError, subprocess.SubprocessError) as exc:
             return ToolResult("error", str(exc))
 
         return ToolResult("error", f"unknown tool: {name}")
@@ -206,16 +208,16 @@ class ToolRegistry:
         return ToolResult("ok", "\n".join(chunk for chunk in chunks if chunk).strip() or "files unchanged", {"files": metadata_files})
 
     def run_shell(self, command: str, timeout: int = 30) -> ToolResult:
-        decision = classify_command(command, self.approval_mode)
+        decision = classify_command(command, self.approval_mode, allow_network=self.allow_network)
         if decision.needs_approval:
             return ToolResult("blocked", decision.reason, {"command": command})
         if not decision.allowed:
             return ToolResult("blocked", decision.reason, {"command": command})
+        parts = split(command)
 
         completed = subprocess.run(
-            command,
+            parts,
             cwd=self.repo,
-            shell=True,
             text=True,
             capture_output=True,
             timeout=max(1, min(timeout, 120)),

@@ -35,6 +35,8 @@ The provider boundary returns a structured tool call plus usage metadata. Local 
 
 The live provider does not execute model text directly. It only accepts a structured `{name, arguments}` tool call, and the agent validates that tool call before handing it to the tool registry.
 
+Live mode adds conservative controls around provider cost and context use. The provider receives only a bounded tail of observations, supports prompt profiles for different operating modes, and stops before tool execution if the estimated model cost exceeds the configured ceiling.
+
 ## Planned Writes
 
 File edits go through a two-step contract:
@@ -67,6 +69,10 @@ Shell commands are classified before execution:
 - read-only commands run automatically
 - mutating commands require approval unless the run is explicitly configured with `approval_mode=auto`
 - destructive commands are blocked by default
+- network commands are blocked by default
+- inline interpreter execution and shell control operators are blocked
+
+Commands are executed as parsed argv lists rather than through a shell. This reduces command-injection risk from live provider outputs while keeping normal commands such as `python -m pytest -q` usable.
 
 This mirrors the safety model expected from a real terminal coding agent: useful by default, cautious around writes, and hostile to accidental destructive operations.
 

@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
 from .diagnostics import parse_pytest_failure, tests_passed
-from .models import ProviderOutput, TokenUsage, ToolCall
+from .models import PromptProfile, ProviderOutput, TokenUsage, ToolCall
 
 
 class Provider(ABC):
@@ -98,9 +98,19 @@ class MockProvider(Provider):
 
 
 class OpenAICompatibleProvider(Provider):
-    def __init__(self, model: str, max_retries: int = 2) -> None:
+    def __init__(
+        self,
+        model: str,
+        max_retries: int = 2,
+        prompt_profile: PromptProfile = "conservative",
+        observation_limit: int = 6,
+        max_observation_chars: int = 8_000,
+    ) -> None:
         self.model = model
         self.max_retries = max(0, max_retries)
+        self.prompt_profile = prompt_profile
+        self.observation_limit = max(1, observation_limit)
+        self.max_observation_chars = max(1_000, max_observation_chars)
         self.api_key = os.environ.get("OPENAI_API_KEY", "")
 
     def next_action(self, task: str, observations: list[str]) -> ProviderOutput:
@@ -128,11 +138,15 @@ class OpenAICompatibleProvider(Provider):
         payload = {
             "model": self.model,
             "input": [
-                {"role": "system", "content": provider_system_prompt()},
+                {"role": "system", "content": provider_system_prompt(self.prompt_profile)},
                 {
                     "role": "user",
                     "content": f"Task:\n{task}\n\nObservations:\n"
-                    + "\n\n".join(observations[-8:])
+                    + compact_observations(
+                        observations,
+                        limit=self.observation_limit,
+                        max_chars=self.max_observation_chars,
+                    )
                     + repair_note,
                 },
             ],
@@ -163,8 +177,8 @@ class OpenAICompatibleProvider(Provider):
             raise RuntimeError(f"OpenAI API request failed: {exc.reason}") from exc
 
 
-def provider_system_prompt() -> str:
-    return (
+def provider_system_prompt(profile: PromptProfile = "conservative") -> str:
+    base = (
         "You are TermAgent, a terminal coding agent. Choose exactly one tool call. "
         "Start by gathering evidence with run_shell, search, or read_file. Prefer minimal edits. "
         "Before writing a file, call plan_patch with the exact path and content you intend to write. "
@@ -173,6 +187,18 @@ def provider_system_prompt() -> str:
         "rerun the configured tests. Use git_diff only when the work is done or you are blocked. "
         "Return only the structured tool call."
     )
+    profiles = {
+        "conservative": (
+            " Avoid broad rewrites, avoid network commands unless explicitly configured, and recover from "
+            "tool validation errors by choosing a safer evidence-gathering step."
+        ),
+        "benchmark": (
+            " Optimize for reproducible benchmark success: run the verifier early, keep edits minimal, "
+            "and finish only after a clean verifier result or a clear blocker."
+        ),
+        "fast": " Prefer the shortest safe path to a verified diff.",
+    }
+    return base + profiles[profile]
 
 
 def tool_call_response_format() -> dict[str, object]:
@@ -262,6 +288,16 @@ def add_usage(left: TokenUsage, right: TokenUsage) -> TokenUsage:
         input_tokens=left.input_tokens + right.input_tokens,
         output_tokens=left.output_tokens + right.output_tokens,
     )
+
+
+def compact_observations(observations: list[str], limit: int, max_chars: int) -> str:
+    selected = observations[-limit:]
+    text = "\n\n".join(selected)
+    if len(text) <= max_chars:
+        return text
+    marker = "[older observation content truncated]\n"
+    tail_size = max(0, max_chars - len(marker))
+    return marker + text[-tail_size:]
 
 
 def first_search_path(output: str) -> str | None:
@@ -361,6 +397,9 @@ def build_provider(
     model: str | None = None,
     test_command: str | None = None,
     max_retries: int = 2,
+    prompt_profile: PromptProfile = "conservative",
+    observation_limit: int = 6,
+    max_observation_chars: int = 8_000,
 ) -> Provider:
     if name == "mock":
         return MockProvider()
@@ -370,5 +409,8 @@ def build_provider(
         return OpenAICompatibleProvider(
             model or os.environ.get("TERMAGENT_MODEL", "gpt-5.6-luna"),
             max_retries=max_retries,
+            prompt_profile=prompt_profile,
+            observation_limit=observation_limit,
+            max_observation_chars=max_observation_chars,
         )
     raise ValueError(f"unknown provider: {name}")

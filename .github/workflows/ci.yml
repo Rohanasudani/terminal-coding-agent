@@ -24,6 +24,10 @@ jobs:
       - name: Lint
         run: ruff check .
 
+      - name: Security smoke
+        run: |
+          python -c "from pathlib import Path; bad=('shell=True','eval(','exec(','pickle'); hits=[str(p) for p in Path('src').rglob('*.py') if any(item in p.read_text(encoding='utf-8') for item in bad)]; raise SystemExit('\\n'.join(hits) if hits else 0)"
+
       - name: Unit tests
         run: pytest -q
 

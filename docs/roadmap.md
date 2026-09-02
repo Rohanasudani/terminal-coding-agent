@@ -64,7 +64,11 @@ Status: complete
 
 ## Milestone 7: Live Provider Hardening
 
-- live run smoke tests with a tiny fixture
+Status: complete
+
+- live-mode smoke tests for provider errors and tool-call recovery
+- mocked live-provider tests without spending API credits
+- missing-key live-mode smoke test
 - provider-specific prompt profiles
 - structured failure recovery when plans do not apply
 - cost ceilings per run

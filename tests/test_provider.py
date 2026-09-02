@@ -5,7 +5,9 @@ import pytest
 from termagent import provider
 from termagent.provider import (
     OpenAICompatibleProvider,
+    compact_observations,
     parse_tool_call,
+    provider_system_prompt,
     symbol_imported_by_test,
     tool_call_response_format,
 )
@@ -33,6 +35,24 @@ def test_tool_call_response_format_uses_strict_schema():
     assert "plan_patch" in response_format["schema"]["properties"]["name"]["enum"]
     assert "plan_patch_set" in response_format["schema"]["properties"]["name"]["enum"]
     assert "write_patch_set" in response_format["schema"]["properties"]["name"]["enum"]
+
+
+def test_prompt_profiles_change_live_provider_instructions():
+    conservative = provider_system_prompt("conservative")
+    benchmark = provider_system_prompt("benchmark")
+
+    assert "validation errors" in conservative
+    assert "reproducible benchmark success" in benchmark
+
+
+def test_compact_observations_caps_prompt_context():
+    observations = [f"observation-{index}-" + ("x" * 50) for index in range(5)]
+
+    compacted = compact_observations(observations, limit=3, max_chars=80)
+
+    assert "observation-0" not in compacted
+    assert len(compacted) <= 117
+    assert compacted.startswith("[older observation content truncated]")
 
 
 def test_parse_tool_call_requires_json_object():

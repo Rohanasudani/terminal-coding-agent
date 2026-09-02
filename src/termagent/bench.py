@@ -8,6 +8,7 @@ import tempfile
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from shlex import split
 
 from .agent import TerminalAgent
 from .models import AgentConfig
@@ -66,9 +67,8 @@ def run_benchmark(
             )
             state = TerminalAgent(config).run()
             verifier = subprocess.run(
-                verify_command,
+                split(verify_command),
                 cwd=workspace,
-                shell=True,
                 text=True,
                 capture_output=True,
                 timeout=60,

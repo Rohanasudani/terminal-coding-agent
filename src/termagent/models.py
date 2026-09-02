@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 ApprovalMode = Literal["never", "suggest", "auto"]
+PromptProfile = Literal["conservative", "benchmark", "fast"]
 ToolStatus = Literal["ok", "error", "blocked"]
 
 
@@ -49,6 +50,12 @@ class AgentConfig:
     model: str = "gpt-5.6-luna"
     test_command: str = "{python} -m pytest -q"
     provider_retries: int = 2
+    prompt_profile: PromptProfile = "conservative"
+    max_cost_usd: float | None = 0.25
+    max_validation_errors: int = 2
+    observation_limit: int = 6
+    max_observation_chars: int = 8_000
+    allow_network_commands: bool = False
 
 
 @dataclass
@@ -64,3 +71,5 @@ class AgentState:
     test_runs: list[str] = field(default_factory=list)
     failed_test_runs: int = 0
     patch_plans: int = 0
+    validation_errors: int = 0
+    stopped_by_cost_limit: bool = False

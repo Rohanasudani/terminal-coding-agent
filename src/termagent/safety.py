@@ -17,7 +17,6 @@ class SafetyDecision:
 READ_ONLY_COMMANDS = {
     "cat",
     "find",
-    "git",
     "grep",
     "head",
     "ls",
@@ -27,6 +26,16 @@ READ_ONLY_COMMANDS = {
     "tail",
     "test",
     "wc",
+}
+
+READ_ONLY_GIT_SUBCOMMANDS = {
+    "diff",
+    "grep",
+    "log",
+    "ls-files",
+    "rev-parse",
+    "show",
+    "status",
 }
 
 DESTRUCTIVE_TOKENS = {
@@ -43,6 +52,23 @@ DESTRUCTIVE_TOKENS = {
     "shutdown",
     "reboot",
 }
+
+NETWORK_COMMANDS = {
+    "curl",
+    "ftp",
+    "nc",
+    "netcat",
+    "rsync",
+    "scp",
+    "sftp",
+    "ssh",
+    "telnet",
+    "wget",
+}
+
+INLINE_EXEC_FLAGS = {"-c", "-e"}
+INLINE_EXECUTABLES = {"bash", "node", "perl", "python", "python3", "ruby", "sh", "zsh"}
+SHELL_METACHARS = {"&&", "||", ";", "|", "$(", "`"}
 
 WRITE_HINTS = {
     ">",
@@ -70,7 +96,11 @@ def resolve_inside_root(root: Path, candidate: str | Path) -> Path:
     return path
 
 
-def classify_command(command: str, approval_mode: ApprovalMode) -> SafetyDecision:
+def classify_command(
+    command: str,
+    approval_mode: ApprovalMode,
+    allow_network: bool = False,
+) -> SafetyDecision:
     try:
         parts = split(command)
     except ValueError as exc:
@@ -85,6 +115,18 @@ def classify_command(command: str, approval_mode: ApprovalMode) -> SafetyDecisio
     if executable in DESTRUCTIVE_TOKENS or tokens.intersection(DESTRUCTIVE_TOKENS):
         return SafetyDecision(False, False, "destructive command blocked by safety policy")
 
+    if not allow_network and (executable in NETWORK_COMMANDS or tokens.intersection(NETWORK_COMMANDS)):
+        return SafetyDecision(False, False, "network command blocked by safety policy")
+
+    if is_inline_interpreter(executable) and tokens.intersection(INLINE_EXEC_FLAGS):
+        return SafetyDecision(False, False, "inline interpreter execution blocked by safety policy")
+
+    if any(marker in command for marker in SHELL_METACHARS):
+        return SafetyDecision(False, False, "shell control operator blocked by safety policy")
+
+    if executable == "git" and len(parts) > 1 and parts[1] in READ_ONLY_GIT_SUBCOMMANDS:
+        return SafetyDecision(True, False, "read-only git command allowed")
+
     if executable in READ_ONLY_COMMANDS and not tokens.intersection(WRITE_HINTS):
         return SafetyDecision(True, False, "read-only command allowed")
 
@@ -96,3 +138,6 @@ def classify_command(command: str, approval_mode: ApprovalMode) -> SafetyDecisio
 
     return SafetyDecision(False, False, "approval mode is never")
 
+
+def is_inline_interpreter(executable: str) -> bool:
+    return executable in INLINE_EXECUTABLES or executable.startswith("python")

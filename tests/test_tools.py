@@ -62,6 +62,15 @@ def test_patch_set_previews_and_writes_grouped_diff(tmp_path: Path):
     assert len(written.metadata["files"]) == 2
 
 
+def test_patch_set_rejects_malformed_files_safely(tmp_path: Path):
+    tools = ToolRegistry(tmp_path, "auto")
+
+    result = tools.call("plan_patch_set", {"files": ["bad"]})
+
+    assert result.status == "error"
+    assert "patch file must be an object" in result.output
+
+
 def test_shell_blocks_destructive_commands(tmp_path: Path):
     tools = ToolRegistry(tmp_path, "auto")
 
