@@ -23,6 +23,27 @@ def test_mock_agent_fixes_calculator_fixture(tmp_path: Path):
     state = agent.run()
 
     assert state.completed is True
+    assert state.tests_passed is True
     assert "return a + b" in (repo / "calculator.py").read_text(encoding="utf-8")
+    assert "Final diff" in (state.final_answer or "")
     assert list((tmp_path / "traces").glob("*.jsonl"))
 
+
+def test_repair_agent_stops_when_test_command_needs_approval(tmp_path: Path):
+    source = Path(__file__).parent / "fixtures" / "sample_repo"
+    repo = tmp_path / "repo"
+    shutil.copytree(source, repo)
+
+    state = TerminalAgent(
+        AgentConfig(
+            repo=repo,
+            task="Fix the calculator add bug and run tests",
+            approval_mode="suggest",
+            max_steps=4,
+            provider="repair",
+        )
+    ).run()
+
+    assert state.completed is False
+    assert state.final_answer is not None
+    assert "Blocked by safety policy" in state.final_answer

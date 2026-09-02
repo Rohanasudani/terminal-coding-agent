@@ -17,10 +17,11 @@ def build_parser() -> argparse.ArgumentParser:
     run = subparsers.add_parser("run", help="Run the agent against a repository task")
     run.add_argument("--repo", required=True, type=Path)
     run.add_argument("--task", required=True)
-    run.add_argument("--provider", default="mock", choices=["mock", "openai"])
+    run.add_argument("--provider", default="repair", choices=["mock", "repair", "openai"])
     run.add_argument("--approval-mode", default="suggest", choices=["never", "suggest", "auto"])
     run.add_argument("--max-steps", default=12, type=int)
     run.add_argument("--log-dir", type=Path, default=Path(".termagent/traces"))
+    run.add_argument("--test-command", default="{python} -m pytest -q")
 
     tools = subparsers.add_parser("tools", help="List available tools")
     tools.add_argument("--repo", type=Path, default=Path("."))
@@ -49,6 +50,7 @@ def main(argv: list[str] | None = None) -> int:
             approval_mode=args.approval_mode,
             max_steps=args.max_steps,
             log_dir=args.log_dir,
+            test_command=args.test_command,
         )
         state = TerminalAgent(config).run()
         print(state.final_answer)
@@ -67,4 +69,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

@@ -12,6 +12,14 @@ termagent bench --repo-root .
 
 The harness writes `bench/results/latest.json` with pass/fail counts, runtime, verifier output, trace location, and task name.
 
+Each task can define its own verifier command. The default command uses the current Python executable:
+
+```bash
+{python} -m pytest -q
+```
+
+That placeholder makes benchmarks more portable across virtual environments and CI.
+
 ## Why Start Local
 
 Local tasks are cheap, deterministic, and fast. They help catch regressions in:
@@ -22,6 +30,7 @@ Local tasks are cheap, deterministic, and fast. They help catch regressions in:
 - shell safety policy
 - agent loop completion
 - trace logging
+- test-first repair behavior
 
 ## Terminal-Bench Direction
 
@@ -32,4 +41,3 @@ This project should eventually provide an adapter that lets Harbor invoke `terma
 ## Anti-Cheating Rule
 
 Do not hardcode benchmark answers as the final strategy. Small targeted heuristics can be useful experiments, but the project should document them clearly and measure whether they generalize.
-

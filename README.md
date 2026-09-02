@@ -25,7 +25,9 @@ This project treats the agent as an engineering system:
 - file read/write with path sandboxing
 - shell execution with deny/approval policy
 - git diff preview
+- test-first repair loop that runs the verifier, parses failures, searches likely symbols, patches, reruns tests, and reports the final diff
 - deterministic mock provider for tests and demos
+- deterministic repair provider for benchmarkable local coding tasks
 - JSONL traces for tool calls, observations, and final answers
 
 ## Quickstart
@@ -47,8 +49,10 @@ termagent bench --repo-root .
 termagent run \
   --repo /path/to/repo \
   --task "Find the failing test, patch the bug, and show the final diff" \
-  --approval-mode suggest
+  --approval-mode auto
 ```
+
+Use `--approval-mode suggest` when you want the agent to stop before commands that require approval.
 
 ## Safety Model
 
@@ -64,11 +68,11 @@ This is intentionally conservative. A real terminal agent should make it harder 
 
 The local benchmark harness copies each task fixture into an isolated temporary workspace, runs the agent, then runs the task verifier. Reports include pass/fail status, duration, trace path, and verifier output.
 
-This is the bridge to Terminal-Bench-style evaluation: the agent is designed around reproducible tasks and execution logs from day one.
+This is the bridge to Terminal-Bench-style evaluation: the agent is designed around reproducible tasks, verifier commands, execution logs, and pass/fail reports from day one.
 
 ## Roadmap
 
-- OpenAI-compatible live provider
+- stronger OpenAI-compatible live provider
 - richer planning and reflection loop
 - benchmark adapter for Terminal-Bench/Harbor
 - sub-agent orchestration experiments
@@ -76,4 +80,3 @@ This is the bridge to Terminal-Bench-style evaluation: the agent is designed aro
 - token/cost accounting
 - interactive TUI
 - GitHub-ready demo GIF and benchmark report
-

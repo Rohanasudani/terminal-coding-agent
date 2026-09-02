@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import difflib
+import os
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -21,6 +22,7 @@ class ToolRegistry:
     def __init__(self, repo: Path, approval_mode: ApprovalMode) -> None:
         self.repo = repo.resolve()
         self.approval_mode = approval_mode
+        self._baseline = self._snapshot()
 
     def specs(self) -> list[ToolSpec]:
         return [
@@ -63,7 +65,7 @@ class ToolRegistry:
                 return self.run_shell(str(arguments.get("command", "")), int(arguments.get("timeout", 30)))
             if name == "git_diff":
                 return self.git_diff()
-        except Exception as exc:
+        except (OSError, ValueError, UnicodeError, subprocess.SubprocessError) as exc:
             return ToolResult("error", str(exc))
 
         return ToolResult("error", f"unknown tool: {name}")
@@ -73,9 +75,10 @@ class ToolRegistry:
             return ToolResult("error", "query is required")
 
         if shutil.which("rg"):
-            command = ["rg", "-n", "--hidden", "--glob", "!.git", query]
+            command = ["rg", "-n", "--hidden", "--glob", "!.git"]
             if glob:
                 command.extend(["--glob", str(glob)])
+            command.append(query)
         else:
             command = ["grep", "-RIn", query, "."]
 
@@ -103,6 +106,7 @@ class ToolRegistry:
 
     def write_file(self, path: str, content: str) -> ToolResult:
         target = resolve_inside_root(self.repo, path)
+        relative_path = os.fspath(target.relative_to(self.repo))
         before = target.read_text(encoding="utf-8").splitlines(keepends=True) if target.exists() else []
         after = content.splitlines(keepends=True)
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -112,11 +116,11 @@ class ToolRegistry:
             difflib.unified_diff(
                 before,
                 after,
-                fromfile=f"a/{path}",
-                tofile=f"b/{path}",
+                fromfile=f"a/{relative_path}",
+                tofile=f"b/{relative_path}",
             )
         )
-        return ToolResult("ok", diff or "file unchanged", {"path": str(target)})
+        return ToolResult("ok", diff or "file unchanged", {"path": str(target), "relative_path": relative_path})
 
     def run_shell(self, command: str, timeout: int = 30) -> ToolResult:
         decision = classify_command(command, self.approval_mode)
@@ -138,6 +142,12 @@ class ToolRegistry:
         return ToolResult("ok", output[:20_000] or "(no output)", {"returncode": completed.returncode})
 
     def git_diff(self) -> ToolResult:
+        if self._is_git_repo():
+            return self._git_diff()
+
+        return ToolResult("ok", self._snapshot_diff(), {"source": "snapshot"})
+
+    def _git_diff(self) -> ToolResult:
         completed = subprocess.run(
             ["git", "diff", "--", "."],
             cwd=self.repo,
@@ -149,3 +159,47 @@ class ToolRegistry:
         output = completed.stdout.strip() or "no diff"
         return ToolResult("ok", output[:20_000], {"returncode": completed.returncode})
 
+    def _is_git_repo(self) -> bool:
+        completed = subprocess.run(
+            ["git", "rev-parse", "--is-inside-work-tree"],
+            cwd=self.repo,
+            text=True,
+            capture_output=True,
+            timeout=5,
+            check=False,
+        )
+        return completed.returncode == 0 and completed.stdout.strip() == "true"
+
+    def _snapshot(self) -> dict[str, str]:
+        files: dict[str, str] = {}
+        ignored_dirs = {".git", ".venv", "__pycache__", ".pytest_cache", ".termagent"}
+        for path in self.repo.rglob("*"):
+            if not path.is_file() or ignored_dirs.intersection(path.relative_to(self.repo).parts):
+                continue
+            if path.stat().st_size > 1_000_000:
+                continue
+            try:
+                files[os.fspath(path.relative_to(self.repo))] = path.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                continue
+        return files
+
+    def _snapshot_diff(self) -> str:
+        current = self._snapshot()
+        chunks: list[str] = []
+        for path in sorted(set(self._baseline) | set(current)):
+            before = self._baseline.get(path, "").splitlines(keepends=True)
+            after = current.get(path, "").splitlines(keepends=True)
+            if before == after:
+                continue
+            chunks.append(
+                "".join(
+                    difflib.unified_diff(
+                        before,
+                        after,
+                        fromfile=f"a/{path}",
+                        tofile=f"b/{path}",
+                    )
+                )
+            )
+        return "".join(chunks).strip() or "no diff"

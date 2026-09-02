@@ -39,16 +39,17 @@ def run_benchmark(repo_root: Path, tasks_dir: Path | None = None) -> list[BenchR
             trace_dir = Path(temp) / "traces"
             started = time.perf_counter()
 
+            verify_command = str(spec.get("verify", "{python} -m pytest -q")).format(python=sys.executable)
             config = AgentConfig(
                 repo=workspace,
                 task=str(spec["instruction"]),
                 approval_mode="auto",
                 max_steps=int(spec.get("max_steps", 8)),
                 log_dir=trace_dir,
-                provider="mock",
+                provider=str(spec.get("provider", "repair")),
+                test_command=verify_command,
             )
             state = TerminalAgent(config).run()
-            verify_command = str(spec.get("verify", "{python} -m pytest -q")).format(python=sys.executable)
             verifier = subprocess.run(
                 verify_command,
                 cwd=workspace,

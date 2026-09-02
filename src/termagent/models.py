@@ -28,7 +28,8 @@ class AgentConfig:
     approval_mode: ApprovalMode = "suggest"
     max_steps: int = 12
     log_dir: Path | None = None
-    provider: str = "mock"
+    provider: str = "repair"
+    test_command: str = "{python} -m pytest -q"
 
 
 @dataclass
@@ -36,4 +37,4 @@ class AgentState:
     steps: int = 0
     final_answer: str | None = None
     completed: bool = False
-
+    tests_passed: bool = False

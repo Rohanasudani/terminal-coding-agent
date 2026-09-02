@@ -17,7 +17,13 @@ The first version is intentionally small but structured like a serious agent run
 5. Feed observations back into the provider.
 6. Stop when the provider asks for `git_diff` or the step budget is exhausted.
 
-The mock provider is deterministic so tests and benchmarks can run without API credits.
+The default repair provider is deterministic so tests and benchmarks can run without API credits.
+
+## Test-First Repair Loop
+
+The Milestone 2 loop starts by running the configured verifier command. When tests fail, the agent parses pytest output for the failing file, assertion, and symbol name. It then searches the repository, reads the likely implementation file, applies a narrow patch, reruns the verifier, and only finishes after producing a final diff.
+
+This keeps the agent behavior measurable: each improvement should increase benchmark pass rate, reduce unnecessary tool calls, or improve the final trace.
 
 ## Tool Layer
 
@@ -29,7 +35,7 @@ The tool registry exposes a small set of high-leverage operations:
 - `run_shell`: execute commands under a safety policy
 - `git_diff`: show the final repository diff
 
-The agent does not get raw filesystem access. Every path is resolved inside the repository root.
+The agent does not get raw filesystem access. Every path is resolved inside the repository root. For non-git fixture workspaces, `git_diff` falls back to an internal snapshot diff so benchmarks still get a clean before/after report.
 
 ## Safety Gates
 
@@ -55,8 +61,7 @@ The harness copies each fixture into a temporary workspace, runs the agent, exec
 
 - AST/code-map indexing with tree-sitter
 - OpenAI-compatible live provider with strict tool-call JSON
-- retry/reflection loop after failing tests
+- retry/reflection loop after repeated failing tests
 - sub-agent orchestration experiments
 - cost/token accounting
 - Harbor/Terminal-Bench adapter
-
