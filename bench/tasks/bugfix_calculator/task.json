@@ -1,0 +1,5 @@
+{
+  "instruction": "Fix the calculator add bug and run the test suite.",
+  "verify": "{python} -m pytest -q",
+  "max_steps": 8
+}
