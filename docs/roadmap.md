@@ -132,3 +132,12 @@ Status: complete
 - built-in `:doctor`, `:help`, and `:quit` commands
 - same safety, tracing, provider, and cost controls as one-shot runs
 - tests for interactive command flow and config mapping
+
+## Milestone 13: Requirements Audit
+
+Status: complete
+
+- requirements traceability matrix from original project goals to implementation
+- automated checks for public CLI commands and required tool registry surface
+- automated checks that public docs exist and mention project boundaries
+- updated README link to the traceability doc

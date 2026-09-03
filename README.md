@@ -171,6 +171,7 @@ This is the bridge to Terminal-Bench-style evaluation: the agent is designed aro
 - [Demo commands](docs/demo.md)
 - [Interactive app](docs/interactive-app.md)
 - [Repository intelligence](docs/repository-intelligence.md)
+- [Requirements traceability](docs/requirements-traceability.md)
 - [Security audit](docs/security-audit.md)
 - [Project brief](docs/project-brief.md)
 

@@ -18,6 +18,7 @@ Audit date: 2026-09-02
 | 10. Terminal-Bench direction | Complete | Harbor-shaped dataset export, reward-file verifier scripts, benchmark comparison reports |
 | 11. Product polish | Complete | CI, issue templates, contribution guide, security policy, project brief, demo docs, health checks |
 | 12. Interactive agent app | Complete | Interactive task loop reusing the same provider, safety policy, planned writes, traces, and cost controls |
+| 13. Requirements audit | Complete | Requirements traceability matrix, CLI/tool surface checks, public docs checks, honest-boundary assertions |
 
 ## Implemented Controls
 
