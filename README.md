@@ -40,6 +40,7 @@ flowchart LR
 ## Current Features
 
 - `termagent run`: execute a task against a repository
+- `termagent app`: start an interactive terminal agent session
 - `termagent tools`: inspect available structured tools
 - `termagent bench`: run local benchmark tasks and write a report
 - repo search powered by `rg` when available
@@ -73,6 +74,7 @@ pip install -e ".[dev]"
 pytest
 termagent tools
 termagent doctor
+termagent app --repo tests/fixtures/sample_repo --approval-mode auto
 termagent run --repo tests/fixtures/sample_repo --task "Fix the calculator add bug and run tests"
 termagent bench --repo-root .
 termagent harbor-export --overwrite
@@ -109,6 +111,22 @@ Use `repair` for deterministic local benchmark runs. Use `openai` when you want 
 By default, live mode uses conservative settings: bounded observation context, a small model-cost ceiling, no network shell commands, and required patch previews before writes. Add `--allow-network-commands` only for trusted repositories and tasks that genuinely need network access. See [docs/security-audit.md](docs/security-audit.md) for the current safety audit and known limitations.
 
 ## Example
+
+Start the interactive app:
+
+```bash
+termagent app --repo /path/to/repo --approval-mode suggest
+```
+
+Inside the session:
+
+```text
+termagent> :doctor
+termagent> Fix the failing tests and show the final diff
+termagent> :quit
+```
+
+Run a one-off task:
 
 ```bash
 termagent run \
@@ -151,6 +169,7 @@ This is the bridge to Terminal-Bench-style evaluation: the agent is designed aro
 - [Architecture diagram](docs/architecture-diagram.md)
 - [Benchmarking](docs/benchmarking.md)
 - [Demo commands](docs/demo.md)
+- [Interactive app](docs/interactive-app.md)
 - [Repository intelligence](docs/repository-intelligence.md)
 - [Security audit](docs/security-audit.md)
 - [Project brief](docs/project-brief.md)
@@ -161,5 +180,5 @@ This is the bridge to Terminal-Bench-style evaluation: the agent is designed aro
 - package TermAgent as a Harbor-compatible custom agent
 - sub-agent orchestration experiments
 - tree-sitter-backed repository intelligence
-- interactive TUI
+- richer terminal UI
 - GitHub-ready demo GIF and benchmark report

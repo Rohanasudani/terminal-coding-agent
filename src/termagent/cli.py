@@ -20,6 +20,7 @@ from .health import (
     health_checks_passed,
     run_health_checks,
 )
+from .interactive import InteractiveSettings, run_interactive_app
 from .models import AgentConfig
 from .tools import ToolRegistry
 
@@ -71,6 +72,18 @@ def build_parser() -> argparse.ArgumentParser:
     doctor = subparsers.add_parser("doctor", help="Check local TermAgent prerequisites")
     doctor.add_argument("--repo", type=Path, default=Path("."))
     doctor.add_argument("--json", action="store_true", dest="json_output")
+
+    app = subparsers.add_parser("app", help="Start interactive terminal agent mode")
+    app.add_argument("--repo", type=Path, default=Path("."))
+    app.add_argument("--provider", choices=["mock", "repair", "openai"], default="repair")
+    app.add_argument("--model", default="gpt-5.6-luna")
+    app.add_argument("--approval-mode", choices=["never", "suggest", "auto"], default="suggest")
+    app.add_argument("--max-steps", type=int, default=12)
+    app.add_argument("--test-command", default="{python} -m pytest -q")
+    app.add_argument("--log-dir", type=Path, default=Path(".termagent/app-traces"))
+    app.add_argument("--prompt-profile", choices=["conservative", "benchmark", "fast"], default="conservative")
+    app.add_argument("--max-cost-usd", type=float, default=0.25)
+    app.add_argument("--allow-network-commands", action="store_true")
 
     return parser
 
@@ -161,6 +174,22 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print(format_health_checks(checks))
         return 0 if health_checks_passed(checks) else 1
+
+    if args.command == "app":
+        return run_interactive_app(
+            InteractiveSettings(
+                repo=args.repo,
+                provider=args.provider,
+                model=args.model,
+                approval_mode=args.approval_mode,
+                max_steps=args.max_steps,
+                test_command=args.test_command,
+                log_dir=args.log_dir,
+                prompt_profile=args.prompt_profile,
+                max_cost_usd=args.max_cost_usd,
+                allow_network_commands=args.allow_network_commands,
+            )
+        )
 
     return 1
 

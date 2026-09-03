@@ -122,3 +122,13 @@ Future public-launch improvements:
 - packaged CLI release
 - Harbor-compatible custom agent packaging
 - real pinned Terminal-Bench subset run
+
+## Milestone 12: Interactive Agent App
+
+Status: complete
+
+- `termagent app` interactive terminal session
+- repeated natural-language coding tasks against one repository
+- built-in `:doctor`, `:help`, and `:quit` commands
+- same safety, tracing, provider, and cost controls as one-shot runs
+- tests for interactive command flow and config mapping

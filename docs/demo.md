@@ -2,6 +2,20 @@
 
 ## Local Repair Run
 
+For the most recruiter-friendly demo, start with the interactive app:
+
+```bash
+termagent app --repo tests/fixtures/sample_repo --approval-mode auto
+```
+
+Then enter:
+
+```text
+Fix the calculator add bug and run tests
+```
+
+For a single command version, run:
+
 ```bash
 termagent run \
   --repo tests/fixtures/sample_repo \

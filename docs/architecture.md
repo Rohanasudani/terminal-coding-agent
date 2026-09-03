@@ -10,7 +10,7 @@ The first version is intentionally small but structured like a serious agent run
 
 ## Agent Loop
 
-1. Receive a repository path and natural-language task.
+1. Receive a repository path and natural-language task from one-shot CLI mode or interactive app mode.
 2. Ask the provider for the next structured tool call.
 3. Execute that tool through the registry.
 4. Log the call and result as JSONL.
@@ -18,6 +18,10 @@ The first version is intentionally small but structured like a serious agent run
 6. Stop when the provider asks for `git_diff` or the step budget is exhausted.
 
 The default repair provider is deterministic so tests and benchmarks can run without API credits.
+
+## Interactive App Mode
+
+The `termagent app` command wraps the same agent runtime in a small terminal session loop. It accepts repeated natural-language tasks, exposes `:doctor` and `:help`, and keeps the same provider, approval, safety, tracing, and cost controls as one-shot runs.
 
 ## Test-First Repair Loop
 
