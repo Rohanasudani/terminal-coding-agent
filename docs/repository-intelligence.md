@@ -1,11 +1,11 @@
 # Repository Intelligence
 
-TermAgent now includes a lightweight Python code-intelligence layer built on the standard library `ast` module.
+TermAgent includes a lightweight repository-intelligence layer for Python, JavaScript, and TypeScript projects. Python files are indexed with the standard library `ast` module. JavaScript and TypeScript files use a conservative scanner for common function, class, import, and reference patterns.
 
 ## Tools
 
-- `code_map`: lists Python classes, functions, async functions, imports, and parse errors
-- `find_references`: lists Python name references for a requested symbol
+- `code_map`: lists classes, functions, methods, imports, languages, and Python parse errors
+- `find_references`: lists name references for a requested symbol across Python, JavaScript, and TypeScript files
 
 Example:
 
@@ -21,4 +21,4 @@ Patch planning validates Python syntax for `.py` files before approving a plan. 
 
 ## Scope
 
-The current implementation intentionally avoids a heavy parser dependency. It gives the project useful repository intelligence today while leaving room for a later tree-sitter milestone that adds TypeScript, JavaScript, and broader language support.
+The current implementation intentionally avoids a heavy parser dependency. It gives the agent useful cross-language symbol search today while leaving room for a later tree-sitter milestone with full syntax trees, richer call graphs, and broader language support.

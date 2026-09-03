@@ -2,8 +2,8 @@
 
 Latest checked-in baseline for the deterministic `repair` provider.
 
-- Tasks: 7
-- Passed: 7
+- Tasks: 8
+- Passed: 8
 - Pass rate: 100.0%
 - Estimated model cost: $0.000000
 
@@ -14,6 +14,7 @@ Latest checked-in baseline for the deterministic `repair` provider.
 | `bugfix_clamp_score` | bugfix | python | pass | 7 | repair | $0.000000 |
 | `bugfix_divide` | bugfix | python | pass | 7 | repair | $0.000000 |
 | `bugfix_email_normalization` | bugfix | python | pass | 8 | repair | $0.000000 |
+| `bugfix_javascript_total` | javascript bugfix | javascript | pass | 8 | repair | $0.000000 |
 | `bugfix_slugify` | bugfix | python | pass | 8 | repair | $0.000000 |
 | `bugfix_word_count` | bugfix | python | pass | 7 | repair | $0.000000 |
 

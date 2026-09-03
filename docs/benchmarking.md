@@ -38,7 +38,7 @@ Reports also include provider, model, token usage, and estimated model cost. Det
 | `bugfix_slugify` | whitespace and separator normalization |
 | `bugfix_word_count` | character count vs. token count |
 
-Current deterministic baseline: `7/7` tasks pass with the `repair` provider.
+Current deterministic baseline: `8/8` tasks pass with the `repair` provider.
 
 ## Why Start Local
 

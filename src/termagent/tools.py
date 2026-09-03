@@ -48,12 +48,12 @@ class ToolRegistry:
             ),
             ToolSpec(
                 "code_map",
-                "Build a Python AST code map with symbols and imports.",
+                "Build a Python, JavaScript, and TypeScript code map with symbols and imports.",
                 {"query": "optional string", "limit": "optional int"},
             ),
             ToolSpec(
                 "find_references",
-                "Find Python AST name references for a symbol.",
+                "Find Python, JavaScript, and TypeScript name references for a symbol.",
                 {"symbol": "string", "limit": "optional int"},
             ),
             ToolSpec(

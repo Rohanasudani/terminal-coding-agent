@@ -53,8 +53,8 @@ The tool registry exposes a small set of high-leverage operations:
 
 - `search`: find relevant files and symbols
 - `read_file`: inspect source with line numbers
-- `code_map`: inspect Python symbols and imports using the standard library AST
-- `find_references`: find Python name references for a symbol
+- `code_map`: inspect Python, JavaScript, and TypeScript symbols and imports
+- `find_references`: find Python, JavaScript, and TypeScript name references for a symbol
 - `plan_patch`: preview a single-file edit
 - `plan_patch_set`: preview coordinated multi-file edits as one grouped diff
 - `write_file`: patch files and return unified diffs
@@ -66,14 +66,14 @@ The agent does not get raw filesystem access. Every path is resolved inside the 
 
 ## Repository Intelligence
 
-The repository intelligence layer currently uses Python's standard library `ast` module. It indexes:
+The repository intelligence layer uses Python's standard library `ast` module for Python files and a conservative JavaScript/TypeScript scanner for common source patterns. It indexes:
 
-- classes, functions, async functions, and parent scopes
-- import edges between Python modules
+- classes, functions, async functions, methods, and parent scopes
+- import edges across Python, JavaScript, and TypeScript files
 - name references with line numbers
-- parse errors for files that cannot be indexed
+- parse errors for Python files that cannot be indexed
 
-Patch planning performs a Python syntax check for `.py` files before a plan is accepted. This gives the agent a lightweight AST-aware guardrail without adding parser dependencies yet.
+Patch planning performs a Python syntax check for `.py` files before a plan is accepted. JavaScript and TypeScript indexing is intentionally pragmatic today; tree-sitter remains the next step for deeper syntax-aware edits.
 
 ## Safety Gates
 
@@ -101,8 +101,7 @@ The harness copies each fixture into a temporary workspace, runs the agent, exec
 
 ## Next Technical Bets
 
-- TypeScript/JavaScript indexing
-- tree-sitter exploration for multi-language parsing
+- tree-sitter-backed multi-language parsing
 - stronger live-provider repair strategies
 - sub-agent orchestration experiments
 - Harbor/Terminal-Bench adapter

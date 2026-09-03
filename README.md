@@ -22,7 +22,7 @@ This project treats the agent as an engineering system:
 - `termagent tools`: inspect available structured tools
 - `termagent bench`: run local benchmark tasks and write a report
 - repo search powered by `rg` when available
-- Python AST code map for symbols, imports, and references
+- Python, JavaScript, and TypeScript code map for symbols, imports, and references
 - file read/write with path sandboxing
 - shell execution with deny/approval policy
 - git diff preview
@@ -37,7 +37,7 @@ This project treats the agent as an engineering system:
 - live-mode cost ceilings, prompt profiles, validation recovery, and observation caps
 - hardened shell execution without `shell=True`
 - network commands blocked by default
-- seven-task local benchmark suite with JSON and Markdown reports
+- eight-task local benchmark suite with JSON and Markdown reports
 - persistent per-task trace artifacts for benchmark debugging
 - JSONL traces for tool calls, observations, and final answers
 
@@ -114,7 +114,7 @@ Current local baseline:
 
 | Provider | Tasks | Passed | Pass Rate | Model Cost |
 | --- | ---: | ---: | ---: | ---: |
-| repair | 7 | 7 | 100% | $0.000000 |
+| repair | 8 | 8 | 100% | $0.000000 |
 
 This is the bridge to Terminal-Bench-style evaluation: the agent is designed around reproducible tasks, verifier commands, execution logs, and pass/fail reports from day one.
 
@@ -123,6 +123,6 @@ This is the bridge to Terminal-Bench-style evaluation: the agent is designed aro
 - richer planning and reflection loop for repeated failures
 - benchmark adapter for Terminal-Bench/Harbor
 - sub-agent orchestration experiments
-- AST-aware code map using tree-sitter
+- tree-sitter-backed repository intelligence
 - interactive TUI
 - GitHub-ready demo GIF and benchmark report

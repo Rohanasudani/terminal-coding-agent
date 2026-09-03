@@ -1,0 +1,7 @@
+{
+  "instruction": "Fix totalWithTax so it adds tax instead of subtracting it, then run the test suite.",
+  "category": "javascript bugfix",
+  "language": "javascript",
+  "verify": "node test_cart.js",
+  "max_steps": 8
+}

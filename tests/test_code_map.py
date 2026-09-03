@@ -38,6 +38,56 @@ class UserService:
     }
 
 
+def test_build_code_map_indexes_typescript_and_javascript(tmp_path: Path):
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "math.ts").write_text(
+        """
+import { round } from "./rounding";
+
+export function priceWithTax(total: number, rate: number) {
+    return round(total * (1 + rate));
+}
+
+export const formatPrice = (value: number) => `$${value}`;
+""",
+        encoding="utf-8",
+    )
+    (src / "widget.jsx").write_text(
+        """
+import React from "react";
+
+export class PriceTag extends React.Component {
+    render() {
+        return null;
+    }
+}
+""",
+        encoding="utf-8",
+    )
+
+    code_map = build_code_map(tmp_path)
+
+    assert ("priceWithTax", "function", "src/math.ts", "typescript") in {
+        (symbol.name, symbol.kind, symbol.path, symbol.language) for symbol in code_map.symbols
+    }
+    assert ("formatPrice", "function", "src/math.ts", "typescript") in {
+        (symbol.name, symbol.kind, symbol.path, symbol.language) for symbol in code_map.symbols
+    }
+    assert ("PriceTag", "class", "src/widget.jsx", "javascript-react") in {
+        (symbol.name, symbol.kind, symbol.path, symbol.language) for symbol in code_map.symbols
+    }
+    assert ("src/math.ts", "./rounding", "typescript") in {
+        (edge.importer, edge.imported, edge.language) for edge in code_map.imports
+    }
+    assert ("src/widget.jsx", "react", "javascript-react") in {
+        (edge.importer, edge.imported, edge.language) for edge in code_map.imports
+    }
+    assert ("round", "src/math.ts", "typescript") in {
+        (reference.name, reference.path, reference.language) for reference in code_map.references
+    }
+
+
 def test_format_code_map_filters_by_query(tmp_path: Path):
     (tmp_path / "alpha.py").write_text("def alpha():\n    return 1\n", encoding="utf-8")
     (tmp_path / "beta.py").write_text("def beta():\n    return 2\n", encoding="utf-8")

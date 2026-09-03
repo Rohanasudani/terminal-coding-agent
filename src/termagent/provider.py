@@ -51,7 +51,10 @@ class RepairProvider(Provider):
                 return ToolCall("code_map", {"query": failure.symbol})
             if failure.file_path:
                 return ToolCall("read_file", {"path": failure.file_path})
-            return ToolCall("search", {"query": "def ", "glob": "*.py"})
+            task_symbol = symbol_from_task(task)
+            if task_symbol:
+                return ToolCall("code_map", {"query": task_symbol})
+            return ToolCall("code_map", {})
 
         if "calculator.py" in joined and "read_file" not in joined:
             return ToolCall("read_file", {"path": "calculator.py"})
@@ -186,7 +189,7 @@ def provider_system_prompt(profile: PromptProfile = "conservative") -> str:
     base = (
         "You are TermAgent, a terminal coding agent. Choose exactly one tool call. "
         "Start by gathering evidence with run_shell, code_map, find_references, search, or read_file. "
-        "Prefer code_map for Python symbol discovery and find_references before broad edits. "
+        "Prefer code_map for Python, JavaScript, and TypeScript symbol discovery and find_references before broad edits. "
         "Prefer minimal edits. "
         "Before writing a file, call plan_patch with the exact path and content you intend to write. "
         "For coordinated multi-file edits, call plan_patch_set with all files in the group. Only call "
@@ -314,13 +317,18 @@ def first_search_path(output: str) -> str | None:
         if ":" not in line:
             continue
         path = line.split(":", 1)[0].strip()
-        if path.endswith(".py"):
+        if path.endswith((".py", ".js", ".jsx", ".ts", ".tsx")):
             return path
     return None
 
 
 def first_code_map_symbol_path(output: str) -> str | None:
-    match = re.search(r"-\s+\w+\s+\w+\s+at\s+([^:\n]+\.py):\d+", output)
+    match = re.search(r"-\s+[\w-]+\s+\w+\s+\w+\s+at\s+([^:\n]+\.(?:py|js|jsx|ts|tsx)):\d+", output)
+    return match.group(1) if match else None
+
+
+def symbol_from_task(task: str) -> str | None:
+    match = re.search(r"\bfix\s+([A-Za-z_$][\w$]*)", task, flags=re.IGNORECASE)
     return match.group(1) if match else None
 
 
@@ -370,6 +378,9 @@ def patch_from_read_output(task: str, output: str) -> dict[str, str] | None:
 
     if "word" in lowered_task and "return len(text)" in content:
         return {"path": path, "content": content.replace("return len(text)", "return len(text.split())")}
+
+    if "tax" in lowered_task and "return subtotal * (1 - taxRate);" in content:
+        return {"path": path, "content": content.replace("return subtotal * (1 - taxRate);", "return subtotal * (1 + taxRate);")}
 
     return None
 

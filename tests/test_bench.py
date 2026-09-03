@@ -13,7 +13,7 @@ def test_benchmark_persists_trace_dirs_and_reports_metadata(tmp_path: Path):
     assert len(results) >= 7
     assert all(result.passed for result in results)
     assert all(Path(result.trace_dir).exists() for result in results)
-    assert {result.language for result in results} == {"python"}
+    assert {"python", "javascript"}.issubset({result.language for result in results})
 
 
 def test_benchmark_writes_json_and_markdown_reports(tmp_path: Path):

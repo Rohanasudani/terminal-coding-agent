@@ -9,11 +9,12 @@ Audit date: 2026-09-02
 | 1. Agent runtime | Complete | Structured tools, repo-scoped paths, safety classifier, JSONL tracing, local benchmark harness |
 | 2. Test-first coding loop | Complete | Runs verifier first, parses pytest failures, searches, reads, patches, reruns tests |
 | 3. Real provider mode | Complete | OpenAI-compatible provider, strict tool-call JSON, retries, config, token/cost tracking |
-| 4. Benchmark expansion | Complete | Seven benchmark tasks, JSON/Markdown reports, persisted traces |
+| 4. Benchmark expansion | Complete | Eight benchmark tasks, JSON/Markdown reports, persisted traces |
 | 5. Better coding loop | Complete | Patch previews, planned-write enforcement, reflection after failed tests, richer summaries |
 | 6. Multi-file edit strategy | Complete | Grouped patch previews, grouped writes, multi-file benchmark, subsystem summaries |
 | 7. Live provider hardening | Complete | Cost ceilings, prompt profiles, observation caps, validation recovery, network blocks |
 | 8. Repository intelligence | Complete | Python AST symbol/import/reference map and syntax validation before planned patches |
+| 9. Multi-language repository intelligence | Complete | Python, JavaScript, and TypeScript symbol/import/reference map with ignored dependency/build folders |
 
 ## Implemented Controls
 
@@ -29,6 +30,7 @@ Audit date: 2026-09-02
 - Live mode caps observation count and character payload size to reduce token waste.
 - Live mode has a configurable model-cost ceiling before tool execution.
 - Python patch planning validates syntax before approving planned writes.
+- Repository intelligence skips dependency and build folders such as `node_modules`, `dist`, and `build`.
 - API keys are read from `OPENAI_API_KEY`; no real secrets are committed.
 - Benchmark fixtures are copied into temporary workspaces before agent execution.
 

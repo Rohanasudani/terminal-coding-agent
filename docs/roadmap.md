@@ -84,10 +84,13 @@ Status: complete
 
 ## Milestone 9: Multi-Language Repository Intelligence
 
+Status: complete
+
 - TypeScript/JavaScript code map
-- tree-sitter exploration
 - cross-language symbol search
-- dependency-aware edit planning
+- import visibility for Python, JavaScript, and TypeScript files
+- JavaScript benchmark task covering code-map-driven repair
+- tree-sitter kept as the next deeper parser upgrade
 
 ## Milestone 10: Terminal-Bench Direction
 
