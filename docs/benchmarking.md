@@ -26,6 +26,22 @@ That placeholder makes benchmarks more portable across virtual environments and 
 
 Reports also include provider, model, token usage, and estimated model cost. Deterministic local providers report zero model tokens; live provider runs include usage returned by the model API.
 
+## Harbor Export
+
+Milestone 10 adds a Harbor-shaped export path:
+
+```bash
+termagent harbor-export --overwrite
+```
+
+The export includes task metadata, instructions, container setup, workspace files, verifier scripts, and a manifest. The verifier scripts write Harbor reward files under `/logs/verifier/reward.txt`.
+
+Compare benchmark reports:
+
+```bash
+termagent compare-bench bench/results/latest.json --label repair
+```
+
 ## Current Suite
 
 | Task | Bug Shape |
@@ -59,7 +75,7 @@ Local tasks are cheap, deterministic, and fast. They help catch regressions in:
 
 Terminal-Bench evaluates AI agents in real terminal environments with end-to-end tasks. Its current Harbor-based workflow runs agents against published datasets and measures resolution rates, cost, tokens, and runtime.
 
-This project should eventually provide an adapter that lets Harbor invoke `termagent` as an agent backend. The local benchmark harness is the stepping stone: it already models isolated tasks, verifier commands, and machine-readable reports.
+This project should eventually package `termagent` as a Harbor-compatible custom agent. The local benchmark harness and Harbor export are the stepping stones: they already model isolated tasks, verifier commands, reward mapping, traces, and machine-readable reports.
 
 ## Anti-Cheating Rule
 

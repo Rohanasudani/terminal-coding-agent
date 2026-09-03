@@ -5,9 +5,10 @@ __pycache__
 .ruff_cache
 .termagent
 bench/results
+bench/harbor-export
+bench/harbor-export-*
 dist
 build
 *.egg-info
 .env
 .env.local
-

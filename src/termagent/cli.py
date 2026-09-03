@@ -8,6 +8,12 @@ from pathlib import Path
 from .agent import TerminalAgent
 from .bench import run_benchmark, write_markdown_report, write_report
 from .config import apply_config_file
+from .harbor import (
+    compare_benchmark_reports,
+    export_harbor_dataset,
+    write_comparison_markdown,
+    write_harbor_export_manifest,
+)
 from .models import AgentConfig
 from .tools import ToolRegistry
 
@@ -42,6 +48,19 @@ def build_parser() -> argparse.ArgumentParser:
     bench.add_argument("--tasks-dir", type=Path)
     bench.add_argument("--report", type=Path, default=Path("bench/results/latest.json"))
     bench.add_argument("--markdown-report", type=Path, default=Path("bench/results/latest.md"))
+
+    harbor_export = subparsers.add_parser("harbor-export", help="Export local tasks to a Harbor-shaped dataset")
+    harbor_export.add_argument("--tasks-dir", type=Path, default=Path("bench/tasks"))
+    harbor_export.add_argument("--output-dir", type=Path, default=Path("bench/harbor-export"))
+    harbor_export.add_argument("--manifest", type=Path, default=Path("bench/harbor-export/manifest.json"))
+    harbor_export.add_argument("--limit", type=int)
+    harbor_export.add_argument("--task-id", action="append", dest="task_ids")
+    harbor_export.add_argument("--overwrite", action="store_true")
+
+    compare = subparsers.add_parser("compare-bench", help="Compare benchmark JSON reports")
+    compare.add_argument("reports", nargs="+", type=Path)
+    compare.add_argument("--label", action="append", dest="labels")
+    compare.add_argument("--markdown-report", type=Path, default=Path("bench/results/comparison.md"))
 
     return parser
 
@@ -102,6 +121,28 @@ def main(argv: list[str] | None = None) -> int:
         print(args.report)
         print(args.markdown_report)
         return 0 if passed == len(results) else 1
+
+    if args.command == "harbor-export":
+        exports = export_harbor_dataset(
+            args.tasks_dir,
+            args.output_dir,
+            limit=args.limit,
+            task_ids=set(args.task_ids) if args.task_ids else None,
+            overwrite=args.overwrite,
+        )
+        write_harbor_export_manifest(exports, args.manifest)
+        print(f"exported {len(exports)} tasks")
+        print(args.output_dir)
+        print(args.manifest)
+        return 0
+
+    if args.command == "compare-bench":
+        comparisons = compare_benchmark_reports(args.reports, args.labels)
+        write_comparison_markdown(comparisons, args.markdown_report)
+        for comparison in comparisons:
+            print(f"{comparison.label}: {comparison.passed}/{comparison.total} ({comparison.pass_rate:.1%})")
+        print(args.markdown_report)
+        return 0
 
     return 1
 

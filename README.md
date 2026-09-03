@@ -38,6 +38,7 @@ This project treats the agent as an engineering system:
 - hardened shell execution without `shell=True`
 - network commands blocked by default
 - eight-task local benchmark suite with JSON and Markdown reports
+- Harbor-shaped benchmark export and report comparison tooling
 - persistent per-task trace artifacts for benchmark debugging
 - JSONL traces for tool calls, observations, and final answers
 
@@ -52,6 +53,8 @@ pytest
 termagent tools
 termagent run --repo tests/fixtures/sample_repo --task "Fix the calculator add bug and run tests"
 termagent bench --repo-root .
+termagent harbor-export --overwrite
+termagent compare-bench bench/results/latest.json --label repair
 ```
 
 ## Live Model Mode
@@ -109,6 +112,7 @@ This is intentionally conservative. A real terminal agent should make it harder 
 The local benchmark harness copies each task fixture into an isolated temporary workspace, runs the agent, then runs the task verifier. Reports include pass/fail status, duration, trace path, and verifier output.
 
 See [docs/benchmark-report.md](docs/benchmark-report.md) for the latest checked-in baseline.
+See [docs/harbor-terminal-bench.md](docs/harbor-terminal-bench.md) for the Harbor/Terminal-Bench integration path.
 
 Current local baseline:
 
@@ -121,7 +125,7 @@ This is the bridge to Terminal-Bench-style evaluation: the agent is designed aro
 ## Roadmap
 
 - richer planning and reflection loop for repeated failures
-- benchmark adapter for Terminal-Bench/Harbor
+- package TermAgent as a Harbor-compatible custom agent
 - sub-agent orchestration experiments
 - tree-sitter-backed repository intelligence
 - interactive TUI

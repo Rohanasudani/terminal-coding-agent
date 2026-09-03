@@ -97,11 +97,18 @@ Local benchmark tasks live under `bench/tasks`. Each task has:
 - a natural-language instruction
 - a verifier command
 
-The harness copies each fixture into a temporary workspace, runs the agent, executes the verifier, persists per-task traces, and writes JSON plus Markdown reports. This design makes it straightforward to add Terminal-Bench/Harbor adapters later.
+The harness copies each fixture into a temporary workspace, runs the agent, executes the verifier, persists per-task traces, and writes JSON plus Markdown reports.
+
+## Harbor Bridge
+
+The Harbor bridge exports local benchmark tasks into a Harbor-shaped directory layout with `task.toml`, `instruction.md`, `environment/Dockerfile`, `tests/test.sh`, and `solution/solve.sh`. The generated verifier script runs the local task verifier and writes `1` or `0` to `/logs/verifier/reward.txt`, matching Harbor's reward-file convention.
+
+The bridge also compares benchmark JSON reports so local repair runs, live-provider smoke runs, and future Harbor runs can be summarized side by side.
 
 ## Next Technical Bets
 
 - tree-sitter-backed multi-language parsing
 - stronger live-provider repair strategies
 - sub-agent orchestration experiments
-- Harbor/Terminal-Bench adapter
+- Harbor-compatible custom agent packaging
+- small pinned Terminal-Bench subset run

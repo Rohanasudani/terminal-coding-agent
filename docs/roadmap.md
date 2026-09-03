@@ -94,9 +94,13 @@ Status: complete
 
 ## Milestone 10: Terminal-Bench Direction
 
+Status: complete
+
 - baseline comparisons against simple agents
 - benchmark report in the README
-- Harbor/Terminal-Bench adapter
+- Harbor-shaped dataset export
+- benchmark report comparison command
+- documented path toward a real Terminal-Bench subset run
 
 ## Milestone 11: Product Polish
 
@@ -105,3 +109,4 @@ Status: complete
 - architecture diagrams
 - GitHub repo topics
 - packaged CLI release
+- Harbor-compatible custom agent packaging

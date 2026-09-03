@@ -15,6 +15,7 @@ Audit date: 2026-09-02
 | 7. Live provider hardening | Complete | Cost ceilings, prompt profiles, observation caps, validation recovery, network blocks |
 | 8. Repository intelligence | Complete | Python AST symbol/import/reference map and syntax validation before planned patches |
 | 9. Multi-language repository intelligence | Complete | Python, JavaScript, and TypeScript symbol/import/reference map with ignored dependency/build folders |
+| 10. Terminal-Bench direction | Complete | Harbor-shaped dataset export, reward-file verifier scripts, benchmark comparison reports |
 
 ## Implemented Controls
 
@@ -31,6 +32,7 @@ Audit date: 2026-09-02
 - Live mode has a configurable model-cost ceiling before tool execution.
 - Python patch planning validates syntax before approving planned writes.
 - Repository intelligence skips dependency and build folders such as `node_modules`, `dist`, and `build`.
+- Harbor export writes generated files under the requested output directory and refuses to overwrite existing output unless `--overwrite` is passed.
 - API keys are read from `OPENAI_API_KEY`; no real secrets are committed.
 - Benchmark fixtures are copied into temporary workspaces before agent execution.
 
