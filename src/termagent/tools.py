@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from shlex import split
 
+from .code_map import build_code_map, format_code_map, format_references, validate_python_source
 from .models import ApprovalMode, ToolResult
 from .safety import classify_command, resolve_inside_root
 
@@ -44,6 +45,16 @@ class ToolRegistry:
                 "read_file",
                 "Read a UTF-8 text file inside the repository.",
                 {"path": "string", "start": "optional int", "limit": "optional int"},
+            ),
+            ToolSpec(
+                "code_map",
+                "Build a Python AST code map with symbols and imports.",
+                {"query": "optional string", "limit": "optional int"},
+            ),
+            ToolSpec(
+                "find_references",
+                "Find Python AST name references for a symbol.",
+                {"symbol": "string", "limit": "optional int"},
             ),
             ToolSpec(
                 "plan_patch",
@@ -82,6 +93,17 @@ class ToolRegistry:
                     str(arguments.get("path", "")),
                     int(arguments.get("start", 1)),
                     int(arguments.get("limit", 200)),
+                )
+            if name == "code_map":
+                query = arguments.get("query")
+                return self.code_map(
+                    str(query) if query is not None else None,
+                    int(arguments.get("limit", 80)),
+                )
+            if name == "find_references":
+                return self.find_references(
+                    str(arguments.get("symbol", "")),
+                    int(arguments.get("limit", 120)),
                 )
             if name == "plan_patch":
                 return self.plan_patch(str(arguments.get("path", "")), str(arguments.get("content", "")))
@@ -134,9 +156,33 @@ class ToolRegistry:
         numbered = [f"{index + start_index + 1:>4} | {line}" for index, line in enumerate(selected)]
         return ToolResult("ok", "\n".join(numbered), {"path": str(target), "line_count": len(lines)})
 
+    def code_map(self, query: str | None = None, limit: int = 80) -> ToolResult:
+        code_map = build_code_map(self.repo)
+        output = format_code_map(code_map, query=query, limit=max(1, min(limit, 500)))
+        return ToolResult(
+            "ok",
+            output[:20_000],
+            {
+                "symbols": len(code_map.symbols),
+                "imports": len(code_map.imports),
+                "references": len(code_map.references),
+                "parse_errors": len(code_map.parse_errors),
+            },
+        )
+
+    def find_references(self, symbol: str, limit: int = 120) -> ToolResult:
+        if not symbol:
+            return ToolResult("error", "symbol is required")
+        code_map = build_code_map(self.repo)
+        output = format_references(code_map, symbol, limit=max(1, min(limit, 500)))
+        return ToolResult("ok", output[:20_000], {"symbol": symbol})
+
     def plan_patch(self, path: str, content: str) -> ToolResult:
         target = resolve_inside_root(self.repo, path)
         relative_path = os.fspath(target.relative_to(self.repo))
+        syntax_error = validate_python_source(relative_path, content)
+        if syntax_error:
+            return ToolResult("error", f"python syntax check failed: {syntax_error}")
         before = target.read_text(encoding="utf-8").splitlines(keepends=True) if target.exists() else []
         after = content.splitlines(keepends=True)
         diff = self._unified_diff(relative_path, before, after)
@@ -153,6 +199,9 @@ class ToolRegistry:
         for patch_file in patch_files:
             target = resolve_inside_root(self.repo, patch_file.path)
             relative_path = os.fspath(target.relative_to(self.repo))
+            syntax_error = validate_python_source(relative_path, patch_file.content)
+            if syntax_error:
+                return ToolResult("error", f"python syntax check failed: {syntax_error}")
             before = target.read_text(encoding="utf-8").splitlines(keepends=True) if target.exists() else []
             after = patch_file.content.splitlines(keepends=True)
             chunks.append(self._unified_diff(relative_path, before, after))
@@ -169,6 +218,9 @@ class ToolRegistry:
     def write_file(self, path: str, content: str) -> ToolResult:
         target = resolve_inside_root(self.repo, path)
         relative_path = os.fspath(target.relative_to(self.repo))
+        syntax_error = validate_python_source(relative_path, content)
+        if syntax_error:
+            return ToolResult("error", f"python syntax check failed: {syntax_error}")
         before = target.read_text(encoding="utf-8").splitlines(keepends=True) if target.exists() else []
         after = content.splitlines(keepends=True)
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -187,6 +239,9 @@ class ToolRegistry:
         for patch_file in patch_files:
             target = resolve_inside_root(self.repo, patch_file.path)
             relative_path = os.fspath(target.relative_to(self.repo))
+            syntax_error = validate_python_source(relative_path, patch_file.content)
+            if syntax_error:
+                return ToolResult("error", f"python syntax check failed: {syntax_error}")
             before = target.read_text(encoding="utf-8").splitlines(keepends=True) if target.exists() else []
             after = patch_file.content.splitlines(keepends=True)
             planned.append((patch_file, target, relative_path, before, after))

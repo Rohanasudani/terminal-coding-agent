@@ -75,19 +75,27 @@ Status: complete
 
 ## Milestone 8: Repository Intelligence
 
+Status: complete
+
 - symbol index
 - import graph
 - call/reference search
-- AST-aware edit checks
-- tree-sitter exploration
+- AST-aware Python syntax checks before patches
 
-## Milestone 9: Terminal-Bench Direction
+## Milestone 9: Multi-Language Repository Intelligence
+
+- TypeScript/JavaScript code map
+- tree-sitter exploration
+- cross-language symbol search
+- dependency-aware edit planning
+
+## Milestone 10: Terminal-Bench Direction
 
 - baseline comparisons against simple agents
 - benchmark report in the README
 - Harbor/Terminal-Bench adapter
 
-## Milestone 10: Product Polish
+## Milestone 11: Product Polish
 
 - demo GIF
 - richer README

@@ -48,7 +48,7 @@ class RepairProvider(Provider):
         if latest.startswith("run_shell: ok"):
             failure = parse_pytest_failure(observations[-1])
             if failure.symbol:
-                return ToolCall("search", {"query": f"def {failure.symbol}", "glob": "*.py"})
+                return ToolCall("code_map", {"query": failure.symbol})
             if failure.file_path:
                 return ToolCall("read_file", {"path": failure.file_path})
             return ToolCall("search", {"query": "def ", "glob": "*.py"})
@@ -58,6 +58,11 @@ class RepairProvider(Provider):
 
         if latest.startswith("search: ok"):
             path = first_search_path(observations[-1])
+            if path:
+                return ToolCall("read_file", {"path": path})
+
+        if latest.startswith("code_map: ok"):
+            path = first_code_map_symbol_path(observations[-1])
             if path:
                 return ToolCall("read_file", {"path": path})
 
@@ -180,7 +185,9 @@ class OpenAICompatibleProvider(Provider):
 def provider_system_prompt(profile: PromptProfile = "conservative") -> str:
     base = (
         "You are TermAgent, a terminal coding agent. Choose exactly one tool call. "
-        "Start by gathering evidence with run_shell, search, or read_file. Prefer minimal edits. "
+        "Start by gathering evidence with run_shell, code_map, find_references, search, or read_file. "
+        "Prefer code_map for Python symbol discovery and find_references before broad edits. "
+        "Prefer minimal edits. "
         "Before writing a file, call plan_patch with the exact path and content you intend to write. "
         "For coordinated multi-file edits, call plan_patch_set with all files in the group. Only call "
         "write_file or write_patch_set after reviewing the matching plan diff. After writing files, "
@@ -216,6 +223,8 @@ def tool_call_response_format() -> dict[str, object]:
                     "enum": [
                         "search",
                         "read_file",
+                        "code_map",
+                        "find_references",
                         "plan_patch",
                         "plan_patch_set",
                         "write_file",
@@ -308,6 +317,11 @@ def first_search_path(output: str) -> str | None:
         if path.endswith(".py"):
             return path
     return None
+
+
+def first_code_map_symbol_path(output: str) -> str | None:
+    match = re.search(r"-\s+\w+\s+\w+\s+at\s+([^:\n]+\.py):\d+", output)
+    return match.group(1) if match else None
 
 
 def strip_numbered_lines(output: str) -> str:

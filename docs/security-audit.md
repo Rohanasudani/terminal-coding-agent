@@ -13,6 +13,7 @@ Audit date: 2026-09-02
 | 5. Better coding loop | Complete | Patch previews, planned-write enforcement, reflection after failed tests, richer summaries |
 | 6. Multi-file edit strategy | Complete | Grouped patch previews, grouped writes, multi-file benchmark, subsystem summaries |
 | 7. Live provider hardening | Complete | Cost ceilings, prompt profiles, observation caps, validation recovery, network blocks |
+| 8. Repository intelligence | Complete | Python AST symbol/import/reference map and syntax validation before planned patches |
 
 ## Implemented Controls
 
@@ -27,6 +28,7 @@ Audit date: 2026-09-02
 - Invalid live-provider tool calls are logged and returned as observations for recovery.
 - Live mode caps observation count and character payload size to reduce token waste.
 - Live mode has a configurable model-cost ceiling before tool execution.
+- Python patch planning validates syntax before approving planned writes.
 - API keys are read from `OPENAI_API_KEY`; no real secrets are committed.
 - Benchmark fixtures are copied into temporary workspaces before agent execution.
 

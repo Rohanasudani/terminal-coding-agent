@@ -221,6 +221,8 @@ class TerminalAgent:
         required_args = {
             "search": {"query"},
             "read_file": {"path"},
+            "code_map": set(),
+            "find_references": {"symbol"},
             "plan_patch": {"path", "content"},
             "plan_patch_set": {"files"},
             "write_file": {"path", "content"},

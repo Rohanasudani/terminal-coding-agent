@@ -22,10 +22,12 @@ This project treats the agent as an engineering system:
 - `termagent tools`: inspect available structured tools
 - `termagent bench`: run local benchmark tasks and write a report
 - repo search powered by `rg` when available
+- Python AST code map for symbols, imports, and references
 - file read/write with path sandboxing
 - shell execution with deny/approval policy
 - git diff preview
 - planned-write safety: the agent previews a patch before `write_file` can execute
+- Python syntax validation before planned patches are approved
 - test-first repair loop that runs the verifier, parses failures, searches likely symbols, patches, reruns tests, and reports the final diff
 - deterministic mock provider for tests and demos
 - deterministic repair provider for benchmarkable local coding tasks

@@ -37,6 +37,31 @@ def test_plan_patch_previews_without_writing(tmp_path: Path):
     assert "content_sha256" in result.metadata
 
 
+def test_plan_patch_rejects_invalid_python(tmp_path: Path):
+    tools = ToolRegistry(tmp_path, "auto")
+
+    result = tools.call("plan_patch", {"path": "broken.py", "content": "def broken(:\n    pass\n"})
+
+    assert result.status == "error"
+    assert "python syntax check failed" in result.output
+
+
+def test_code_map_and_references_tools(tmp_path: Path):
+    (tmp_path / "module.py").write_text(
+        "def normalize(value):\n    return value.strip()\n\nresult = normalize(' x ')\n",
+        encoding="utf-8",
+    )
+    tools = ToolRegistry(tmp_path, "auto")
+
+    code_map = tools.call("code_map", {"query": "normalize"})
+    references = tools.call("find_references", {"symbol": "normalize"})
+
+    assert code_map.status == "ok"
+    assert "function normalize at module.py:1" in code_map.output
+    assert references.status == "ok"
+    assert "module.py:4" in references.output
+
+
 def test_patch_set_previews_and_writes_grouped_diff(tmp_path: Path):
     repo = tmp_path / "repo"
     repo.mkdir()

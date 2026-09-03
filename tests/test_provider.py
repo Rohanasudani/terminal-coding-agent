@@ -32,6 +32,8 @@ def test_tool_call_response_format_uses_strict_schema():
 
     assert response_format["type"] == "json_schema"
     assert response_format["strict"] is True
+    assert "code_map" in response_format["schema"]["properties"]["name"]["enum"]
+    assert "find_references" in response_format["schema"]["properties"]["name"]["enum"]
     assert "plan_patch" in response_format["schema"]["properties"]["name"]["enum"]
     assert "plan_patch_set" in response_format["schema"]["properties"]["name"]["enum"]
     assert "write_patch_set" in response_format["schema"]["properties"]["name"]["enum"]
