@@ -1,6 +1,12 @@
 # Terminal Coding Agent
 
-A benchmarkable terminal coding agent inspired by tools like Claude Code and Codex. The goal is not just to call an LLM from a terminal; the goal is to build an agent that can inspect a repository, plan changes, use structured tools, preview diffs, obey safety gates, and produce reproducible benchmark logs.
+[![CI](https://github.com/Rohanasudani/terminal-coding-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/Rohanasudani/terminal-coding-agent/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
+A benchmarkable terminal coding agent inspired by tools like Claude Code and Codex. It can inspect a repository, plan changes, use structured tools, preview diffs, obey safety gates, track token/cost usage, and produce reproducible benchmark logs.
+
+**Current baseline:** `8/8` local benchmark tasks pass with the deterministic repair provider.
 
 ## Why This Project Exists
 
@@ -15,6 +21,21 @@ This project treats the agent as an engineering system:
 - JSONL command logs for every tool call
 - a local benchmark harness for regression testing
 - provider abstraction for mock, OpenAI-compatible, or future model backends
+
+## Architecture At A Glance
+
+```mermaid
+flowchart LR
+    CLI[CLI] --> Agent[Agent loop]
+    Agent --> Provider[Provider]
+    Agent --> Tools[Structured tools]
+    Tools --> Repo[Repo search and code map]
+    Tools --> Writes[Patch planning and writes]
+    Tools --> Shell[Safe shell runner]
+    Agent --> Traces[JSONL traces]
+    Agent --> Bench[Benchmark reports]
+    Bench --> Harbor[Harbor export]
+```
 
 ## Current Features
 
@@ -51,6 +72,7 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 pytest
 termagent tools
+termagent doctor
 termagent run --repo tests/fixtures/sample_repo --task "Fix the calculator add bug and run tests"
 termagent bench --repo-root .
 termagent harbor-export --overwrite
@@ -113,6 +135,7 @@ The local benchmark harness copies each task fixture into an isolated temporary 
 
 See [docs/benchmark-report.md](docs/benchmark-report.md) for the latest checked-in baseline.
 See [docs/harbor-terminal-bench.md](docs/harbor-terminal-bench.md) for the Harbor/Terminal-Bench integration path.
+See [docs/project-brief.md](docs/project-brief.md) for resume bullets and interview talking points.
 
 Current local baseline:
 
@@ -121,6 +144,16 @@ Current local baseline:
 | repair | 8 | 8 | 100% | $0.000000 |
 
 This is the bridge to Terminal-Bench-style evaluation: the agent is designed around reproducible tasks, verifier commands, execution logs, and pass/fail reports from day one.
+
+## Documentation
+
+- [Architecture](docs/architecture.md)
+- [Architecture diagram](docs/architecture-diagram.md)
+- [Benchmarking](docs/benchmarking.md)
+- [Demo commands](docs/demo.md)
+- [Repository intelligence](docs/repository-intelligence.md)
+- [Security audit](docs/security-audit.md)
+- [Project brief](docs/project-brief.md)
 
 ## Roadmap
 

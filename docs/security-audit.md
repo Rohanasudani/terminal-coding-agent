@@ -16,6 +16,7 @@ Audit date: 2026-09-02
 | 8. Repository intelligence | Complete | Python AST symbol/import/reference map and syntax validation before planned patches |
 | 9. Multi-language repository intelligence | Complete | Python, JavaScript, and TypeScript symbol/import/reference map with ignored dependency/build folders |
 | 10. Terminal-Bench direction | Complete | Harbor-shaped dataset export, reward-file verifier scripts, benchmark comparison reports |
+| 11. Product polish | Complete | CI, issue templates, contribution guide, security policy, project brief, demo docs, health checks |
 
 ## Implemented Controls
 

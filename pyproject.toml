@@ -11,6 +11,24 @@ requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "Rohan Asudani" }]
 dependencies = []
+keywords = ["ai-agent", "coding-agent", "benchmark", "terminal", "llm", "evals"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development",
+  "Topic :: Software Development :: Testing",
+]
+
+[project.urls]
+Homepage = "https://github.com/Rohanasudani/terminal-coding-agent"
+Repository = "https://github.com/Rohanasudani/terminal-coding-agent"
+Issues = "https://github.com/Rohanasudani/terminal-coding-agent/issues"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.8"]

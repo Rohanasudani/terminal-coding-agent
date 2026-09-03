@@ -14,6 +14,12 @@ from .harbor import (
     write_comparison_markdown,
     write_harbor_export_manifest,
 )
+from .health import (
+    format_health_checks,
+    health_checks_as_dicts,
+    health_checks_passed,
+    run_health_checks,
+)
 from .models import AgentConfig
 from .tools import ToolRegistry
 
@@ -61,6 +67,10 @@ def build_parser() -> argparse.ArgumentParser:
     compare.add_argument("reports", nargs="+", type=Path)
     compare.add_argument("--label", action="append", dest="labels")
     compare.add_argument("--markdown-report", type=Path, default=Path("bench/results/comparison.md"))
+
+    doctor = subparsers.add_parser("doctor", help="Check local TermAgent prerequisites")
+    doctor.add_argument("--repo", type=Path, default=Path("."))
+    doctor.add_argument("--json", action="store_true", dest="json_output")
 
     return parser
 
@@ -143,6 +153,14 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{comparison.label}: {comparison.passed}/{comparison.total} ({comparison.pass_rate:.1%})")
         print(args.markdown_report)
         return 0
+
+    if args.command == "doctor":
+        checks = run_health_checks(args.repo)
+        if args.json_output:
+            print(json.dumps(health_checks_as_dicts(checks), indent=2))
+        else:
+            print(format_health_checks(checks))
+        return 0 if health_checks_passed(checks) else 1
 
     return 1
 

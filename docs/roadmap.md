@@ -104,9 +104,21 @@ Status: complete
 
 ## Milestone 11: Product Polish
 
-- demo GIF
+Status: complete
+
 - richer README
 - architecture diagrams
-- GitHub repo topics
+- CI workflow
+- issue and pull request templates
+- contribution and security docs
+- project brief with resume bullets
+- local health-check command
+
+Milestone 11 completed the public repository polish layer: CI, issue templates, PR template, contribution guide, security policy, project brief, demo commands, architecture diagram, package metadata, and local health checks.
+
+Future public-launch improvements:
+
+- demo GIF
 - packaged CLI release
 - Harbor-compatible custom agent packaging
+- real pinned Terminal-Bench subset run
