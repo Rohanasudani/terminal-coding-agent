@@ -7,7 +7,12 @@ from .diagnostics import parse_pytest_failure, tests_passed
 from .logging import TraceLogger
 from .models import AgentConfig, AgentState, ToolCall
 from .pricing import estimate_cost_usd
-from .provider import build_provider, first_code_map_symbol_path, patch_from_read_output
+from .provider import (
+    build_provider,
+    first_code_map_symbol_path,
+    first_search_path,
+    patch_from_read_output,
+)
 from .safety import resolve_inside_root
 from .tools import ToolRegistry, sha256_text
 
@@ -149,6 +154,10 @@ class TerminalAgent:
                 if isinstance(relative_path, str) and isinstance(content_hash, str):
                     self.planned_writes.add((relative_path, content_hash))
                     state.patch_plans += 1
+                    path = call.arguments.get("path")
+                    content = call.arguments.get("content")
+                    if isinstance(path, str) and isinstance(content, str):
+                        self.controller_pending_patch = {"path": path, "content": content}
             if call.name == "plan_patch_set" and result.status == "ok":
                 state.patch_plans += self._remember_grouped_plan(result.metadata)
 
@@ -314,6 +323,17 @@ class TerminalAgent:
             if path:
                 return ToolCall("read_file", {"path": path})
 
+        if latest.startswith("search: ok"):
+            path = first_search_path(latest)
+            if path:
+                return ToolCall("read_file", {"path": path})
+
+        if latest.startswith("read_file: error"):
+            failure = latest_pytest_failure(observations)
+            if failure and failure.symbol:
+                return ToolCall("search", {"query": f"def {failure.symbol}", "glob": "*.py"})
+            return ToolCall("code_map", {})
+
         if latest.startswith("read_file: ok"):
             patch = patch_from_read_output(self.config.task, latest)
             if patch:
@@ -401,6 +421,15 @@ def summarize_subsystems(paths: list[str]) -> str:
 
 def normalize_tool_call(call: ToolCall) -> ToolCall:
     return ToolCall(call.name, {key: value for key, value in call.arguments.items() if value is not None})
+
+
+def latest_pytest_failure(observations: list[str]):
+    for observation in reversed(observations):
+        if observation.startswith("run_shell: ok"):
+            failure = parse_pytest_failure(observation)
+            if failure.file_path or failure.symbol or failure.assertion:
+                return failure
+    return None
 
 
 def rollback_guidance(paths: list[str]) -> str:

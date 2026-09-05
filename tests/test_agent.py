@@ -132,6 +132,72 @@ def test_agent_guides_provider_after_failed_verifier(tmp_path: Path, monkeypatch
     assert any("Do not rerun the same test command" in observation for observation in provider.seen_observations)
 
 
+def test_controller_recovers_after_bad_live_read_path(tmp_path: Path, monkeypatch):
+    source = Path(__file__).parent / "fixtures" / "sample_repo"
+    repo = tmp_path / "repo"
+    shutil.copytree(source, repo)
+
+    class BadPathThenRepeatProvider:
+        def next_action(self, task: str, observations: list[str]) -> ProviderOutput:
+            if not observations:
+                return ProviderOutput(ToolCall("run_shell", {"command": f"{sys.executable} -m pytest -q"}))
+            if observations[-1].startswith("code_map: ok"):
+                return ProviderOutput(
+                    ToolCall("read_file", {"path": "tests/fixtures/sample_repo/calculator.py"})
+                )
+            return ProviderOutput(ToolCall("run_shell", {"command": f"{sys.executable} -m pytest -q"}))
+
+    monkeypatch.setattr(agent_module, "build_provider", lambda *args, **kwargs: BadPathThenRepeatProvider())
+
+    state = TerminalAgent(
+        AgentConfig(
+            repo=repo,
+            task="Fix the calculator add bug and run tests",
+            provider="openai",
+            approval_mode="auto",
+            test_command="{python} -m pytest -q",
+            max_steps=12,
+        )
+    ).run()
+
+    assert state.completed is True
+    assert state.tests_passed is True
+    assert state.changed_files == ["calculator.py"]
+
+
+def test_controller_writes_provider_planned_patch_before_repeated_tests(tmp_path: Path, monkeypatch):
+    source = Path(__file__).parent / "fixtures" / "sample_repo"
+    repo = tmp_path / "repo"
+    shutil.copytree(source, repo)
+
+    class PlanThenRepeatProvider:
+        def next_action(self, task: str, observations: list[str]) -> ProviderOutput:
+            if not observations:
+                return ProviderOutput(ToolCall("run_shell", {"command": f"{sys.executable} -m pytest -q"}))
+            if observations[-1].startswith("run_shell: ok"):
+                return ProviderOutput(
+                    ToolCall("plan_patch", {"path": "calculator.py", "content": "def add(a, b):\n    return a + b\n"})
+                )
+            return ProviderOutput(ToolCall("run_shell", {"command": f"{sys.executable} -m pytest -q"}))
+
+    monkeypatch.setattr(agent_module, "build_provider", lambda *args, **kwargs: PlanThenRepeatProvider())
+
+    state = TerminalAgent(
+        AgentConfig(
+            repo=repo,
+            task="Fix the calculator add bug and run tests",
+            provider="openai",
+            approval_mode="auto",
+            test_command="{python} -m pytest -q",
+            max_steps=8,
+        )
+    ).run()
+
+    assert state.completed is True
+    assert state.tests_passed is True
+    assert state.changed_files == ["calculator.py"]
+
+
 def test_normalize_tool_call_removes_nullable_schema_placeholders():
     call = normalize_tool_call(
         ToolCall(

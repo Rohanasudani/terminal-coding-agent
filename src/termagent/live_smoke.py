@@ -66,7 +66,7 @@ def run_live_smoke(
                     "then use code_map, search, or read_file for repository inspection."
                 ),
                 approval_mode="auto",
-                max_steps=8,
+                max_steps=12,
                 log_dir=repo_root / ".termagent" / "live-smoke",
                 provider="openai",
                 model=model,

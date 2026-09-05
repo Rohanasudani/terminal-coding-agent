@@ -34,6 +34,7 @@ Audit date: 2026-09-02
 - Live provider tool calls are validated before execution.
 - Live provider prompts include the configured verifier command and prohibit chained shell snippets.
 - Repeated failed verifier commands are redirected by a controller loop guard into inspection or patch planning.
+- Controller redirects can follow through on already-reviewed patch plans without bypassing content-hash write validation.
 - Live provider fallback structured-output schemas disable additional properties on every object.
 - Nullable schema placeholders are removed before tool validation or execution.
 - OpenAI-compatible Responses API payloads set `store: false`.
