@@ -3,7 +3,7 @@
 This is a sanitized smoke-test summary for TermAgent's OpenAI-compatible provider.
 It does not include raw prompts, raw model output, API keys, or private trace payloads.
 
-- Checked at: pending local API-key run
+- Checked at: pending rerun after local TLS fix
 - Status: pending
 - Model: `gpt-5.6-luna`
 - Completed: `false`
@@ -12,7 +12,7 @@ It does not include raw prompts, raw model output, API keys, or private trace pa
 - Changed files: `none`
 - Tokens: `0` input, `0` output
 - Estimated model cost: `$0.000000`
-- Note: Run `termagent live-smoke --repo-root . --max-cost-usd 0.05` from a shell where `OPENAI_API_KEY` is set.
+- Note: A local run initially failed before spending tokens because Python could not verify the TLS certificate chain. The provider now uses `certifi` for HTTPS certificate validation; rerun the command below from a shell where `OPENAI_API_KEY` is set.
 
 Run it locally:
 

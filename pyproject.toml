@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "Rohan Asudani" }]
-dependencies = []
+dependencies = ["certifi>=2024.8.30"]
 keywords = ["ai-agent", "coding-agent", "benchmark", "terminal", "llm", "evals"]
 classifiers = [
   "Development Status :: 3 - Alpha",

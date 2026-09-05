@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import tempfile
 from dataclasses import asdict, dataclass
@@ -75,6 +76,9 @@ def run_live_smoke(
         ).run()
 
     status = "passed" if state.completed and state.tests_passed else "failed"
+    note = "Raw trace is intentionally kept under ignored .termagent/live-smoke and is not committed."
+    if status == "failed":
+        note = f"{safe_failure_summary(state.final_answer)} {note}"
     result = LiveSmokeResult(
         status=status,
         model=model,
@@ -86,7 +90,7 @@ def run_live_smoke(
         output_tokens=state.output_tokens,
         estimated_cost_usd=round(state.estimated_cost_usd, 6),
         report_path=str(report_path),
-        note="Raw trace is intentionally kept under ignored .termagent/live-smoke and is not committed.",
+        note=note,
     )
     write_live_smoke_report(result, report_path)
     return result
@@ -126,3 +130,12 @@ def write_live_smoke_report(result: LiveSmokeResult, report_path: Path) -> None:
 
 def live_smoke_result_as_dict(result: LiveSmokeResult) -> dict[str, object]:
     return asdict(result)
+
+
+def safe_failure_summary(final_answer: str | None) -> str:
+    if not final_answer:
+        return "Live smoke did not complete."
+
+    redacted = re.sub(r"sk-[A-Za-z0-9_-]+", "sk-REDACTED", final_answer)
+    redacted = re.sub(r"Bearer\s+[A-Za-z0-9._-]+", "Bearer REDACTED", redacted, flags=re.IGNORECASE)
+    return redacted.replace("\n", " ")[:300]

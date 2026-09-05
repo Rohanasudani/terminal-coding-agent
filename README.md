@@ -59,6 +59,7 @@ flowchart LR
 - token usage and estimated model cost reporting
 - live-mode cost ceilings, prompt profiles, validation recovery, and observation caps
 - hardened shell execution without `shell=True`
+- HTTPS certificate validation through `certifi` for live provider requests
 - network commands blocked by default
 - eight-task local benchmark suite with JSON and Markdown reports
 - Harbor-shaped benchmark export and report comparison tooling

@@ -6,6 +6,7 @@ from termagent import provider
 from termagent.provider import (
     OpenAICompatibleProvider,
     compact_observations,
+    openai_ssl_context,
     parse_tool_call,
     provider_system_prompt,
     symbol_imported_by_test,
@@ -72,8 +73,9 @@ def test_openai_provider_retries_invalid_json_and_tracks_usage(monkeypatch):
     ]
     seen_payloads: list[dict[str, object]] = []
 
-    def fake_urlopen(request, timeout: int):
+    def fake_urlopen(request, timeout: int, context):
         assert timeout == 60
+        assert context is not None
         seen_payloads.append(json.loads(request.data.decode("utf-8")))
         return FakeResponse(responses.pop(0))
 
@@ -88,6 +90,12 @@ def test_openai_provider_retries_invalid_json_and_tracks_usage(monkeypatch):
     assert output.attempts == 2
     assert seen_payloads[0]["text"] == {"format": tool_call_response_format()}
     assert seen_payloads[0]["store"] is False
+
+
+def test_openai_ssl_context_requires_certificate_validation():
+    context = openai_ssl_context()
+
+    assert context.verify_mode == provider.ssl.CERT_REQUIRED
 
 
 def test_symbol_imported_by_test_extracts_imported_function():

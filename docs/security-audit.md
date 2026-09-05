@@ -32,6 +32,7 @@ Audit date: 2026-09-02
 - Shell control operators such as `;`, `&&`, pipes, backticks, and command substitution are blocked.
 - Live provider tool calls are validated before execution.
 - OpenAI-compatible Responses API payloads set `store: false`.
+- Live provider HTTPS requests use `certifi` for certificate validation.
 - Invalid live-provider tool calls are logged and returned as observations for recovery.
 - Live mode caps observation count and character payload size to reduce token waste.
 - Live mode has a configurable model-cost ceiling before tool execution.

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from termagent.live_smoke import run_live_smoke
+from termagent.live_smoke import run_live_smoke, safe_failure_summary
 
 
 def test_live_smoke_skips_without_api_key(tmp_path: Path, monkeypatch):
@@ -26,3 +26,10 @@ def test_live_smoke_report_is_sanitized_without_raw_trace(tmp_path: Path, monkey
     assert "OPENAI_API_KEY=\"your-api-key\"" in content
     assert "Bearer" not in content
     assert "authorization" not in content.lower()
+
+
+def test_safe_failure_summary_redacts_key_like_values():
+    summary = safe_failure_summary("Provider error: Bearer sk-testsecret failed")
+
+    assert "sk-testsecret" not in summary
+    assert "Bearer REDACTED" in summary

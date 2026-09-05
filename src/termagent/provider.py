@@ -3,11 +3,14 @@ from __future__ import annotations
 import json
 import os
 import re
+import ssl
 import sys
 import urllib.error
 import urllib.request
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+
+import certifi
 
 from .diagnostics import parse_pytest_failure, tests_passed
 from .models import PromptProfile, ProviderOutput, TokenUsage, ToolCall
@@ -177,13 +180,17 @@ class OpenAICompatibleProvider(Provider):
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=60) as response:
+            with urllib.request.urlopen(request, timeout=60, context=openai_ssl_context()) as response:
                 return json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
             body = exc.read().decode("utf-8", errors="replace")[:800]
             raise RuntimeError(f"OpenAI API request failed with HTTP {exc.code}: {body}") from exc
         except urllib.error.URLError as exc:
             raise RuntimeError(f"OpenAI API request failed: {exc.reason}") from exc
+
+
+def openai_ssl_context() -> ssl.SSLContext:
+    return ssl.create_default_context(cafile=certifi.where())
 
 
 def provider_system_prompt(profile: PromptProfile = "conservative") -> str:
