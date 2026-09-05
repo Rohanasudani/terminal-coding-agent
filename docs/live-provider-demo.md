@@ -3,16 +3,16 @@
 This is a sanitized smoke-test summary for TermAgent's OpenAI-compatible provider.
 It does not include raw prompts, raw model output, API keys, or private trace payloads.
 
-- Checked at: 2026-09-05 21:39:54 UTC
+- Checked at: 2026-09-05 21:58:16 UTC
 - Status: failed
 - Model: `gpt-5.6-luna`
 - Completed: `False`
 - Tests passed: `False`
-- Steps: `1`
+- Steps: `8`
 - Changed files: `none`
-- Tokens: `543` input, `178` output
-- Estimated model cost: `$0.000322`
-- Note: This run reached OpenAI and produced a native `run_shell` tool call, but the model attempted a chained inspection command with shell control operators. The safety layer correctly blocked execution. Live mode now includes the configured verifier command in provider context and explicitly tells the model that `run_shell` accepts one argv-style command only. Raw trace is intentionally kept under ignored `.termagent/live-smoke` and is not committed.
+- Tokens: `10513` input, `901` output
+- Estimated model cost: `$0.003185`
+- Note: This run reached OpenAI, used a native `run_shell` tool call, and correctly ran the verifier, but the live model repeated the same failing test command instead of inspecting code. The agent now adds controller guidance after failed verifier runs: do not rerun the same test command before inspecting code and planning a patch. Raw trace is intentionally kept under ignored `.termagent/live-smoke` and is not committed.
 
 Run it locally:
 

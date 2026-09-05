@@ -1,4 +1,5 @@
 import shutil
+import sys
 from pathlib import Path
 
 import termagent.agent as agent_module
@@ -95,6 +96,38 @@ def test_agent_recovers_from_one_invalid_tool_call(tmp_path: Path, monkeypatch):
     assert state.completed is True
     assert state.validation_errors == 1
     assert not (tmp_path / "module.py").exists()
+
+
+def test_agent_guides_provider_after_failed_verifier(tmp_path: Path, monkeypatch):
+    source = Path(__file__).parent / "fixtures" / "sample_repo"
+    repo = tmp_path / "repo"
+    shutil.copytree(source, repo)
+
+    class RepeatingTestProvider:
+        def __init__(self) -> None:
+            self.seen_observations: list[str] = []
+
+        def next_action(self, task: str, observations: list[str]) -> ProviderOutput:
+            self.seen_observations = list(observations)
+            if not observations:
+                return ProviderOutput(ToolCall("run_shell", {"command": f"{sys.executable} -m pytest -q"}))
+            return ProviderOutput(ToolCall("git_diff", {}))
+
+    provider = RepeatingTestProvider()
+    monkeypatch.setattr(agent_module, "build_provider", lambda *args, **kwargs: provider)
+
+    state = TerminalAgent(
+        AgentConfig(
+            repo=repo,
+            task="fix tests",
+            provider="openai",
+            approval_mode="auto",
+            test_command="{python} -m pytest -q",
+        )
+    ).run()
+
+    assert state.completed is True
+    assert any("Do not rerun the same test command" in observation for observation in provider.seen_observations)
 
 
 def test_normalize_tool_call_removes_nullable_schema_placeholders():

@@ -164,6 +164,12 @@ class TerminalAgent:
                 state.tests_passed = state.tests_passed or passed
                 if not passed:
                     state.failed_test_runs += 1
+                    observations[-1] += (
+                        "\n\ncontroller_guidance: next_action\n"
+                        "The verifier failed. Do not rerun the same test command again until after "
+                        "a file write. Inspect the relevant code with code_map, find_references, "
+                        "search, or read_file, then plan a minimal patch."
+                    )
                     self.logger.write(
                         "reflection",
                         {

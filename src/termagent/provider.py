@@ -207,6 +207,7 @@ def provider_system_prompt(profile: PromptProfile = "conservative") -> str:
         "Prefer code_map for Python, JavaScript, and TypeScript symbol discovery and find_references before broad edits. "
         "Do not use run_shell for file discovery; use search, code_map, find_references, or read_file instead. "
         "When running tests, call run_shell with exactly the configured verifier command. "
+        "After a verifier failure, do not call run_shell again until after a write_file or write_patch_set succeeds. "
         "run_shell accepts one argv-style command only: no &&, ||, semicolons, pipes, command substitution, "
         "backticks, subshells, redirection, or chained inspection commands. "
         "Prefer minimal edits. "
