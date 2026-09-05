@@ -2,7 +2,7 @@ import shutil
 from pathlib import Path
 
 import termagent.agent as agent_module
-from termagent.agent import TerminalAgent, summarize_subsystems
+from termagent.agent import TerminalAgent, normalize_tool_call, summarize_subsystems
 from termagent.models import AgentConfig, ProviderOutput, TokenUsage, ToolCall
 
 
@@ -95,6 +95,36 @@ def test_agent_recovers_from_one_invalid_tool_call(tmp_path: Path, monkeypatch):
     assert state.completed is True
     assert state.validation_errors == 1
     assert not (tmp_path / "module.py").exists()
+
+
+def test_normalize_tool_call_removes_nullable_schema_placeholders():
+    call = normalize_tool_call(
+        ToolCall(
+            "git_diff",
+            {
+                "query": None,
+                "path": None,
+                "command": None,
+                "timeout": None,
+            },
+        )
+    )
+
+    assert call.arguments == {}
+
+
+def test_agent_rejects_unexpected_tool_arguments(tmp_path: Path, monkeypatch):
+    class BadArgumentProvider:
+        def next_action(self, task: str, observations: list[str]) -> ProviderOutput:
+            return ProviderOutput(ToolCall("git_diff", {"path": "module.py"}))
+
+    monkeypatch.setattr(agent_module, "build_provider", lambda *args, **kwargs: BadArgumentProvider())
+
+    state = TerminalAgent(AgentConfig(repo=tmp_path, task="inspect diff", provider="openai")).run()
+
+    assert state.completed is False
+    assert state.final_answer is not None
+    assert "unexpected argument" in state.final_answer
 
 
 def test_agent_stops_before_tool_execution_when_cost_limit_is_exceeded(tmp_path: Path, monkeypatch):

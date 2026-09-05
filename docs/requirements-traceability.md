@@ -17,7 +17,7 @@ This document maps the original project requirements to implemented TermAgent mi
 | Test-first repair loop | Complete | verifier-first run, failure parsing, targeted read, patch, rerun | local benchmark suite |
 | Benchmarking | Complete | `termagent bench`, JSON/Markdown reports, 8 local tasks | `termagent bench --repo-root .` |
 | Multi-language repository intelligence | Complete | Python AST plus JavaScript/TypeScript scanner for symbols/imports/references | `tests/test_code_map.py` |
-| Live LLM mode | Complete with caveat | OpenAI-compatible provider with strict tool calls, `store: false`, `certifi` TLS validation, cost accounting, and a capped smoke-run command | mocked tests; real key smoke run still requires local `OPENAI_API_KEY` |
+| Live LLM mode | Complete with caveat | OpenAI-compatible provider with strict nested tool-call schema, nullable argument normalization, `store: false`, `certifi` TLS validation, cost accounting, and a capped smoke-run command | mocked tests; real key smoke run still requires local `OPENAI_API_KEY` |
 | Terminal-Bench direction | Complete with caveat | Harbor-shaped export and comparison reports | `tests/test_harbor.py`, `termagent harbor-export` |
 | Interactive agent app | Complete | `termagent app` repeated task loop with `:doctor`, `:help`, `:quit` | `tests/test_interactive.py` |
 

@@ -31,6 +31,8 @@ Audit date: 2026-09-02
 - Inline interpreter execution such as `python -c` and `node -e` is blocked.
 - Shell control operators such as `;`, `&&`, pipes, backticks, and command substitution are blocked.
 - Live provider tool calls are validated before execution.
+- Live provider structured-output schemas disable additional properties on every object.
+- Nullable schema placeholders are removed before tool validation or execution.
 - OpenAI-compatible Responses API payloads set `store: false`.
 - Live provider HTTPS requests use `certifi` for certificate validation.
 - Invalid live-provider tool calls are logged and returned as observations for recovery.

@@ -3,16 +3,16 @@
 This is a sanitized smoke-test summary for TermAgent's OpenAI-compatible provider.
 It does not include raw prompts, raw model output, API keys, or private trace payloads.
 
-- Checked at: pending rerun after local TLS fix
-- Status: pending
+- Checked at: 2026-09-05 21:20:03 UTC
+- Status: failed before token spend; fixed in code
 - Model: `gpt-5.6-luna`
-- Completed: `false`
-- Tests passed: `false`
-- Steps: `0`
+- Completed: `False`
+- Tests passed: `False`
+- Steps: `1`
 - Changed files: `none`
 - Tokens: `0` input, `0` output
 - Estimated model cost: `$0.000000`
-- Note: A local run initially failed before spending tokens because Python could not verify the TLS certificate chain. The provider now uses `certifi` for HTTPS certificate validation; rerun the command below from a shell where `OPENAI_API_KEY` is set.
+- Note: This run reached OpenAI and failed because the nested tool `arguments` schema was not strict enough for Structured Outputs. The provider now sets `additionalProperties: false` on every object in the response schema, represents optional tool arguments as nullable fields, and strips nullable placeholders before tool validation/execution. Raw trace is intentionally kept under ignored `.termagent/live-smoke` and is not committed.
 
 Run it locally:
 

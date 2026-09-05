@@ -30,14 +30,31 @@ class FakeResponse:
 
 def test_tool_call_response_format_uses_strict_schema():
     response_format = tool_call_response_format()
+    schema = response_format["schema"]
 
     assert response_format["type"] == "json_schema"
     assert response_format["strict"] is True
-    assert "code_map" in response_format["schema"]["properties"]["name"]["enum"]
-    assert "find_references" in response_format["schema"]["properties"]["name"]["enum"]
-    assert "plan_patch" in response_format["schema"]["properties"]["name"]["enum"]
-    assert "plan_patch_set" in response_format["schema"]["properties"]["name"]["enum"]
-    assert "write_patch_set" in response_format["schema"]["properties"]["name"]["enum"]
+    assert "code_map" in schema["properties"]["name"]["enum"]
+    assert "find_references" in schema["properties"]["name"]["enum"]
+    assert "plan_patch" in schema["properties"]["name"]["enum"]
+    assert "plan_patch_set" in schema["properties"]["name"]["enum"]
+    assert "write_patch_set" in schema["properties"]["name"]["enum"]
+    assert_openai_strict_objects(schema)
+
+
+def assert_openai_strict_objects(schema: dict[str, object]) -> None:
+    if schema.get("type") == "object":
+        assert schema.get("additionalProperties") is False
+        properties = schema.get("properties", {})
+        assert isinstance(properties, dict)
+        assert set(schema.get("required", [])) == set(properties)
+        for value in properties.values():
+            if isinstance(value, dict):
+                assert_openai_strict_objects(value)
+
+    items = schema.get("items")
+    if isinstance(items, dict):
+        assert_openai_strict_objects(items)
 
 
 def test_prompt_profiles_change_live_provider_instructions():

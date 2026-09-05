@@ -61,7 +61,7 @@ class TerminalAgent:
                 self.logger.write("provider_error", {"step": step, "error": str(exc)})
                 break
 
-            call = provider_output.tool_call
+            call = normalize_tool_call(provider_output.tool_call)
             state.input_tokens += provider_output.usage.input_tokens
             state.output_tokens += provider_output.usage.output_tokens
             state.estimated_cost_usd = estimate_cost_usd(
@@ -233,6 +233,21 @@ class TerminalAgent:
         missing = sorted(name for name in required_args if name not in call.arguments)
         if missing:
             return f"missing required argument(s): {', '.join(missing)}"
+        allowed_args = {
+            "search": {"query", "glob"},
+            "read_file": {"path", "start", "limit"},
+            "code_map": {"query", "limit"},
+            "find_references": {"symbol", "limit"},
+            "plan_patch": {"path", "content"},
+            "plan_patch_set": {"files"},
+            "write_file": {"path", "content"},
+            "write_patch_set": {"files"},
+            "run_shell": {"command", "timeout"},
+            "git_diff": set(),
+        }[call.name]
+        unexpected = sorted(set(call.arguments) - allowed_args)
+        if unexpected:
+            return f"unexpected argument(s): {', '.join(unexpected)}"
         if call.name == "write_file":
             plan_error = self._validate_planned_write(call)
             if plan_error:
@@ -315,6 +330,10 @@ def summarize_subsystems(paths: list[str]) -> str:
         return "none"
     subsystems = sorted({path.split("/", maxsplit=1)[0] if "/" in path else "root" for path in paths})
     return ", ".join(subsystems)
+
+
+def normalize_tool_call(call: ToolCall) -> ToolCall:
+    return ToolCall(call.name, {key: value for key, value in call.arguments.items() if value is not None})
 
 
 def rollback_guidance(paths: list[str]) -> str:
