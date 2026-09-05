@@ -111,7 +111,7 @@ def test_agent_guides_provider_after_failed_verifier(tmp_path: Path, monkeypatch
             self.seen_observations = list(observations)
             if not observations:
                 return ProviderOutput(ToolCall("run_shell", {"command": f"{sys.executable} -m pytest -q"}))
-            return ProviderOutput(ToolCall("git_diff", {}))
+            return ProviderOutput(ToolCall("run_shell", {"command": f"{sys.executable} -m pytest -q"}))
 
     provider = RepeatingTestProvider()
     monkeypatch.setattr(agent_module, "build_provider", lambda *args, **kwargs: provider)
@@ -119,7 +119,7 @@ def test_agent_guides_provider_after_failed_verifier(tmp_path: Path, monkeypatch
     state = TerminalAgent(
         AgentConfig(
             repo=repo,
-            task="fix tests",
+            task="Fix the calculator add bug and run tests",
             provider="openai",
             approval_mode="auto",
             test_command="{python} -m pytest -q",
@@ -127,6 +127,8 @@ def test_agent_guides_provider_after_failed_verifier(tmp_path: Path, monkeypatch
     ).run()
 
     assert state.completed is True
+    assert state.tests_passed is True
+    assert state.changed_files == ["calculator.py"]
     assert any("Do not rerun the same test command" in observation for observation in provider.seen_observations)
 
 

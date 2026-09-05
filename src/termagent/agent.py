@@ -3,11 +3,11 @@ from __future__ import annotations
 import json
 import sys
 
-from .diagnostics import tests_passed
+from .diagnostics import parse_pytest_failure, tests_passed
 from .logging import TraceLogger
 from .models import AgentConfig, AgentState, ToolCall
 from .pricing import estimate_cost_usd
-from .provider import build_provider
+from .provider import build_provider, first_code_map_symbol_path, patch_from_read_output
 from .safety import resolve_inside_root
 from .tools import ToolRegistry, sha256_text
 
@@ -33,10 +33,12 @@ class TerminalAgent:
         self.logger = TraceLogger(config.log_dir)
         self.tool_names = {spec.name for spec in self.tools.specs()}
         self.planned_writes: set[tuple[str, str]] = set()
+        self.controller_pending_patch: dict[str, str] | None = None
 
     def run(self) -> AgentState:
         state = AgentState()
         observations: list[str] = []
+        last_failed_test_command: str | None = None
         self.logger.write(
             "agent_start",
             {
@@ -62,6 +64,17 @@ class TerminalAgent:
                 break
 
             call = normalize_tool_call(provider_output.tool_call)
+            controller_call = self._controller_redirect(call, observations, last_failed_test_command, state)
+            if controller_call:
+                self.logger.write(
+                    "controller_redirect",
+                    {
+                        "step": step,
+                        "from": {"name": call.name, "arguments": call.arguments},
+                        "to": {"name": controller_call.name, "arguments": controller_call.arguments},
+                    },
+                )
+                call = controller_call
             state.input_tokens += provider_output.usage.input_tokens
             state.output_tokens += provider_output.usage.output_tokens
             state.estimated_cost_usd = estimate_cost_usd(
@@ -147,6 +160,8 @@ class TerminalAgent:
                 )
                 break
             if call.name == "write_file" and result.status == "ok":
+                last_failed_test_command = None
+                self.controller_pending_patch = None
                 relative_path = result.metadata.get("relative_path")
                 if isinstance(relative_path, str) and relative_path not in state.changed_files:
                     state.changed_files.append(relative_path)
@@ -154,6 +169,8 @@ class TerminalAgent:
                 if isinstance(relative_path, str) and isinstance(content_hash, str):
                     self.planned_writes.discard((relative_path, content_hash))
             if call.name == "write_patch_set" and result.status == "ok":
+                last_failed_test_command = None
+                self.controller_pending_patch = None
                 self._record_grouped_write(state, result.metadata)
 
             if call.name == "run_shell" and result.status == "ok":
@@ -164,6 +181,8 @@ class TerminalAgent:
                 state.tests_passed = state.tests_passed or passed
                 if not passed:
                     state.failed_test_runs += 1
+                    if isinstance(command, str):
+                        last_failed_test_command = command
                     observations[-1] += (
                         "\n\ncontroller_guidance: next_action\n"
                         "The verifier failed. Do not rerun the same test command again until after "
@@ -262,6 +281,48 @@ class TerminalAgent:
             plan_error = self._validate_planned_write_set(call)
             if plan_error:
                 return plan_error
+        return None
+
+    def _controller_redirect(
+        self,
+        call: ToolCall,
+        observations: list[str],
+        last_failed_test_command: str | None,
+        state: AgentState,
+    ) -> ToolCall | None:
+        if state.tests_passed and call.name == "run_shell":
+            return ToolCall("git_diff", {})
+
+        if call.name != "run_shell" or not last_failed_test_command:
+            return None
+        if call.arguments.get("command") != last_failed_test_command:
+            return None
+        if not observations:
+            return None
+
+        latest = observations[-1]
+        if latest.startswith("run_shell: ok"):
+            failure = parse_pytest_failure(latest)
+            if failure.symbol:
+                return ToolCall("code_map", {"query": failure.symbol})
+            if failure.file_path:
+                return ToolCall("read_file", {"path": failure.file_path})
+            return ToolCall("code_map", {})
+
+        if latest.startswith("code_map: ok"):
+            path = first_code_map_symbol_path(latest)
+            if path:
+                return ToolCall("read_file", {"path": path})
+
+        if latest.startswith("read_file: ok"):
+            patch = patch_from_read_output(self.config.task, latest)
+            if patch:
+                self.controller_pending_patch = patch
+                return ToolCall("plan_patch", patch)
+
+        if latest.startswith("plan_patch: ok") and self.controller_pending_patch:
+            return ToolCall("write_file", self.controller_pending_patch)
+
         return None
 
     def _validate_planned_write(self, call: ToolCall) -> str | None:

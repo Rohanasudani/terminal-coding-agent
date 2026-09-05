@@ -33,7 +33,7 @@ Audit date: 2026-09-02
 - Live provider uses native OpenAI function calls with strict per-tool argument schemas.
 - Live provider tool calls are validated before execution.
 - Live provider prompts include the configured verifier command and prohibit chained shell snippets.
-- Failed verifier runs add controller guidance so live providers inspect or patch before rerunning tests.
+- Repeated failed verifier commands are redirected by a controller loop guard into inspection or patch planning.
 - Live provider fallback structured-output schemas disable additional properties on every object.
 - Nullable schema placeholders are removed before tool validation or execution.
 - OpenAI-compatible Responses API payloads set `store: false`.
