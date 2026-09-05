@@ -6,7 +6,9 @@ from termagent import provider
 from termagent.provider import (
     OpenAICompatibleProvider,
     compact_observations,
+    extract_openai_tool_call,
     openai_ssl_context,
+    openai_tool_definitions,
     parse_tool_call,
     provider_system_prompt,
     symbol_imported_by_test,
@@ -40,6 +42,27 @@ def test_tool_call_response_format_uses_strict_schema():
     assert "plan_patch_set" in schema["properties"]["name"]["enum"]
     assert "write_patch_set" in schema["properties"]["name"]["enum"]
     assert_openai_strict_objects(schema)
+
+
+def test_openai_function_tools_are_strict():
+    tools = openai_tool_definitions()
+
+    assert {tool["name"] for tool in tools} == {
+        "search",
+        "read_file",
+        "code_map",
+        "find_references",
+        "plan_patch",
+        "plan_patch_set",
+        "write_file",
+        "write_patch_set",
+        "run_shell",
+        "git_diff",
+    }
+    for tool in tools:
+        assert tool["type"] == "function"
+        assert tool["strict"] is True
+        assert_openai_strict_objects(tool["parameters"])
 
 
 def assert_openai_strict_objects(schema: dict[str, object]) -> None:
@@ -80,11 +103,33 @@ def test_parse_tool_call_requires_json_object():
         parse_tool_call('{"name": "git_diff", "arguments": []}')
 
 
+def test_extract_openai_tool_call_reads_native_function_call():
+    call = extract_openai_tool_call(
+        {
+            "output": [
+                {
+                    "type": "function_call",
+                    "name": "run_shell",
+                    "arguments": '{"command": "pytest -q", "timeout": null}',
+                }
+            ]
+        }
+    )
+
+    assert call == provider.ToolCall("run_shell", {"command": "pytest -q", "timeout": None})
+
+
 def test_openai_provider_retries_invalid_json_and_tracks_usage(monkeypatch):
     responses = [
         {"output_text": "not json", "usage": {"input_tokens": 10, "output_tokens": 2}},
         {
-            "output_text": '{"name": "git_diff", "arguments": {}}',
+            "output": [
+                {
+                    "type": "function_call",
+                    "name": "git_diff",
+                    "arguments": "{}",
+                }
+            ],
             "usage": {"input_tokens": 5, "output_tokens": 1},
         },
     ]
@@ -105,7 +150,8 @@ def test_openai_provider_retries_invalid_json_and_tracks_usage(monkeypatch):
     assert output.usage.input_tokens == 15
     assert output.usage.output_tokens == 3
     assert output.attempts == 2
-    assert seen_payloads[0]["text"] == {"format": tool_call_response_format()}
+    assert seen_payloads[0]["tool_choice"] == "required"
+    assert seen_payloads[0]["tools"] == openai_tool_definitions()
     assert seen_payloads[0]["store"] is False
 
 

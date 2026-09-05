@@ -30,8 +30,9 @@ Audit date: 2026-09-02
 - Network commands such as `curl`, `wget`, `ssh`, `scp`, and `rsync` are blocked by default.
 - Inline interpreter execution such as `python -c` and `node -e` is blocked.
 - Shell control operators such as `;`, `&&`, pipes, backticks, and command substitution are blocked.
+- Live provider uses native OpenAI function calls with strict per-tool argument schemas.
 - Live provider tool calls are validated before execution.
-- Live provider structured-output schemas disable additional properties on every object.
+- Live provider fallback structured-output schemas disable additional properties on every object.
 - Nullable schema placeholders are removed before tool validation or execution.
 - OpenAI-compatible Responses API payloads set `store: false`.
 - Live provider HTTPS requests use `certifi` for certificate validation.

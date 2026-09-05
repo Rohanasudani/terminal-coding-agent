@@ -132,14 +132,15 @@ class OpenAICompatibleProvider(Provider):
             payload = self._payload(task, observations, invalid_outputs)
             data = self._request(payload)
             usage = add_usage(usage, usage_from_response(data))
-            text = extract_output_text(data)
             try:
-                call = parse_tool_call(text)
+                call = extract_openai_tool_call(data)
                 return ProviderOutput(tool_call=call, usage=usage, attempts=attempt)
             except (TypeError, ValueError) as exc:
+                text = extract_output_text(data)
                 invalid_outputs.append(f"{text[:500]}\nerror: {exc}")
 
-        raise RuntimeError("provider returned invalid tool JSON after retries")
+        latest_error = invalid_outputs[-1].split("error:", maxsplit=1)[-1].strip() if invalid_outputs else "unknown parser error"
+        raise RuntimeError(f"provider returned invalid tool call after retries: {latest_error}")
 
     def _payload(self, task: str, observations: list[str], invalid_outputs: list[str]) -> dict[str, object]:
         repair_note = ""
@@ -162,7 +163,8 @@ class OpenAICompatibleProvider(Provider):
                     + repair_note,
                 },
             ],
-            "text": {"format": tool_call_response_format()},
+            "tools": openai_tool_definitions(),
+            "tool_choice": "required",
         }
         return payload
 
@@ -286,6 +288,132 @@ def tool_call_response_format() -> dict[str, object]:
             },
         },
     }
+
+
+def openai_tool_definitions() -> list[dict[str, object]]:
+    return [
+        openai_tool(
+            "search",
+            "Search repository text with ripgrep when available.",
+            {
+                "query": {"type": "string"},
+                "glob": {"type": ["string", "null"]},
+            },
+        ),
+        openai_tool(
+            "read_file",
+            "Read a UTF-8 text file inside the repository.",
+            {
+                "path": {"type": "string"},
+                "start": {"type": ["integer", "null"]},
+                "limit": {"type": ["integer", "null"]},
+            },
+        ),
+        openai_tool(
+            "code_map",
+            "Build a Python, JavaScript, and TypeScript code map with symbols and imports.",
+            {
+                "query": {"type": ["string", "null"]},
+                "limit": {"type": ["integer", "null"]},
+            },
+        ),
+        openai_tool(
+            "find_references",
+            "Find Python, JavaScript, and TypeScript name references for a symbol.",
+            {
+                "symbol": {"type": "string"},
+                "limit": {"type": ["integer", "null"]},
+            },
+        ),
+        openai_tool(
+            "plan_patch",
+            "Preview a UTF-8 file write and return a unified diff without modifying the file.",
+            {
+                "path": {"type": "string"},
+                "content": {"type": "string"},
+            },
+        ),
+        openai_tool(
+            "plan_patch_set",
+            "Preview multiple UTF-8 file writes as one grouped diff without modifying files.",
+            {"files": patch_files_schema()},
+        ),
+        openai_tool(
+            "write_file",
+            "Write a UTF-8 text file inside the repository after a matching patch plan.",
+            {
+                "path": {"type": "string"},
+                "content": {"type": "string"},
+            },
+        ),
+        openai_tool(
+            "write_patch_set",
+            "Write multiple UTF-8 files after a matching grouped patch plan.",
+            {"files": patch_files_schema()},
+        ),
+        openai_tool(
+            "run_shell",
+            "Run a shell command under the configured safety policy.",
+            {
+                "command": {"type": "string"},
+                "timeout": {"type": ["integer", "null"]},
+            },
+        ),
+        openai_tool("git_diff", "Return the current git diff.", {}),
+    ]
+
+
+def openai_tool(name: str, description: str, properties: dict[str, object]) -> dict[str, object]:
+    return {
+        "type": "function",
+        "name": name,
+        "description": description,
+        "parameters": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": list(properties),
+            "properties": properties,
+        },
+        "strict": True,
+    }
+
+
+def patch_files_schema() -> dict[str, object]:
+    return {
+        "type": "array",
+        "items": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["path", "content"],
+            "properties": {
+                "path": {"type": "string"},
+                "content": {"type": "string"},
+            },
+        },
+    }
+
+
+def extract_openai_tool_call(data: dict[str, object]) -> ToolCall:
+    output = data.get("output")
+    if isinstance(output, list):
+        for item in output:
+            if not isinstance(item, dict) or item.get("type") != "function_call":
+                continue
+            name = item.get("name")
+            arguments = item.get("arguments")
+            if not isinstance(name, str):
+                raise TypeError("function call name must be a string")
+            if not isinstance(arguments, str):
+                raise TypeError("function call arguments must be a JSON string")
+            parsed = json.loads(arguments)
+            if not isinstance(parsed, dict):
+                raise TypeError("function call arguments must decode to an object")
+            return ToolCall(name=name, arguments=parsed)
+
+    text = extract_output_text(data)
+    if text:
+        return parse_tool_call(text)
+    raise ValueError("response did not contain a function call")
 
 
 def extract_output_text(data: dict[str, object]) -> str:
