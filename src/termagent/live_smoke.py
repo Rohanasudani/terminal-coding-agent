@@ -61,7 +61,10 @@ def run_live_smoke(
         state = TerminalAgent(
             AgentConfig(
                 repo=workspace,
-                task="Fix the calculator add bug and run tests",
+                task=(
+                    "Fix the calculator add bug. First run the configured verifier command exactly, "
+                    "then use code_map, search, or read_file for repository inspection."
+                ),
                 approval_mode="auto",
                 max_steps=8,
                 log_dir=repo_root / ".termagent" / "live-smoke",
