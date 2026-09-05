@@ -19,6 +19,7 @@ Audit date: 2026-09-02
 | 11. Product polish | Complete | CI, issue templates, contribution guide, security policy, project brief, demo docs, health checks |
 | 12. Interactive agent app | Complete | Interactive task loop reusing the same provider, safety policy, planned writes, traces, and cost controls |
 | 13. Requirements audit | Complete | Requirements traceability matrix, CLI/tool surface checks, public docs checks, honest-boundary assertions |
+| 14. Live-provider smoke readiness | Ready | Responses API `store: false`, capped `live-smoke` command, sanitized report, raw traces ignored |
 
 ## Implemented Controls
 
@@ -30,6 +31,7 @@ Audit date: 2026-09-02
 - Inline interpreter execution such as `python -c` and `node -e` is blocked.
 - Shell control operators such as `;`, `&&`, pipes, backticks, and command substitution are blocked.
 - Live provider tool calls are validated before execution.
+- OpenAI-compatible Responses API payloads set `store: false`.
 - Invalid live-provider tool calls are logged and returned as observations for recovery.
 - Live mode caps observation count and character payload size to reduce token waste.
 - Live mode has a configurable model-cost ceiling before tool execution.
@@ -70,7 +72,7 @@ No unsafe implementation instances were found after Milestone 7 hardening. Remai
 - This is still a local developer tool, not a complete OS-level sandbox.
 - `approval_mode=auto` allows non-destructive mutating commands after policy checks.
 - The shell classifier is conservative and may block legitimate complex commands.
-- Live OpenAI mode is covered by mocked provider tests and missing-key smoke tests; a real API-key smoke run should be performed before publishing a paid live-provider demo claim.
+- Live OpenAI mode is covered by mocked provider tests and missing-key smoke tests; run `termagent live-smoke --repo-root . --max-cost-usd 0.05` with a real API key before publishing a paid live-provider demo claim.
 - The deterministic `repair` provider intentionally uses transparent heuristics for local baseline benchmarks. Generalization should be evaluated with live providers and broader tasks.
 - Pricing estimates can become stale and should be checked against official provider docs.
 

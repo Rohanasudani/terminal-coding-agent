@@ -21,6 +21,7 @@ from .health import (
     run_health_checks,
 )
 from .interactive import InteractiveSettings, run_interactive_app
+from .live_smoke import live_smoke_result_as_dict, run_live_smoke
 from .models import AgentConfig
 from .tools import ToolRegistry
 
@@ -84,6 +85,13 @@ def build_parser() -> argparse.ArgumentParser:
     app.add_argument("--prompt-profile", choices=["conservative", "benchmark", "fast"], default="conservative")
     app.add_argument("--max-cost-usd", type=float, default=0.25)
     app.add_argument("--allow-network-commands", action="store_true")
+
+    live_smoke = subparsers.add_parser("live-smoke", help="Run a tiny capped OpenAI provider smoke test")
+    live_smoke.add_argument("--repo-root", type=Path, default=Path("."))
+    live_smoke.add_argument("--model", default="gpt-5.6-luna")
+    live_smoke.add_argument("--max-cost-usd", type=float, default=0.05)
+    live_smoke.add_argument("--report", type=Path, default=Path("docs/live-provider-demo.md"))
+    live_smoke.add_argument("--json", action="store_true", dest="json_output")
 
     return parser
 
@@ -190,6 +198,21 @@ def main(argv: list[str] | None = None) -> int:
                 allow_network_commands=args.allow_network_commands,
             )
         )
+
+    if args.command == "live-smoke":
+        result = run_live_smoke(
+            args.repo_root,
+            model=args.model,
+            max_cost_usd=args.max_cost_usd,
+            report_path=args.report,
+        )
+        if args.json_output:
+            print(json.dumps(live_smoke_result_as_dict(result), indent=2))
+        else:
+            print(f"live smoke {result.status}")
+            print(result.report_path)
+            print(result.note)
+        return 0 if result.status in {"passed", "skipped"} else 1
 
     return 1
 

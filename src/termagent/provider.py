@@ -145,6 +145,7 @@ class OpenAICompatibleProvider(Provider):
 
         payload = {
             "model": self.model,
+            "store": False,
             "input": [
                 {"role": "system", "content": provider_system_prompt(self.prompt_profile)},
                 {

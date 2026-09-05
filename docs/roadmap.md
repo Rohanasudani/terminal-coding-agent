@@ -141,3 +141,13 @@ Status: complete
 - automated checks for public CLI commands and required tool registry surface
 - automated checks that public docs exist and mention project boundaries
 - updated README link to the traceability doc
+
+## Milestone 14: Live Provider Smoke Run
+
+Status: ready; pending local API-key run
+
+- Responses API payloads set `store: false`
+- `termagent live-smoke` runs a tiny capped OpenAI-compatible provider demo
+- sanitized report writes to `docs/live-provider-demo.md`
+- raw traces stay under ignored `.termagent/live-smoke`
+- mocked tests cover no-key behavior and sanitized reports

@@ -11,6 +11,7 @@ REQUIRED_COMMANDS = {
     "harbor-export",
     "compare-bench",
     "doctor",
+    "live-smoke",
 }
 
 REQUIRED_TOOLS = {
@@ -37,6 +38,7 @@ REQUIRED_DOCS = [
     "docs/demo.md",
     "docs/harbor-terminal-bench.md",
     "docs/interactive-app.md",
+    "docs/live-provider-demo.md",
     "docs/project-brief.md",
     "docs/repository-intelligence.md",
     "docs/requirements-traceability.md",
@@ -81,4 +83,4 @@ def test_readme_and_security_audit_reference_latest_milestones():
 
     assert "termagent app" in readme
     assert "requirements-traceability.md" in readme
-    assert "13. Requirements audit" in security
+    assert "14. Live-provider smoke readiness" in security

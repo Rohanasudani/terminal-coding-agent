@@ -87,6 +87,7 @@ def test_openai_provider_retries_invalid_json_and_tracks_usage(monkeypatch):
     assert output.usage.output_tokens == 3
     assert output.attempts == 2
     assert seen_payloads[0]["text"] == {"format": tool_call_response_format()}
+    assert seen_payloads[0]["store"] is False
 
 
 def test_symbol_imported_by_test_extracts_imported_function():

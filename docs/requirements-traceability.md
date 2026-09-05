@@ -17,7 +17,7 @@ This document maps the original project requirements to implemented TermAgent mi
 | Test-first repair loop | Complete | verifier-first run, failure parsing, targeted read, patch, rerun | local benchmark suite |
 | Benchmarking | Complete | `termagent bench`, JSON/Markdown reports, 8 local tasks | `termagent bench --repo-root .` |
 | Multi-language repository intelligence | Complete | Python AST plus JavaScript/TypeScript scanner for symbols/imports/references | `tests/test_code_map.py` |
-| Live LLM mode | Complete with caveat | OpenAI-compatible provider with strict tool calls and cost accounting | mocked tests; real key smoke run still optional |
+| Live LLM mode | Complete with caveat | OpenAI-compatible provider with strict tool calls, `store: false`, cost accounting, and a capped smoke-run command | mocked tests; real key smoke run still requires local `OPENAI_API_KEY` |
 | Terminal-Bench direction | Complete with caveat | Harbor-shaped export and comparison reports | `tests/test_harbor.py`, `termagent harbor-export` |
 | Interactive agent app | Complete | `termagent app` repeated task loop with `:doctor`, `:help`, `:quit` | `tests/test_interactive.py` |
 
@@ -38,6 +38,7 @@ This document maps the original project requirements to implemented TermAgent mi
 | 11. Recruiter polish | Makes the public repo easy to assess | `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `.github` |
 | 12. Interactive agent app | Turns the CLI into a reusable local terminal app | `src/termagent/interactive.py`, `docs/interactive-app.md` |
 | 13. Requirements audit | Keeps project claims aligned with code and tests | `docs/requirements-traceability.md`, `tests/test_project_requirements.py` |
+| 14. Live-provider smoke readiness | Adds a repeatable capped live-provider demo path without committing raw traces | `src/termagent/live_smoke.py`, `docs/live-provider-demo.md` |
 
 ## Verification Checklist
 
@@ -62,7 +63,7 @@ Expected result: no matches.
 ## Honest Boundaries
 
 - The local `repair` provider is deterministic and intentionally uses transparent heuristics for regression testing.
-- OpenAI live mode is implemented and tested with mocked HTTP responses, but paid live demos should be run with a real key before making live-performance claims.
+- OpenAI live mode is implemented and tested with mocked HTTP responses. The `live-smoke` command should be run with a real key before making live-performance claims.
 - Harbor export produces Harbor-shaped local tasks. It is not a public Terminal-Bench leaderboard score.
 - JavaScript and TypeScript indexing is conservative; tree-sitter-backed parsing remains a future deeper implementation.
 - TermAgent is a local developer tool with safety controls, not a complete operating-system sandbox.

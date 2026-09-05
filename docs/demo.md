@@ -47,6 +47,15 @@ bench/results/latest.json
 bench/results/latest.md
 ```
 
+## Live Provider Smoke
+
+```bash
+export OPENAI_API_KEY="your-api-key"
+termagent live-smoke --repo-root . --max-cost-usd 0.05
+```
+
+The smoke command runs a tiny fixture task with the OpenAI-compatible provider and writes a sanitized summary to `docs/live-provider-demo.md`. Raw traces stay under ignored `.termagent/live-smoke`.
+
 ## Harbor-Shaped Export
 
 ```bash

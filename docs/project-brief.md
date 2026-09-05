@@ -10,7 +10,7 @@ Most terminal agents are impressive demos but hard to evaluate. TermAgent treats
 
 ## Resume Bullets
 
-- Built a benchmarkable terminal coding agent in Python with interactive app mode, structured repo search, file read/write tools, shell execution, approval gates, diff previews, JSONL traces, and safe live-model integration.
+- Built a benchmarkable terminal coding agent in Python with interactive app mode, structured repo search, file read/write tools, shell execution, approval gates, diff previews, JSONL traces, live-provider smoke tooling, and safe OpenAI-compatible integration.
 - Implemented a test-first repair loop with planned patch enforcement, token/cost accounting, Python/JavaScript/TypeScript repository intelligence, and an 8/8 local benchmark baseline.
 - Added Harbor/Terminal-Bench-style benchmark export tooling, comparison reports, CI coverage, and security documentation for reproducible agent evaluation.
 

@@ -43,6 +43,7 @@ flowchart LR
 - `termagent app`: start an interactive terminal agent session
 - `termagent tools`: inspect available structured tools
 - `termagent bench`: run local benchmark tasks and write a report
+- `termagent live-smoke`: run a tiny capped OpenAI provider smoke test
 - repo search powered by `rg` when available
 - Python, JavaScript, and TypeScript code map for symbols, imports, and references
 - file read/write with path sandboxing
@@ -79,6 +80,7 @@ termagent run --repo tests/fixtures/sample_repo --task "Fix the calculator add b
 termagent bench --repo-root .
 termagent harbor-export --overwrite
 termagent compare-bench bench/results/latest.json --label repair
+termagent live-smoke --repo-root . --max-cost-usd 0.05
 ```
 
 ## Live Model Mode
@@ -153,6 +155,7 @@ The local benchmark harness copies each task fixture into an isolated temporary 
 
 See [docs/benchmark-report.md](docs/benchmark-report.md) for the latest checked-in baseline.
 See [docs/harbor-terminal-bench.md](docs/harbor-terminal-bench.md) for the Harbor/Terminal-Bench integration path.
+See [docs/live-provider-demo.md](docs/live-provider-demo.md) for the sanitized live-provider smoke-test report.
 See [docs/project-brief.md](docs/project-brief.md) for resume bullets and interview talking points.
 
 Current local baseline:
@@ -170,6 +173,7 @@ This is the bridge to Terminal-Bench-style evaluation: the agent is designed aro
 - [Benchmarking](docs/benchmarking.md)
 - [Demo commands](docs/demo.md)
 - [Interactive app](docs/interactive-app.md)
+- [Live provider demo](docs/live-provider-demo.md)
 - [Repository intelligence](docs/repository-intelligence.md)
 - [Requirements traceability](docs/requirements-traceability.md)
 - [Security audit](docs/security-audit.md)
