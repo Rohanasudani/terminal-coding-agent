@@ -112,12 +112,14 @@ class OpenAICompatibleProvider(Provider):
     def __init__(
         self,
         model: str,
+        test_command: str | None = None,
         max_retries: int = 2,
         prompt_profile: PromptProfile = "conservative",
         observation_limit: int = 6,
         max_observation_chars: int = 8_000,
     ) -> None:
         self.model = model
+        self.test_command = test_command
         self.max_retries = max(0, max_retries)
         self.prompt_profile = prompt_profile
         self.observation_limit = max(1, observation_limit)
@@ -154,7 +156,9 @@ class OpenAICompatibleProvider(Provider):
                 {"role": "system", "content": provider_system_prompt(self.prompt_profile)},
                 {
                     "role": "user",
-                    "content": f"Task:\n{task}\n\nObservations:\n"
+                    "content": f"Task:\n{task}\n\nConfigured verifier command:\n"
+                    + (self.test_command or "not configured")
+                    + "\n\nObservations:\n"
                     + compact_observations(
                         observations,
                         limit=self.observation_limit,
@@ -198,8 +202,13 @@ def openai_ssl_context() -> ssl.SSLContext:
 def provider_system_prompt(profile: PromptProfile = "conservative") -> str:
     base = (
         "You are TermAgent, a terminal coding agent. Choose exactly one tool call. "
-        "Start by gathering evidence with run_shell, code_map, find_references, search, or read_file. "
+        "Start by gathering evidence with the configured verifier command, code_map, "
+        "find_references, search, or read_file. "
         "Prefer code_map for Python, JavaScript, and TypeScript symbol discovery and find_references before broad edits. "
+        "Do not use run_shell for file discovery; use search, code_map, find_references, or read_file instead. "
+        "When running tests, call run_shell with exactly the configured verifier command. "
+        "run_shell accepts one argv-style command only: no &&, ||, semicolons, pipes, command substitution, "
+        "backticks, subshells, redirection, or chained inspection commands. "
         "Prefer minimal edits. "
         "Before writing a file, call plan_patch with the exact path and content you intend to write. "
         "For coordinated multi-file edits, call plan_patch_set with all files in the group. Only call "
@@ -604,6 +613,7 @@ def build_provider(
     if name == "openai":
         return OpenAICompatibleProvider(
             model or os.environ.get("TERMAGENT_MODEL", "gpt-5.6-luna"),
+            test_command=test_command,
             max_retries=max_retries,
             prompt_profile=prompt_profile,
             observation_limit=observation_limit,

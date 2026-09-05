@@ -32,6 +32,7 @@ Audit date: 2026-09-02
 - Shell control operators such as `;`, `&&`, pipes, backticks, and command substitution are blocked.
 - Live provider uses native OpenAI function calls with strict per-tool argument schemas.
 - Live provider tool calls are validated before execution.
+- Live provider prompts include the configured verifier command and prohibit chained shell snippets.
 - Live provider fallback structured-output schemas disable additional properties on every object.
 - Nullable schema placeholders are removed before tool validation or execution.
 - OpenAI-compatible Responses API payloads set `store: false`.

@@ -85,6 +85,8 @@ def test_prompt_profiles_change_live_provider_instructions():
     benchmark = provider_system_prompt("benchmark")
 
     assert "validation errors" in conservative
+    assert "no &&" in conservative
+    assert "Do not use run_shell for file discovery" in conservative
     assert "reproducible benchmark success" in benchmark
 
 
@@ -144,7 +146,11 @@ def test_openai_provider_retries_invalid_json_and_tracks_usage(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     monkeypatch.setattr(provider.urllib.request, "urlopen", fake_urlopen)
 
-    output = OpenAICompatibleProvider("gpt-5.6-luna", max_retries=1).next_action("Fix tests", [])
+    output = OpenAICompatibleProvider(
+        "gpt-5.6-luna",
+        test_command="python -m pytest -q",
+        max_retries=1,
+    ).next_action("Fix tests", [])
 
     assert output.tool_call.name == "git_diff"
     assert output.usage.input_tokens == 15
@@ -153,6 +159,7 @@ def test_openai_provider_retries_invalid_json_and_tracks_usage(monkeypatch):
     assert seen_payloads[0]["tool_choice"] == "required"
     assert seen_payloads[0]["tools"] == openai_tool_definitions()
     assert seen_payloads[0]["store"] is False
+    assert "Configured verifier command:\npython -m pytest -q" in seen_payloads[0]["input"][1]["content"]
 
 
 def test_openai_ssl_context_requires_certificate_validation():
