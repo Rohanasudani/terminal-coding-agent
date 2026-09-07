@@ -61,6 +61,7 @@ class TerminalAgent:
                 "controller_recovery": self.config.controller_recovery,
                 "max_output_tokens": self.config.max_output_tokens,
                 "reasoning_effort": self.config.reasoning_effort,
+                "require_changes": self.config.require_changes,
             },
         )
 
@@ -224,6 +225,18 @@ class TerminalAgent:
                     )
 
             if call.name == "git_diff" and result.status == "ok":
+                has_changes = result.output.strip() not in {"", "no diff"}
+                if self.config.require_changes and not has_changes:
+                    observations[-1] += (
+                        "\n\ncontroller_guidance: task_not_complete\n"
+                        "This run requires a repository change, but the diff is empty. Inspect the "
+                        "task inputs and create or modify the requested files before finishing."
+                    )
+                    self.logger.write(
+                        "reflection",
+                        {"step": step, "summary": "task requires a change but the diff is empty"},
+                    )
+                    continue
                 state.completed = state.tests_passed
                 state.final_answer = self._format_final_answer(state, result.output)
                 break

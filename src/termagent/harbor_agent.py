@@ -28,6 +28,7 @@ class TermAgentHarbor(BaseAgent):
         controller_recovery: bool = True,
         max_output_tokens: int = 4_096,
         reasoning_effort: str = "high",
+        require_changes: bool = True,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -41,8 +42,8 @@ class TermAgentHarbor(BaseAgent):
             raise ValueError("live evaluation requires an explicit model")
         if self.model_name and "/" in self.model_name and not self.model_name.startswith("openai/"):
             raise ValueError("this adapter currently supports OpenAI model IDs only")
-        if not isinstance(controller_recovery, bool):
-            raise TypeError("controller_recovery must be a boolean")
+        if not isinstance(controller_recovery, bool) or not isinstance(require_changes, bool):
+            raise TypeError("controller_recovery and require_changes must be booleans")
         if not PurePosixPath(repo).is_absolute() or not test_command.strip():
             raise ValueError("an absolute container repo and a visible verifier command are required")
         if max_steps < 1 or not math.isfinite(max_cost_usd) or max_cost_usd <= 0:
@@ -65,6 +66,7 @@ class TermAgentHarbor(BaseAgent):
             "controller_recovery": controller_recovery,
             "max_output_tokens": max_output_tokens,
             "reasoning_effort": reasoning_effort,
+            "require_changes": require_changes,
             "approval_mode": "auto",
         }
 
@@ -134,4 +136,5 @@ class TermAgentHarbor(BaseAgent):
             "max_output_tokens": self.settings["max_output_tokens"],
             "reasoning_effort": self.settings["reasoning_effort"],
             "usage_is_complete": state["usage_is_complete"],
+            "require_changes": self.settings["require_changes"],
         }

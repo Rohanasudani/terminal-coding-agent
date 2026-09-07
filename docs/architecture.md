@@ -41,6 +41,11 @@ The live provider does not execute model text directly. It only accepts a struct
 
 Live mode adds conservative controls around provider cost and context use. The provider receives only a bounded tail of observations, supports prompt profiles and explicit reasoning effort, caps each response, and stops before tool execution if the estimated model cost exceeds the configured ceiling. Usage returned by malformed structured-output attempts remains part of the run accounting.
 
+Harbor runs require an observable repository change before agent completion. An
+initially passing syntax or smoke verifier cannot produce a false success with an
+empty diff. Git repositories fall back to the startup snapshot when `git diff` is
+empty so newly created untracked files remain visible.
+
 ## Planned Writes
 
 File edits go through a two-step contract:

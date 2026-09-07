@@ -64,6 +64,7 @@ def test_prompt_is_uploaded_as_data_and_credentials_are_not_in_config(tmp_path, 
     assert uploaded["task"] == prompt
     assert uploaded["model"] == "test-model"
     assert uploaded["controller_recovery"] is False
+    assert uploaded["require_changes"] is True
     assert "test-only-secret" not in json.dumps(uploaded)
     call = environment.exec.await_args.kwargs
     assert prompt not in call["command"]
@@ -74,6 +75,7 @@ def test_prompt_is_uploaded_as_data_and_credentials_are_not_in_config(tmp_path, 
     assert context.metadata["max_output_tokens"] == 4096
     assert context.metadata["reasoning_effort"] == "high"
     assert context.metadata["usage_is_complete"] is True
+    assert context.metadata["require_changes"] is True
 
 
 def test_missing_key_fails_before_agent_process(tmp_path, monkeypatch):

@@ -9,9 +9,10 @@ A benchmarkable terminal coding agent inspired by tools like Claude Code and Cod
 **Current baseline:** `8/8` local benchmark tasks pass with the deterministic repair provider.
 
 Status: alpha. The first-release checklist is in [docs/release-readiness.md](docs/release-readiness.md).
-The project now includes a repeated same-model Harbor comparison and a measured
-development ablation. The [project scope](PROJECT_SCOPE.md) still requires validation
-on external tasks before the project is considered complete.
+The project now includes a repeated same-model Harbor comparison, a measured
+development ablation, and honest negative results on two pinned external tasks.
+The [project scope](PROJECT_SCOPE.md) still requires a generalized improvement before
+the project is considered complete.
 The recorded live calculator run predates the removal of heuristic controller patches;
 it is historical integration evidence, not a current generalization score.
 
@@ -180,6 +181,7 @@ See [docs/benchmark-report.md](docs/benchmark-report.md) for the latest checked-
 See [docs/harbor-terminal-bench.md](docs/harbor-terminal-bench.md) for the Harbor/Terminal-Bench integration path.
 See [docs/live-provider-demo.md](docs/live-provider-demo.md) for the sanitized live-provider smoke-test report.
 See [docs/milestone17-results.md](docs/milestone17-results.md) for the same-model Codex comparison and controller ablation.
+See [docs/milestone18-results.md](docs/milestone18-results.md) for pinned external-task failures and analysis.
 See [docs/project-brief.md](docs/project-brief.md) for resume bullets and interview talking points.
 
 Current local baseline:
@@ -198,6 +200,10 @@ Matched Harbor development baseline using `openai/gpt-5.6-luna`, three trials ea
 This small development task supports an integration and failure-analysis claim, not
 a general performance ranking. See the results document for controls and limitations.
 
+Pinned external results are currently `0/1` for both TermAgent and Codex on
+`html-js-filter`, and `0/1` in both TermAgent recovery arms on
+`payments-pipeline-fix`. These failures are retained rather than excluded.
+
 This is the bridge to Terminal-Bench-style evaluation: the agent is designed around reproducible tasks, verifier commands, execution logs, and pass/fail reports from day one.
 
 ## Documentation
@@ -209,6 +215,7 @@ This is the bridge to Terminal-Bench-style evaluation: the agent is designed aro
 - [Interactive app](docs/interactive-app.md)
 - [Live provider demo](docs/live-provider-demo.md)
 - [Matched benchmark results](docs/milestone17-results.md)
+- [External validation results](docs/milestone18-results.md)
 - [Repository intelligence](docs/repository-intelligence.md)
 - [Requirements traceability](docs/requirements-traceability.md)
 - [Security audit](docs/security-audit.md)

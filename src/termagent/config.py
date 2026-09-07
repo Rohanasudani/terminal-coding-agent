@@ -41,6 +41,7 @@ def apply_config_file(config: AgentConfig, path: Path) -> AgentConfig:
         "max_output_tokens",
         "reasoning_effort",
         "allow_network_commands",
+        "require_changes",
         "log_dir",
     }
     unknown = sorted(set(data) - allowed)
@@ -76,6 +77,8 @@ def apply_config_file(config: AgentConfig, path: Path) -> AgentConfig:
         updates["reasoning_effort"] = parse_reasoning_effort(data["reasoning_effort"])
     if "allow_network_commands" in data:
         updates["allow_network_commands"] = bool(data["allow_network_commands"])
+    if "require_changes" in data:
+        updates["require_changes"] = bool(data["require_changes"])
     if "log_dir" in data:
         updates["log_dir"] = Path(str(data["log_dir"]))
 

@@ -50,6 +50,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--max-output-tokens", type=int)
     run.add_argument("--reasoning-effort", choices=["minimal", "low", "medium", "high"])
     run.add_argument("--allow-network-commands", action="store_true")
+    run.add_argument("--require-changes", action="store_true")
 
     tools = subparsers.add_parser("tools", help="List available tools")
     tools.add_argument("--repo", type=Path, default=Path("."))
@@ -149,6 +150,7 @@ def main(argv: list[str] | None = None) -> int:
                 "max_output_tokens": args.max_output_tokens,
                 "reasoning_effort": args.reasoning_effort,
                 "allow_network_commands": True if args.allow_network_commands else None,
+                "require_changes": True if args.require_changes else None,
             }.items()
             if value is not None
         }

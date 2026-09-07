@@ -60,6 +60,7 @@ class AgentConfig:
     reasoning_effort: ReasoningEffort | None = None
     allow_network_commands: bool = False
     controller_recovery: bool = True
+    require_changes: bool = False
 
 
 @dataclass

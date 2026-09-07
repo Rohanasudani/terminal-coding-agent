@@ -88,6 +88,7 @@ def test_prompt_profiles_change_live_provider_instructions():
     assert "validation errors" in conservative
     assert "no &&" in conservative
     assert "Do not use run_shell for file discovery" in conservative
+    assert "creating a missing file" in conservative
     assert "reproducible benchmark success" in benchmark
 
 

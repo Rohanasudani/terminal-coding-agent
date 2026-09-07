@@ -410,6 +410,36 @@ def test_diff_without_verification_is_incomplete(tmp_path, monkeypatch):
     assert not agent.run().completed
 
 
+def test_required_change_rejects_initially_passing_smoke_check(tmp_path, monkeypatch):
+    content = "value = 1\n"
+    agent = scripted_agent(tmp_path, monkeypatch, [
+        ToolCall("run_shell", {"command": "node --test"}),
+        ToolCall("git_diff", {}),
+        ToolCall("plan_patch", {"path": "module.py", "content": content}),
+        ToolCall("write_file", {"path": "module.py", "content": content}),
+        ToolCall("run_shell", {"command": "node --test"}),
+        ToolCall("git_diff", {}),
+    ], [
+        ToolResult("ok", "", {"returncode": 0}),
+        ToolResult("ok", "no diff"),
+        ToolResult("ok", "planned", {
+            "relative_path": "module.py", "content_sha256": agent_module.sha256_text(content),
+        }),
+        ToolResult("ok", "written", {
+            "relative_path": "module.py", "content_sha256": agent_module.sha256_text(content),
+        }),
+        ToolResult("ok", "", {"returncode": 0}),
+        ToolResult("ok", "diff"),
+    ])
+    agent.config = replace(agent.config, require_changes=True)
+
+    state = agent.run()
+
+    assert state.completed
+    assert state.changed_files == ["module.py"]
+    assert state.test_runs == ["node --test", "node --test"]
+
+
 def test_malformed_provider_arguments_fail_without_crashing(tmp_path, monkeypatch):
     agent = scripted_agent(tmp_path, monkeypatch, [ToolCall("run_shell", [])], [])
     state = agent.run()

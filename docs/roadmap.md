@@ -194,3 +194,14 @@ Status: same-model development baseline and controller ablation complete
 - TermAgent and Codex each passed 3/3 matched development trials
 - the controller-recovery ablation improved internal completion from 1/3 to 3/3
 - unseen external-task validation remains Milestone 18
+
+## Milestone 18: Pinned External Validation
+
+Status: complete with negative results
+
+- resolved and pinned two public Terminal-Bench coding tasks by checksum
+- compared TermAgent and Codex once on `html-js-filter`; both scored zero
+- ran the recovery on/off validation on `payments-pipeline-fix`; both scored zero
+- added a required-change invariant to prevent false completion on testless tasks
+- preserved all failures, costs, versions, and limitations
+- established that a bounded planning transition is required before broader claims

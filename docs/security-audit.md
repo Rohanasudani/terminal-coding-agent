@@ -49,6 +49,8 @@ Audit date: 2026-09-02
 - Harbor export writes generated files under the requested output directory and refuses to overwrite existing output unless `--overwrite` is passed.
 - API keys are read from `OPENAI_API_KEY`; no real secrets are committed.
 - Benchmark fixtures are copied into temporary workspaces before agent execution.
+- Harbor runs require a non-empty final diff, preventing testless tasks from completing without work.
+- Untracked-only Git changes are included through the startup snapshot fallback.
 
 ## Cost And Token Controls
 

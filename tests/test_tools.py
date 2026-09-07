@@ -1,3 +1,4 @@
+import subprocess
 from pathlib import Path
 
 from termagent.tools import ToolRegistry
@@ -117,3 +118,17 @@ def test_git_diff_falls_back_to_snapshot_outside_git_repo(tmp_path: Path):
     assert result.status == "ok"
     assert "-value = 1" in result.output
     assert "+value = 2" in result.output
+
+
+def test_git_diff_includes_new_untracked_file(tmp_path: Path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    tools = ToolRegistry(repo, "auto")
+
+    (repo / "new.py").write_text("value = 1\n", encoding="utf-8")
+    result = tools.call("git_diff", {})
+
+    assert result.status == "ok"
+    assert "a/new.py" in result.output
+    assert "+value = 1" in result.output

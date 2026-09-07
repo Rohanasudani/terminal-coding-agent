@@ -296,7 +296,9 @@ class ToolRegistry:
             timeout=20,
             check=False,
         )
-        output = completed.stdout.strip() or "no diff"
+        output = completed.stdout.strip()
+        if not output:
+            output = self._snapshot_diff()
         return ToolResult("ok", output[:20_000], {"returncode": completed.returncode})
 
     def _is_git_repo(self) -> bool:
