@@ -91,7 +91,9 @@ class TerminalAgent:
 
             call = normalize_tool_call(provider_output.tool_call)
             controller_call = (
-                self._controller_redirect(call, observations, last_failed_test_command)
+                self._controller_redirect(
+                    call, observations, last_failed_test_command, state.tests_passed,
+                )
                 if self.config.controller_recovery else None
             )
             if controller_call:
@@ -327,9 +329,14 @@ class TerminalAgent:
         call: ToolCall,
         observations: list[str],
         last_failed_test_command: str | None,
+        tests_passed: bool,
     ) -> ToolCall | None:
         if not isinstance(call.arguments, dict):
             return None
+        if tests_passed and call.name == "run_shell" and self._is_verifier(
+            call.arguments.get("command")
+        ):
+            return ToolCall("git_diff", {})
         if call.name != "run_shell" or not last_failed_test_command:
             return None
         if call.arguments.get("command") != last_failed_test_command:

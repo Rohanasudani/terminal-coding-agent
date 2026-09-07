@@ -5,7 +5,10 @@ import pytest
 from termagent.experiments import compare_harbor_jobs
 
 
-def job(tmp_path, name, *, model="model-a", checksum="task-hash", cost=0.01, error=False):
+def job(
+    tmp_path, name, *, model="model-a", checksum="task-hash", cost=0.01,
+    error=False, completed=True, steps=7,
+):
     directory = tmp_path / name
     trial = directory / "trial"
     trial.mkdir(parents=True)
@@ -16,7 +19,9 @@ def job(tmp_path, name, *, model="model-a", checksum="task-hash", cost=0.01, err
         "task_name": "task", "task_checksum": checksum,
         "agent_info": {"name": name, "version": "1", "model_info": {"provider": "openai", "name": model}},
         "verifier_result": {"rewards": {"reward": 1.0}},
-        "agent_result": {"cost_usd": cost},
+        "agent_result": {"cost_usd": cost, "metadata": {
+            "completed": completed, "steps": steps, "usage_is_complete": True,
+        }},
         "exception_info": {"type": "timeout"} if error else None,
     }))
     return directory
@@ -28,6 +33,9 @@ def test_matched_reports_keep_errors_and_unknown_costs(tmp_path):
     assert "0/1 | 1" in report
     assert "unknown" in report
     assert "Task checksums, trial counts, and provider/model IDs match" in report
+    assert "Agent Completed" in report
+    assert "Mean Steps" in report
+    assert "Usage Complete" in report
 
 
 @pytest.mark.parametrize("changes,message", [

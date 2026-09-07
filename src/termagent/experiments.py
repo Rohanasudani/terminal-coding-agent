@@ -33,6 +33,9 @@ def compare_harbor_jobs(job_dirs: list[Path], *, allow_model_difference: bool = 
         agents = set()
         versions = set()
         durations = []
+        completion_values = []
+        step_values = []
+        usage_completeness = []
         passed = errors = 0
         costs = []
         for trial in trials:
@@ -45,7 +48,15 @@ def compare_harbor_jobs(job_dirs: list[Path], *, allow_model_difference: bool = 
             rewards = (trial.get("verifier_result") or {}).get("rewards") or {}
             passed += int(not exception and rewards.get("reward") == 1.0)
             errors += int(exception is not None)
-            costs.append((trial.get("agent_result") or {}).get("cost_usd"))
+            agent_result = trial.get("agent_result") or {}
+            costs.append(agent_result.get("cost_usd"))
+            metadata = agent_result.get("metadata") or {}
+            if isinstance(metadata.get("completed"), bool):
+                completion_values.append(metadata["completed"])
+            if isinstance(metadata.get("steps"), int):
+                step_values.append(metadata["steps"])
+            if isinstance(metadata.get("usage_is_complete"), bool):
+                usage_completeness.append(metadata["usage_is_complete"])
             execution = trial.get("agent_execution") or {}
             if execution.get("started_at") and execution.get("finished_at"):
                 durations.append((
@@ -60,10 +71,20 @@ def compare_harbor_jobs(job_dirs: list[Path], *, allow_model_difference: bool = 
             matched_model = models
         cost = f"${sum(costs):.6f}" if all(value is not None for value in costs) else "unknown"
         duration = f"{mean(durations):.3f}s" if len(durations) == len(trials) else "unknown"
+        completion = (
+            f"{sum(completion_values)}/{len(trials)}"
+            if len(completion_values) == len(trials) else "unknown"
+        )
+        steps = f"{mean(step_values):.2f}" if len(step_values) == len(trials) else "unknown"
+        complete_usage = (
+            "yes" if len(usage_completeness) == len(trials) and all(usage_completeness)
+            else "no" if len(usage_completeness) == len(trials) else "unknown"
+        )
         model_label = ", ".join(f"{provider or 'unknown'}/{name or 'none'}" for provider, name in sorted(models, key=str))
         rows.append(
             f"| {markdown_cell(directory.name)} | {markdown_cell(', '.join(sorted(agents)))} | "
-            f"{markdown_cell(model_label)} | {passed}/{len(trials)} | {errors} | {duration} | {cost} |"
+            f"{markdown_cell(model_label)} | {passed}/{len(trials)} | {errors} | {completion} | "
+            f"{steps} | {duration} | {cost} | {complete_usage} |"
         )
         provenance.append(f"- {markdown_cell(directory.name)}: {markdown_cell(', '.join(sorted(versions)))}")
     mode = "Descriptive comparison; model matching was explicitly disabled." if allow_model_difference else (
@@ -74,8 +95,8 @@ def compare_harbor_jobs(job_dirs: list[Path], *, allow_model_difference: bool = 
         "# Harbor Comparison", "", mode, "",
         "Every recorded trial, including errors, contributes to the denominator.",
         "Costs are adapter-reported and may be estimates. Missing costs remain unknown.", "",
-        "| Job | Agent | Model | Passed | Errors | Mean Agent Time | Reported Cost |",
-        "| --- | --- | --- | ---: | ---: | ---: | ---: |", *rows, "",
+        "| Job | Agent | Model | Grader Passed | Errors | Agent Completed | Mean Steps | Mean Agent Time | Reported Cost | Usage Complete |",
+        "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |", *rows, "",
         "## Agent Versions", "", *provenance, "",
         "## Task Checksums", "",
         *[f"- {markdown_cell(name)}: `{checksum}` ({count} trial(s) per job)"

@@ -9,8 +9,9 @@ A benchmarkable terminal coding agent inspired by tools like Claude Code and Cod
 **Current baseline:** `8/8` local benchmark tasks pass with the deterministic repair provider.
 
 Status: alpha. The first-release checklist is in [docs/release-readiness.md](docs/release-readiness.md).
-The [project scope](PROJECT_SCOPE.md) requires a same-model agent comparison and
-measured improvements on external tasks before the project is considered complete.
+The project now includes a repeated same-model Harbor comparison and a measured
+development ablation. The [project scope](PROJECT_SCOPE.md) still requires validation
+on external tasks before the project is considered complete.
 The recorded live calculator run predates the removal of heuristic controller patches;
 it is historical integration evidence, not a current generalization score.
 
@@ -178,6 +179,7 @@ not a held-out benchmark or a Terminal-Bench result.
 See [docs/benchmark-report.md](docs/benchmark-report.md) for the latest checked-in baseline.
 See [docs/harbor-terminal-bench.md](docs/harbor-terminal-bench.md) for the Harbor/Terminal-Bench integration path.
 See [docs/live-provider-demo.md](docs/live-provider-demo.md) for the sanitized live-provider smoke-test report.
+See [docs/milestone17-results.md](docs/milestone17-results.md) for the same-model Codex comparison and controller ablation.
 See [docs/project-brief.md](docs/project-brief.md) for resume bullets and interview talking points.
 
 Current local baseline:
@@ -185,6 +187,16 @@ Current local baseline:
 | Provider | Tasks | Passed | Pass Rate | Model Cost |
 | --- | ---: | ---: | ---: | ---: |
 | repair | 8 | 8 | 100% | $0.000000 |
+
+Matched Harbor development baseline using `openai/gpt-5.6-luna`, three trials each:
+
+| Agent | Passed | Mean agent time | Reported cost |
+| --- | ---: | ---: | ---: |
+| TermAgent | 3/3 | 20.149s | $0.008784 |
+| Codex 0.153.4 | 3/3 | 9.733s | $0.011622 |
+
+This small development task supports an integration and failure-analysis claim, not
+a general performance ranking. See the results document for controls and limitations.
 
 This is the bridge to Terminal-Bench-style evaluation: the agent is designed around reproducible tasks, verifier commands, execution logs, and pass/fail reports from day one.
 
@@ -196,6 +208,7 @@ This is the bridge to Terminal-Bench-style evaluation: the agent is designed aro
 - [Demo commands](docs/demo.md)
 - [Interactive app](docs/interactive-app.md)
 - [Live provider demo](docs/live-provider-demo.md)
+- [Matched benchmark results](docs/milestone17-results.md)
 - [Repository intelligence](docs/repository-intelligence.md)
 - [Requirements traceability](docs/requirements-traceability.md)
 - [Security audit](docs/security-audit.md)
@@ -204,7 +217,7 @@ This is the bridge to Terminal-Bench-style evaluation: the agent is designed aro
 ## Roadmap
 
 - richer planning and reflection loop for repeated failures
-- package TermAgent as a Harbor-compatible custom agent
+- validate the controller-recovery ablation on pinned external tasks
 - sub-agent orchestration experiments
 - tree-sitter-backed repository intelligence
 - richer terminal UI

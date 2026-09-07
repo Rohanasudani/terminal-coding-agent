@@ -386,9 +386,23 @@ def test_failed_verifier_replaces_earlier_success(tmp_path, monkeypatch):
         ToolCall("run_shell", {"command": "node --test"}),
         ToolCall("run_shell", {"command": "node --test"}), ToolCall("git_diff", {}),
     ], [ToolResult("ok", "", {"returncode": 0}), ToolResult("error", "timeout"), ToolResult("ok", "diff")])
+    agent.config = replace(agent.config, controller_recovery=False)
     state = agent.run()
     assert not state.completed
     assert state.failed_test_runs == 1
+
+
+def test_controller_finishes_instead_of_repeating_passing_verifier(tmp_path, monkeypatch):
+    agent = scripted_agent(tmp_path, monkeypatch, [
+        ToolCall("run_shell", {"command": "node --test"}),
+        ToolCall("run_shell", {"command": "node --test"}),
+    ], [ToolResult("ok", "", {"returncode": 0}), ToolResult("ok", "diff")])
+
+    state = agent.run()
+
+    assert state.completed
+    assert state.steps == 2
+    assert state.test_runs == ["node --test"]
 
 
 def test_diff_without_verification_is_incomplete(tmp_path, monkeypatch):

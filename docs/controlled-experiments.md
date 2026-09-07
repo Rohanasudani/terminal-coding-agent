@@ -71,8 +71,8 @@ termagent compare-harbor .termagent/harbor-jobs/termagent-live \
   .termagent/harbor-jobs/codex-live
 ```
 
-These paid templates have not been run. TermAgent uses high reasoning and a 4,096-token
-per-response ceiling in this template. Confirm the pinned Codex adapter's effective
+These templates were run for the checked-in development result. TermAgent uses high
+reasoning and a 4,096-token per-response ceiling in this template. Confirm the pinned Codex adapter's effective
 reasoning and output controls in its recorded configuration before treating the run as
 matched. TermAgent's per-trial estimated cost limit
 does not limit Codex or total Harbor spend. Failed structured-output retries now retain

@@ -183,7 +183,7 @@ Status: adapter and container controls tested; paid comparative evidence pending
 
 ## Milestone 17: Matched Live Comparison
 
-Status: controls implemented and package path verified; paid trials pending credentials
+Status: same-model development baseline and controller ablation complete
 
 - explicit reasoning-effort control for Responses API calls
 - configurable per-response output-token ceiling
@@ -191,4 +191,6 @@ Status: controls implemented and package path verified; paid trials pending cred
 - incomplete accounting identified when transport failures return no usage body
 - controls recorded in Harbor result metadata
 - rebuilt wheel passed an isolated installation and a key-free Harbor container trial
-- TermAgent-versus-Codex trials remain pending because the current shell has no API key
+- TermAgent and Codex each passed 3/3 matched development trials
+- the controller-recovery ablation improved internal completion from 1/3 to 3/3
+- unseen external-task validation remains Milestone 18

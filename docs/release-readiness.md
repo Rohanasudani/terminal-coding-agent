@@ -19,8 +19,8 @@ and reliability requirements below are complete.
 
 ## Required Before Showcase Submission
 
-- Complete the same-model competitor comparison and general improvement cycle in
-  [PROJECT_SCOPE.md](../PROJECT_SCOPE.md); these are required outcomes, not optional polish.
+- Validate the measured controller improvement on pinned external tasks as required by
+  [PROJECT_SCOPE.md](../PROJECT_SCOPE.md); the development comparison alone is insufficient.
 - Repeat the live smoke after Milestone 15 and record all trials on the broader suite.
 - Run a pinned external task subset against at least one existing coding agent.
 - Review process isolation, credential access, shell policy, and stale patch previews;
@@ -39,8 +39,9 @@ and reliability requirements below are complete.
 - Strict Harbor report comparison and controller-recovery ablation setting added.
 - Per-response output caps, explicit reasoning effort, and failed-retry usage accounting added.
 - The rebuilt wheel passed a key-free Harbor control with all comparison settings recorded.
-- Live competitor trials, matched reasoning controls, and the external benchmark
-  improvement cycle remain pending. See [matched-comparison-readiness.md](matched-comparison-readiness.md).
+- A matched TermAgent-versus-Codex development baseline and a controller-recovery
+  ablation are complete. External-task validation remains pending. See
+  [milestone17-results.md](milestone17-results.md).
 
 ## Optional After First Release
 
