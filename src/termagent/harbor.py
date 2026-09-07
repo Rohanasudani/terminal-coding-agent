@@ -32,12 +32,20 @@ def export_harbor_dataset(
     task_ids: set[str] | None = None,
     overwrite: bool = False,
 ) -> list[HarborExport]:
+    if output_dir.is_symlink():
+        raise ValueError("export directory must not be a symlink")
+    source_root, destination = tasks_dir.resolve(), output_dir.resolve()
+    if source_root.is_relative_to(destination) or destination.is_relative_to(source_root):
+        raise ValueError("export directory must not overlap the source task directory")
     if output_dir.exists() and any(output_dir.iterdir()) and not overwrite:
         raise FileExistsError(f"{output_dir} is not empty; pass overwrite=True to replace generated files")
 
     if output_dir.exists() and overwrite:
+        if any(output_dir.iterdir()) and not (output_dir / ".termagent-export").is_file():
+            raise ValueError("refusing to overwrite an unmarked directory; choose a new export directory")
         shutil.rmtree(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    write_text(output_dir / ".termagent-export", "TermAgent generated export\n")
 
     exports: list[HarborExport] = []
     selected = [
@@ -50,16 +58,21 @@ def export_harbor_dataset(
 
     for task_dir in selected:
         spec = json.loads((task_dir / "task.json").read_text(encoding="utf-8"))
+        if not spec.get("solution_files"):
+            raise ValueError(f"{task_dir.name}: solution_files is required for independent grading")
         task_name = safe_task_name(task_dir.name)
         target = output_dir / task_name
         target.mkdir(parents=True, exist_ok=True)
 
-        shutil.copytree(task_dir / "repo", target / "workspace")
+        shutil.copytree(task_dir / "repo", target / "environment" / "workspace")
+        shutil.copytree(task_dir / "repo", target / "tests" / "fixture")
+        shutil.copyfile(Path(__file__).with_name("grading.py"), target / "tests" / "grading.py")
+        write_text(target / "tests" / "spec.json", json.dumps(spec))
+        write_text(target / "tests" / "grade.py", harbor_grader_script())
         write_text(target / "task.toml", harbor_task_toml(task_name, spec))
         write_text(target / "instruction.md", str(spec["instruction"]).strip() + "\n")
         write_text(target / "environment" / "Dockerfile", dockerfile_for_task(spec))
-        write_executable(target / "tests" / "test.sh", verifier_script(str(spec.get("verify", "python -m pytest -q"))))
-        write_executable(target / "solution" / "solve.sh", oracle_placeholder(task_name))
+        write_executable(target / "tests" / "test.sh", verifier_script())
         exports.append(HarborExport(task_name, str(target), str(spec.get("verify", "python -m pytest -q"))))
 
     write_text(output_dir / "dataset.toml", dataset_toml())
@@ -112,10 +125,11 @@ def harbor_task_toml(task_name: str, spec: dict[str, object]) -> str:
     language = toml_string(str(spec.get("language", "unknown")))
     return "\n".join(
         [
-            'version = "1.0"',
+            'schema_version = "1.4"',
             "",
             "[task]",
             f'name = "termagent/{task_name}"',
+            'version = "0.1.0"',
             "",
             "[metadata]",
             'author_name = "Rohan Asudani"',
@@ -151,41 +165,32 @@ def dockerfile_for_task(spec: dict[str, object]) -> str:
             f"    {packages} \\",
             "    && rm -rf /var/lib/apt/lists/*",
             "COPY workspace/ /workspace/",
-            "COPY tests/test.sh /tests/test.sh",
-            "RUN chmod +x /tests/test.sh",
+            "RUN python -m pip install --no-cache-dir pytest==9.1.1",
             "",
         ]
     )
 
 
-def verifier_script(command: str) -> str:
-    normalized = command.replace("{python}", "python")
-    return "\n".join(
-        [
-            "#!/usr/bin/env bash",
-            "set -u",
-            "mkdir -p /logs/verifier",
-            "cd /workspace",
-            f"if {normalized}; then",
-            "  echo 1 > /logs/verifier/reward.txt",
-            "else",
-            "  echo 0 > /logs/verifier/reward.txt",
-            "  exit 1",
-            "fi",
-            "",
-        ]
+def verifier_script() -> str:
+    return (
+        "#!/usr/bin/env bash\nset -eu\nmkdir -p /logs/verifier\n"
+        "echo 0 > /logs/verifier/reward.txt\npython /tests/grade.py\n"
     )
 
 
-def oracle_placeholder(task_name: str) -> str:
-    return "\n".join(
-        [
-            "#!/usr/bin/env bash",
-            "set -euo pipefail",
-            f'echo "No embedded oracle for {task_name}; run TermAgent or add task-specific solution steps."',
-            "",
-        ]
-    )
+def harbor_grader_script() -> str:
+    return '''import json
+from pathlib import Path
+from grading import grade_workspace
+
+spec = json.loads(Path("/tests/spec.json").read_text())
+result = grade_workspace(
+    Path("/tests/fixture"), Path("/workspace"), spec["solution_files"],
+    spec.get("verify", "python -m pytest -q").replace("{python}", "python"),
+)
+print(result.output)
+Path("/logs/verifier/reward.txt").write_text("1" if result.passed else "0")
+'''
 
 
 def dataset_toml() -> str:
@@ -203,7 +208,7 @@ def harbor_dataset_readme(exports: list[HarborExport]) -> str:
         "This directory is generated from `bench/tasks` for Harbor-style local evaluation work.",
         "It is not a Terminal-Bench leaderboard submission and does not claim parity with Terminal-Bench.",
         "",
-        "Each task includes `task.toml`, `instruction.md`, `environment/Dockerfile`, `tests/test.sh`, and `solution/solve.sh`.",
+        "Each task includes `task.toml`, `instruction.md`, `environment/Dockerfile`, and `tests/test.sh`. No oracle solution is supplied.",
         "",
         "| Task | Verifier |",
         "| --- | --- |",

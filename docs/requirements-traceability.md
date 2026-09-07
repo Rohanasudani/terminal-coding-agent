@@ -63,7 +63,13 @@ Expected result: no matches.
 ## Honest Boundaries
 
 - The local `repair` provider is deterministic and intentionally uses transparent heuristics for regression testing.
-- OpenAI live mode is implemented and tested with mocked HTTP responses. The `live-smoke` command should be run with a real key before making live-performance claims.
+- OpenAI live mode is implemented and tested with mocked HTTP responses. A historical live smoke passed, but the model-only patch path introduced in Milestone 15 requires a fresh live run before making current live-performance claims.
 - Harbor export produces Harbor-shaped local tasks. It is not a public Terminal-Bench leaderboard score.
 - JavaScript and TypeScript indexing is conservative; tree-sitter-backed parsing remains a future deeper implementation.
 - TermAgent is a local developer tool with safety controls, not a complete operating-system sandbox.
+
+Milestone 15 replaces completion-by-diff with current verifier success and removes
+live controller patch heuristics. Benchmark grading uses pristine tests, and the
+broader public task suite supports repeated provider trials. See
+[release-readiness.md](release-readiness.md); earlier milestone labels indicate
+implemented scope, not certification of security or general agent performance.

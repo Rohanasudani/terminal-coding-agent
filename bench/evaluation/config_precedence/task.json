@@ -1,0 +1,8 @@
+{
+  "instruction": "Fix configuration resolution across settings.py and service.py. Resolve each key independently with precedence explicit overrides, environment, defaults. Explicit false, zero and empty string are values, not missing keys. Do not mutate any input. The service must forward overrides. Run the tests.",
+  "category": "multi-file configuration",
+  "language": "python",
+  "verify": "{python} -m pytest -q",
+  "solution_files": ["settings.py", "service.py"],
+  "max_steps": 24
+}

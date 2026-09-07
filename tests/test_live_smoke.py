@@ -1,6 +1,9 @@
+import shutil
 from pathlib import Path
 
-from termagent.live_smoke import run_live_smoke, safe_failure_summary
+import termagent.live_smoke as smoke_module
+from termagent.live_smoke import run_live_smoke
+from termagent.models import AgentState
 
 
 def test_live_smoke_skips_without_api_key(tmp_path: Path, monkeypatch):
@@ -28,8 +31,21 @@ def test_live_smoke_report_is_sanitized_without_raw_trace(tmp_path: Path, monkey
     assert "authorization" not in content.lower()
 
 
-def test_safe_failure_summary_redacts_key_like_values():
-    summary = safe_failure_summary("Provider error: Bearer sk-testsecret failed")
+def test_live_smoke_does_not_trust_agent_success_flags(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-only-not-used")
+    fixture = tmp_path / "tests" / "fixtures" / "sample_repo"
+    shutil.copytree(Path(__file__).parent / "fixtures" / "sample_repo", fixture)
 
-    assert "sk-testsecret" not in summary
-    assert "Bearer REDACTED" in summary
+    class FalseSuccessAgent:
+        def __init__(self, config):
+            self.config = config
+
+        def run(self):
+            (self.config.repo / "test_calculator.py").write_text("def test_fake():\n    pass\n")
+            return AgentState(completed=True, tests_passed=True, final_answer="private provider payload")
+
+    monkeypatch.setattr(smoke_module, "TerminalAgent", FalseSuccessAgent)
+    result = run_live_smoke(tmp_path)
+    assert result.status == "failed"
+    assert not result.tests_passed
+    assert "private provider payload" not in (tmp_path / "docs" / "live-provider-demo.md").read_text()

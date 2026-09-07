@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import os
-import re
+import shlex
 import shutil
+import sys
 import tempfile
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
 from .agent import TerminalAgent
+from .grading import grade_workspace
 from .models import AgentConfig
 
 
@@ -78,15 +80,19 @@ def run_live_smoke(
             )
         ).run()
 
-    status = "passed" if state.completed and state.tests_passed else "failed"
+        grade = grade_workspace(
+            source, workspace, ["calculator.py"], f"{shlex.quote(sys.executable)} -m pytest -q",
+        )
+
+    status = "passed" if state.completed and state.tests_passed and grade.passed else "failed"
     note = "Raw trace is intentionally kept under ignored .termagent/live-smoke and is not committed."
     if status == "failed":
-        note = f"{safe_failure_summary(state.final_answer)} {note}"
+        note = f"Run did not pass completion and independent verification checks. {note}"
     result = LiveSmokeResult(
         status=status,
         model=model,
         completed=state.completed,
-        tests_passed=state.tests_passed,
+        tests_passed=grade.passed,
         steps=state.steps,
         changed_files=state.changed_files,
         input_tokens=state.input_tokens,
@@ -133,12 +139,3 @@ def write_live_smoke_report(result: LiveSmokeResult, report_path: Path) -> None:
 
 def live_smoke_result_as_dict(result: LiveSmokeResult) -> dict[str, object]:
     return asdict(result)
-
-
-def safe_failure_summary(final_answer: str | None) -> str:
-    if not final_answer:
-        return "Live smoke did not complete."
-
-    redacted = re.sub(r"sk-[A-Za-z0-9_-]+", "sk-REDACTED", final_answer)
-    redacted = re.sub(r"Bearer\s+[A-Za-z0-9._-]+", "Bearer REDACTED", redacted, flags=re.IGNORECASE)
-    return redacted.replace("\n", " ")[:300]

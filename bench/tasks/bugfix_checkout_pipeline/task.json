@@ -3,5 +3,6 @@
   "category": "multi-file bugfix",
   "language": "python",
   "verify": "{python} -m pytest -q",
+  "solution_files": ["checkout.py", "pricing.py", "tax.py"],
   "max_steps": 8
 }

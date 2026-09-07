@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
+import shlex
 import sys
 
-from .diagnostics import parse_pytest_failure, tests_passed
+from .diagnostics import parse_pytest_failure
 from .logging import TraceLogger
 from .models import AgentConfig, AgentState, ToolCall
 from .pricing import estimate_cost_usd
@@ -11,7 +12,6 @@ from .provider import (
     build_provider,
     first_code_map_symbol_path,
     first_search_path,
-    patch_from_read_output,
 )
 from .safety import resolve_inside_root
 from .tools import ToolRegistry, sha256_text
@@ -25,7 +25,7 @@ class TerminalAgent:
             config.approval_mode,
             allow_network=config.allow_network_commands,
         )
-        self.test_command = config.test_command.format(python=sys.executable)
+        self.test_command = config.test_command.format(python=shlex.quote(sys.executable))
         self.provider = build_provider(
             config.provider,
             model=config.model,
@@ -38,7 +38,6 @@ class TerminalAgent:
         self.logger = TraceLogger(config.log_dir)
         self.tool_names = {spec.name for spec in self.tools.specs()}
         self.planned_writes: set[tuple[str, str]] = set()
-        self.controller_pending_patch: dict[str, str] | None = None
 
     def run(self) -> AgentState:
         state = AgentState()
@@ -51,13 +50,14 @@ class TerminalAgent:
                 "task": self.config.task,
                 "provider": self.config.provider,
                 "model": self.config.model,
-                    "approval_mode": self.config.approval_mode,
-                    "test_command": self.test_command,
-                    "prompt_profile": self.config.prompt_profile,
-                    "max_cost_usd": self.config.max_cost_usd,
-                    "allow_network_commands": self.config.allow_network_commands,
-                },
-            )
+                "approval_mode": self.config.approval_mode,
+                "test_command": self.test_command,
+                "prompt_profile": self.config.prompt_profile,
+                "max_cost_usd": self.config.max_cost_usd,
+                "allow_network_commands": self.config.allow_network_commands,
+                "controller_recovery": self.config.controller_recovery,
+            },
+        )
 
         for step in range(1, self.config.max_steps + 1):
             state.steps = step
@@ -69,7 +69,10 @@ class TerminalAgent:
                 break
 
             call = normalize_tool_call(provider_output.tool_call)
-            controller_call = self._controller_redirect(call, observations, last_failed_test_command, state)
+            controller_call = (
+                self._controller_redirect(call, observations, last_failed_test_command)
+                if self.config.controller_recovery else None
+            )
             if controller_call:
                 self.logger.write(
                     "controller_redirect",
@@ -140,6 +143,9 @@ class TerminalAgent:
                 continue
 
             self.logger.write("tool_call", {"step": step, "name": call.name, "arguments": call.arguments})
+            # Commands and writes may change files, even when they fail partway through.
+            if call.name in {"write_file", "write_patch_set", "run_shell"}:
+                state.tests_passed = False
             result = self.tools.call(call.name, call.arguments)
             self.logger.write(
                 "tool_result",
@@ -154,10 +160,6 @@ class TerminalAgent:
                 if isinstance(relative_path, str) and isinstance(content_hash, str):
                     self.planned_writes.add((relative_path, content_hash))
                     state.patch_plans += 1
-                    path = call.arguments.get("path")
-                    content = call.arguments.get("content")
-                    if isinstance(path, str) and isinstance(content, str):
-                        self.controller_pending_patch = {"path": path, "content": content}
             if call.name == "plan_patch_set" and result.status == "ok":
                 state.patch_plans += self._remember_grouped_plan(result.metadata)
 
@@ -170,7 +172,6 @@ class TerminalAgent:
                 break
             if call.name == "write_file" and result.status == "ok":
                 last_failed_test_command = None
-                self.controller_pending_patch = None
                 relative_path = result.metadata.get("relative_path")
                 if isinstance(relative_path, str) and relative_path not in state.changed_files:
                     state.changed_files.append(relative_path)
@@ -179,19 +180,16 @@ class TerminalAgent:
                     self.planned_writes.discard((relative_path, content_hash))
             if call.name == "write_patch_set" and result.status == "ok":
                 last_failed_test_command = None
-                self.controller_pending_patch = None
                 self._record_grouped_write(state, result.metadata)
 
-            if call.name == "run_shell" and result.status == "ok":
+            if call.name == "run_shell" and self._is_verifier(call.arguments.get("command")):
                 command = call.arguments.get("command", "")
-                if isinstance(command, str):
-                    state.test_runs.append(command)
-                passed = tests_passed(result.output)
-                state.tests_passed = state.tests_passed or passed
+                state.test_runs.append(command)
+                passed = result.status == "ok" and result.metadata.get("returncode") == 0
+                state.tests_passed = passed
+                last_failed_test_command = None if passed else command
                 if not passed:
                     state.failed_test_runs += 1
-                    if isinstance(command, str):
-                        last_failed_test_command = command
                     observations[-1] += (
                         "\n\ncontroller_guidance: next_action\n"
                         "The verifier failed. Do not rerun the same test command again until after "
@@ -208,25 +206,36 @@ class TerminalAgent:
                     )
 
             if call.name == "git_diff" and result.status == "ok":
-                state.completed = True
+                state.completed = state.tests_passed
                 state.final_answer = self._format_final_answer(state, result.output)
                 break
 
         if not state.final_answer:
             state.final_answer = observations[-1] if observations else "No actions were taken."
 
-        self.logger.write("agent_finish", {"completed": state.completed, "steps": state.steps})
+        self.logger.write("agent_finish", {
+            "completed": state.completed, "tests_passed": state.tests_passed, "steps": state.steps,
+        })
         return state
+
+    def _is_verifier(self, command: object) -> bool:
+        if not isinstance(command, str):
+            return False
+        try:
+            parts = shlex.split(command)
+            return bool(parts) and parts == shlex.split(self.test_command)
+        except ValueError:
+            return False
 
     @staticmethod
     def _format_final_answer(state: AgentState, diff: str) -> str:
         test_status = "passed" if state.tests_passed else "not confirmed"
         files = ", ".join(state.changed_files) if state.changed_files else "none"
-        residual_risk = "none known" if state.tests_passed else "tests did not confirm the change"
+        residual_risk = "only the configured verifier was checked" if state.tests_passed else "tests did not confirm the change"
         subsystems = summarize_subsystems(state.changed_files)
         rollback = rollback_guidance(state.changed_files)
         lines = [
-            f"Completed in {state.steps} steps.",
+            f"{'Completed' if state.completed else 'Incomplete'} in {state.steps} steps.",
             f"Files changed: {files}.",
             f"Subsystems changed: {subsystems}.",
             f"Patch plans reviewed: {state.patch_plans}.",
@@ -297,11 +306,9 @@ class TerminalAgent:
         call: ToolCall,
         observations: list[str],
         last_failed_test_command: str | None,
-        state: AgentState,
     ) -> ToolCall | None:
-        if state.tests_passed and call.name == "run_shell":
-            return ToolCall("git_diff", {})
-
+        if not isinstance(call.arguments, dict):
+            return None
         if call.name != "run_shell" or not last_failed_test_command:
             return None
         if call.arguments.get("command") != last_failed_test_command:
@@ -333,15 +340,6 @@ class TerminalAgent:
             if failure and failure.symbol:
                 return ToolCall("search", {"query": f"def {failure.symbol}", "glob": "*.py"})
             return ToolCall("code_map", {})
-
-        if latest.startswith("read_file: ok"):
-            patch = patch_from_read_output(self.config.task, latest)
-            if patch:
-                self.controller_pending_patch = patch
-                return ToolCall("plan_patch", patch)
-
-        if latest.startswith("plan_patch: ok") and self.controller_pending_patch:
-            return ToolCall("write_file", self.controller_pending_patch)
 
         return None
 
@@ -420,6 +418,8 @@ def summarize_subsystems(paths: list[str]) -> str:
 
 
 def normalize_tool_call(call: ToolCall) -> ToolCall:
+    if not isinstance(call.arguments, dict):
+        return call
     return ToolCall(call.name, {key: value for key, value in call.arguments.items() if value is not None})
 
 

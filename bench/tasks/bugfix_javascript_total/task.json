@@ -3,5 +3,6 @@
   "category": "javascript bugfix",
   "language": "javascript",
   "verify": "node test_cart.js",
+  "solution_files": ["cart.js"],
   "max_steps": 8
 }

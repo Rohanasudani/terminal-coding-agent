@@ -30,6 +30,7 @@ def test_export_harbor_dataset_writes_required_task_shape(tmp_path: Path):
                 "category": "smoke",
                 "language": "python",
                 "verify": "{python} app.py",
+                "solution_files": ["app.py"],
             }
         ),
         encoding="utf-8",
@@ -42,7 +43,9 @@ def test_export_harbor_dataset_writes_required_task_shape(tmp_path: Path):
     assert (exported / "task.toml").exists()
     assert (exported / "instruction.md").read_text(encoding="utf-8") == "Keep the sample passing.\n"
     assert (exported / "environment" / "Dockerfile").exists()
-    assert (exported / "workspace" / "app.py").exists()
+    assert (exported / "environment" / "workspace" / "app.py").exists()
+    assert (exported / "tests" / "fixture" / "app.py").exists()
+    assert not (exported / "solution").exists()
     assert (exported / "tests" / "test.sh").stat().st_mode & stat.S_IXUSR
     assert "/logs/verifier/reward.txt" in (exported / "tests" / "test.sh").read_text(encoding="utf-8")
     assert (tmp_path / "harbor" / "dataset.toml").exists()
@@ -57,6 +60,9 @@ def test_export_harbor_dataset_refuses_to_overwrite(tmp_path: Path):
 
     with pytest.raises(FileExistsError):
         export_harbor_dataset(tasks_dir, output_dir)
+    with pytest.raises(ValueError, match="unmarked"):
+        export_harbor_dataset(tasks_dir, output_dir, overwrite=True)
+    assert (output_dir / "existing.txt").read_text() == "keep me"
 
 
 def test_harbor_manifest_and_comparison_report(tmp_path: Path):

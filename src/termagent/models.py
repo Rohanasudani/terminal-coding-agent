@@ -56,6 +56,7 @@ class AgentConfig:
     observation_limit: int = 6
     max_observation_chars: int = 8_000
     allow_network_commands: bool = False
+    controller_recovery: bool = True
 
 
 @dataclass

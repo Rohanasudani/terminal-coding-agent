@@ -1,5 +1,9 @@
 # Roadmap
 
+Completion is governed by [PROJECT_SCOPE.md](../PROJECT_SCOPE.md). In particular,
+competitor comparisons and measured improvements are required even though earlier
+milestones labeled their narrower implementation work complete.
+
 This project should become a credible terminal-agent system, not just a demo wrapper around an LLM.
 
 ## Milestone 1: Agent Runtime
@@ -144,10 +148,35 @@ Status: complete
 
 ## Milestone 14: Live Provider Smoke Run
 
-Status: ready; pending local API-key run
+Status: historical smoke passed; rerun required after Milestone 15
 
 - Responses API payloads set `store: false`
 - `termagent live-smoke` runs a tiny capped OpenAI-compatible provider demo
 - sanitized report writes to `docs/live-provider-demo.md`
 - raw traces stay under ignored `.termagent/live-smoke`
 - mocked tests cover no-key behavior and sanitized reports
+
+## Milestone 15: Verification And Evaluation Integrity
+
+Status: implemented; live evidence pending
+
+- invalidate stale test success after writes and commands
+- require the configured verifier's exit code for completion
+- remove fixture-specific patches from live controller recovery
+- independently grade allowlisted solution files with original fixture tests
+- add pagination, configuration, and cache lifecycle development tasks
+- preserve repeated trial reports and traces
+- portable installation instructions and an explicit first-release checklist
+
+See [release-readiness.md](release-readiness.md) for the remaining release gates.
+
+## Milestone 16: Real Benchmark Integration
+
+Status: adapter and container controls tested; paid comparative evidence pending
+
+- Harbor 0.22.0 custom agent installs the exact built wheel in task containers
+- corrected export layout and preserved authoritative grading tests
+- actual key-free Harbor runs: deterministic repair reward 1, no-op reward 0
+- comparison reports validate task checksums, repeat counts, and model identity
+- controller recovery can be disabled for a controlled ablation
+- competitor trials and an external evaluation-and-improvement cycle remain required

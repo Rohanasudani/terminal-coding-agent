@@ -1,0 +1,8 @@
+{
+  "instruction": "Fix ExpiringCache. An entry is expired at now >= its expiration. get must remove expired entries and return undefined. has must check presence independently of stored value, including false, zero, and undefined. Updating a key resets its TTL. Use the injected clock, not the wall clock. Run the tests.",
+  "category": "cache lifecycle",
+  "language": "javascript",
+  "verify": "node --test test_cache.js",
+  "solution_files": ["cache.js"],
+  "max_steps": 20
+}

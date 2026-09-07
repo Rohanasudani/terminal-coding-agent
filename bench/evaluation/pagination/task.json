@@ -1,0 +1,8 @@
+{
+  "instruction": "Fix collect_records to traverse all cursor pages, including empty pages with a continuation cursor. Preserve record order. Stop only when next_cursor is None. Raise ValueError when the service repeats a cursor instead of looping indefinitely. Run the tests.",
+  "category": "pagination state",
+  "language": "python",
+  "verify": "{python} -m pytest -q",
+  "solution_files": ["pagination.py"],
+  "max_steps": 20
+}

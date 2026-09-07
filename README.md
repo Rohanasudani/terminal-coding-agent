@@ -8,6 +8,12 @@ A benchmarkable terminal coding agent inspired by tools like Claude Code and Cod
 
 **Current baseline:** `8/8` local benchmark tasks pass with the deterministic repair provider.
 
+Status: alpha. The first-release checklist is in [docs/release-readiness.md](docs/release-readiness.md).
+The [project scope](PROJECT_SCOPE.md) requires a same-model agent comparison and
+measured improvements on external tasks before the project is considered complete.
+The recorded live calculator run predates the removal of heuristic controller patches;
+it is historical integration evidence, not a current generalization score.
+
 ## Why This Project Exists
 
 Terminal agents are becoming the default interface for AI-assisted software work. The hard part is not a chat loop. The hard part is reliability: knowing what to read, when to edit, how to verify, how to avoid unsafe commands, and how to measure whether the agent is improving.
@@ -63,26 +69,27 @@ flowchart LR
 - network commands blocked by default
 - eight-task local benchmark suite with JSON and Markdown reports
 - Harbor-shaped benchmark export and report comparison tooling
+- optional Harbor 0.22.0 custom agent adapter and a controller-recovery ablation switch
 - persistent per-task trace artifacts for benchmark debugging
 - JSONL traces for tool calls, observations, and final answers
 
 ## Quickstart
 
 ```bash
-cd /Users/apple/.codex/workspaces/default/terminal-coding-agent
+git clone https://github.com/Rohanasudani/terminal-coding-agent.git
+cd terminal-coding-agent
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
 pytest
 termagent tools
 termagent doctor
-termagent app --repo tests/fixtures/sample_repo --approval-mode auto
-termagent run --repo tests/fixtures/sample_repo --task "Fix the calculator add bug and run tests"
 termagent bench --repo-root .
-termagent harbor-export --overwrite
-termagent compare-bench bench/results/latest.json --label repair
-termagent live-smoke --repo-root . --max-cost-usd 0.05
 ```
+
+These commands use the deterministic provider and make no API calls. See
+[the demo](docs/demo.md) for an isolated interactive run and terminal recording.
+Python 3.11+ is required; Node.js 22+ runs the JavaScript fixtures.
 
 ## Live Model Mode
 
@@ -152,7 +159,19 @@ This is intentionally conservative. A real terminal agent should make it harder 
 
 ## Benchmarking
 
-The local benchmark harness copies each task fixture into an isolated temporary workspace, runs the agent, then runs the task verifier. Reports include pass/fail status, duration, trace path, and verifier output.
+The local benchmark harness copies each task fixture into a temporary workspace,
+runs the agent, then grades allowlisted solution files against pristine fixture
+tests in a separate workspace. A repair only passes if the original fixture fails
+and the submitted solution passes. Reports include trial number, provider, model,
+duration, token usage, estimated cost, independent score, and agent completion status.
+
+The live controller can redirect repeated failing commands toward inspection, but
+does not generate patches or write files on the model's behalf. Completion requires
+a zero exit status from the configured verifier after the latest write or shell command.
+
+Three additional public development tasks cover pagination, configuration precedence,
+and cache expiration. See [evaluation instructions](docs/evaluation.md). These are
+not a held-out benchmark or a Terminal-Bench result.
 
 See [docs/benchmark-report.md](docs/benchmark-report.md) for the latest checked-in baseline.
 See [docs/harbor-terminal-bench.md](docs/harbor-terminal-bench.md) for the Harbor/Terminal-Bench integration path.

@@ -1,10 +1,13 @@
 import shutil
 import sys
+from dataclasses import replace
 from pathlib import Path
+
+import pytest
 
 import termagent.agent as agent_module
 from termagent.agent import TerminalAgent, normalize_tool_call, summarize_subsystems
-from termagent.models import AgentConfig, ProviderOutput, TokenUsage, ToolCall
+from termagent.models import AgentConfig, ProviderOutput, TokenUsage, ToolCall, ToolResult
 
 
 def test_mock_agent_fixes_calculator_fixture(tmp_path: Path):
@@ -93,8 +96,9 @@ def test_agent_recovers_from_one_invalid_tool_call(tmp_path: Path, monkeypatch):
         AgentConfig(repo=tmp_path, task="recover", provider="openai", max_validation_errors=2)
     ).run()
 
-    assert state.completed is True
+    assert state.completed is False
     assert state.validation_errors == 1
+    assert "Incomplete" in state.final_answer
     assert not (tmp_path / "module.py").exists()
 
 
@@ -126,13 +130,13 @@ def test_agent_guides_provider_after_failed_verifier(tmp_path: Path, monkeypatch
         )
     ).run()
 
-    assert state.completed is True
-    assert state.tests_passed is True
-    assert state.changed_files == ["calculator.py"]
+    assert state.completed is False
+    assert state.tests_passed is False
+    assert state.changed_files == []
     assert any("Do not rerun the same test command" in observation for observation in provider.seen_observations)
 
 
-def test_controller_recovers_after_bad_live_read_path(tmp_path: Path, monkeypatch):
+def test_controller_diagnoses_bad_path_without_inventing_a_patch(tmp_path: Path, monkeypatch):
     source = Path(__file__).parent / "fixtures" / "sample_repo"
     repo = tmp_path / "repo"
     shutil.copytree(source, repo)
@@ -160,12 +164,12 @@ def test_controller_recovers_after_bad_live_read_path(tmp_path: Path, monkeypatc
         )
     ).run()
 
-    assert state.completed is True
-    assert state.tests_passed is True
-    assert state.changed_files == ["calculator.py"]
+    assert state.completed is False
+    assert state.tests_passed is False
+    assert state.changed_files == []
 
 
-def test_controller_writes_provider_planned_patch_before_repeated_tests(tmp_path: Path, monkeypatch):
+def test_controller_does_not_write_a_plan_without_a_provider_write_call(tmp_path: Path, monkeypatch):
     source = Path(__file__).parent / "fixtures" / "sample_repo"
     repo = tmp_path / "repo"
     shutil.copytree(source, repo)
@@ -193,9 +197,10 @@ def test_controller_writes_provider_planned_patch_before_repeated_tests(tmp_path
         )
     ).run()
 
-    assert state.completed is True
-    assert state.tests_passed is True
-    assert state.changed_files == ["calculator.py"]
+    assert state.completed is False
+    assert state.tests_passed is False
+    assert state.changed_files == []
+    assert "return a - b" in (repo / "calculator.py").read_text()
 
 
 def test_normalize_tool_call_removes_nullable_schema_placeholders():
@@ -266,7 +271,7 @@ def test_agent_accepts_grouped_plan_before_grouped_write(tmp_path: Path, monkeyp
 
     state = TerminalAgent(AgentConfig(repo=tmp_path, task="write grouped files", provider="openai")).run()
 
-    assert state.completed is True
+    assert state.completed is False
     assert sorted(state.changed_files) == ["src/one.py", "tests/test_one.py"]
     assert state.patch_plans == 2
     assert "Subsystems changed: src, tests." in (state.final_answer or "")
@@ -292,3 +297,114 @@ def test_agent_rejects_unplanned_grouped_write(tmp_path: Path, monkeypatch):
 def test_summarize_subsystems_names_root_files():
     assert summarize_subsystems(["pricing.py", "tax.py"]) == "root"
     assert summarize_subsystems(["src/agent.py", "tests/test_agent.py"]) == "src, tests"
+
+
+def scripted_agent(tmp_path, monkeypatch, calls, results):
+    actions = iter(calls)
+
+    class ScriptedProvider:
+        def next_action(self, task, observations):
+            return ProviderOutput(next(actions))
+
+    monkeypatch.setattr(agent_module, "build_provider", lambda *args, **kwargs: ScriptedProvider())
+    agent = TerminalAgent(AgentConfig(
+        repo=tmp_path, task="repair", provider="openai", test_command="node --test",
+        log_dir=tmp_path / "traces", max_steps=len(calls),
+    ))
+    outcomes = iter(results)
+    monkeypatch.setattr(agent.tools, "call", lambda *args: next(outcomes))
+    return agent
+
+
+@pytest.mark.parametrize("output,returncode,expected", [
+    ("2 passed", 1, False),
+    ("", 0, True),
+    ("# tests 2\n# pass 2\n# fail 0", 0, True),
+    ("no tests ran", 5, False),
+])
+def test_completion_uses_verifier_exit_code(tmp_path, monkeypatch, output, returncode, expected):
+    agent = scripted_agent(tmp_path, monkeypatch, [
+        ToolCall("run_shell", {"command": "node --test"}), ToolCall("git_diff", {}),
+    ], [ToolResult("ok", output, {"returncode": returncode}), ToolResult("ok", "diff")])
+    state = agent.run()
+    assert state.completed is expected
+    assert state.tests_passed is expected
+
+
+@pytest.mark.parametrize("mutation", ["write_file", "write_patch_set", "run_shell"])
+def test_mutations_invalidate_earlier_verification(tmp_path, monkeypatch, mutation):
+    from termagent.tools import sha256_text
+
+    patch = {"path": "module.py", "content": "value = 2\n"}
+    arguments = {"files": [patch]} if mutation == "write_patch_set" else patch
+    if mutation == "run_shell":
+        arguments = {"command": "npm run build"}
+    agent = scripted_agent(tmp_path, monkeypatch, [
+        ToolCall("run_shell", {"command": "node --test"}),
+        ToolCall(mutation, arguments), ToolCall("git_diff", {}),
+    ], [ToolResult("ok", "", {"returncode": 0}), ToolResult("ok", "changed"), ToolResult("ok", "diff")])
+    agent.planned_writes.add(("module.py", sha256_text(patch["content"])))
+    state = agent.run()
+    assert not state.completed
+    assert not state.tests_passed
+
+
+def test_unrelated_command_cannot_claim_test_success(tmp_path, monkeypatch):
+    agent = scripted_agent(tmp_path, monkeypatch, [
+        ToolCall("run_shell", {"command": "echo '2 passed'"}), ToolCall("git_diff", {}),
+    ], [ToolResult("ok", "2 passed", {"returncode": 0}), ToolResult("ok", "diff")])
+    state = agent.run()
+    assert not state.completed
+    assert state.test_runs == []
+
+
+def test_failed_verifier_replaces_earlier_success(tmp_path, monkeypatch):
+    agent = scripted_agent(tmp_path, monkeypatch, [
+        ToolCall("run_shell", {"command": "node --test"}),
+        ToolCall("run_shell", {"command": "node --test"}), ToolCall("git_diff", {}),
+    ], [ToolResult("ok", "", {"returncode": 0}), ToolResult("error", "timeout"), ToolResult("ok", "diff")])
+    state = agent.run()
+    assert not state.completed
+    assert state.failed_test_runs == 1
+
+
+def test_diff_without_verification_is_incomplete(tmp_path, monkeypatch):
+    agent = scripted_agent(tmp_path, monkeypatch, [ToolCall("git_diff", {})], [ToolResult("ok", "diff")])
+    assert not agent.run().completed
+
+
+def test_malformed_provider_arguments_fail_without_crashing(tmp_path, monkeypatch):
+    agent = scripted_agent(tmp_path, monkeypatch, [ToolCall("run_shell", [])], [])
+    state = agent.run()
+    assert state.validation_errors == 1
+    assert not state.completed
+
+
+def test_verification_after_write_allows_completion(tmp_path, monkeypatch):
+    from termagent.tools import sha256_text
+
+    patch = {"path": "module.py", "content": "value = 2\n"}
+    agent = scripted_agent(tmp_path, monkeypatch, [
+        ToolCall("write_file", patch),
+        ToolCall("run_shell", {"command": "node --test"}), ToolCall("git_diff", {}),
+    ], [ToolResult("ok", "changed"), ToolResult("ok", "", {"returncode": 0}), ToolResult("ok", "diff")])
+    agent.planned_writes.add(("module.py", sha256_text(patch["content"])))
+    assert agent.run().completed
+
+
+@pytest.mark.parametrize("enabled,second_tool", [(True, "code_map"), (False, "run_shell")])
+def test_controller_recovery_can_be_ablated(tmp_path, monkeypatch, enabled, second_tool):
+    agent = scripted_agent(tmp_path, monkeypatch, [
+        ToolCall("run_shell", {"command": "node --test"}),
+        ToolCall("run_shell", {"command": "node --test"}), ToolCall("git_diff", {}),
+    ], [])
+    agent.config = replace(agent.config, controller_recovery=enabled)
+    called = []
+
+    def execute(name, arguments):
+        called.append(name)
+        return ToolResult("ok", "failed", {"returncode": 1})
+
+    monkeypatch.setattr(agent.tools, "call", execute)
+    agent.run()
+    assert called[1] == second_tool

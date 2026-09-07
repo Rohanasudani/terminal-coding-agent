@@ -9,6 +9,9 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.11", "3.13"]
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -16,7 +19,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: ${{ matrix.python }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -40,8 +43,13 @@ jobs:
       - name: Compile
         run: python -m compileall -q src tests
 
+      - name: Build and test isolated wheel installation
+        run: |
+          python -m pip wheel . --wheel-dir .termagent/release-wheels
+          python scripts/check_wheel.py
+
       - name: Safety smoke scan
         run: |
-          if rg -n "shell=True|eval\(|exec\(|pickle" src; then
+          if rg -n "shell\\s*=\\s*True|(^|[^.[:alnum:]_])(eval|exec)\\(|(^|[^[:alnum:]_])pickle([^[:alnum:]_]|$)" src; then
             exit 1
           fi

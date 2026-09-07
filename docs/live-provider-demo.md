@@ -1,5 +1,9 @@
 # Live Provider Demo
 
+Historical result: this run predates Milestone 15. The controller could then
+supply heuristic patches. It does not validate the current model-only patch path.
+A fresh live smoke and broader repeated trials are pending.
+
 This is a sanitized smoke-test summary for TermAgent's OpenAI-compatible provider.
 It does not include raw prompts, raw model output, API keys, or private trace payloads.
 

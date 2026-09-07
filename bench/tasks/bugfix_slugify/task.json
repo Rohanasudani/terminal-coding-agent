@@ -3,5 +3,6 @@
   "category": "bugfix",
   "language": "python",
   "verify": "{python} -m pytest -q",
+  "solution_files": ["text_utils.py"],
   "max_steps": 8
 }

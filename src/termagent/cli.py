@@ -8,6 +8,7 @@ from pathlib import Path
 from .agent import TerminalAgent
 from .bench import run_benchmark, write_markdown_report, write_report
 from .config import apply_config_file
+from .experiments import compare_harbor_jobs
 from .harbor import (
     compare_benchmark_reports,
     export_harbor_dataset,
@@ -56,6 +57,11 @@ def build_parser() -> argparse.ArgumentParser:
     bench.add_argument("--tasks-dir", type=Path)
     bench.add_argument("--report", type=Path, default=Path("bench/results/latest.json"))
     bench.add_argument("--markdown-report", type=Path, default=Path("bench/results/latest.md"))
+    bench.add_argument("--provider", choices=["mock", "repair", "openai"])
+    bench.add_argument("--model")
+    bench.add_argument("--repeats", type=int, default=1)
+    bench.add_argument("--max-cost-usd", type=float, default=0.05, help="Estimated limit per trial")
+    bench.add_argument("--max-total-cost-usd", type=float, default=0.25, help="Estimated limit for this benchmark")
 
     harbor_export = subparsers.add_parser("harbor-export", help="Export local tasks to a Harbor-shaped dataset")
     harbor_export.add_argument("--tasks-dir", type=Path, default=Path("bench/tasks"))
@@ -69,6 +75,11 @@ def build_parser() -> argparse.ArgumentParser:
     compare.add_argument("reports", nargs="+", type=Path)
     compare.add_argument("--label", action="append", dest="labels")
     compare.add_argument("--markdown-report", type=Path, default=Path("bench/results/comparison.md"))
+
+    harbor_compare = subparsers.add_parser("compare-harbor", help="Compare matched completed Harbor jobs")
+    harbor_compare.add_argument("jobs", nargs="+", type=Path)
+    harbor_compare.add_argument("--allow-model-difference", action="store_true")
+    harbor_compare.add_argument("--report", type=Path, default=Path(".termagent/harbor-comparison.md"))
 
     doctor = subparsers.add_parser("doctor", help="Check local TermAgent prerequisites")
     doctor.add_argument("--repo", type=Path, default=Path("."))
@@ -144,7 +155,15 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if state.completed else 1
 
     if args.command == "bench":
-        results = run_benchmark(args.repo_root, args.tasks_dir)
+        try:
+            results = run_benchmark(
+                args.repo_root, args.tasks_dir, artifacts_dir=args.report.parent,
+                provider=args.provider, model=args.model, repeats=args.repeats,
+                max_cost_usd=args.max_cost_usd, max_total_cost_usd=args.max_total_cost_usd,
+            )
+        except (OSError, ValueError, RuntimeError) as exc:
+            print(f"Benchmark stopped: {exc}")
+            return 1
         write_report(results, args.report)
         write_markdown_report(results, args.markdown_report)
         passed = sum(1 for result in results if result.passed)
@@ -173,6 +192,17 @@ def main(argv: list[str] | None = None) -> int:
         for comparison in comparisons:
             print(f"{comparison.label}: {comparison.passed}/{comparison.total} ({comparison.pass_rate:.1%})")
         print(args.markdown_report)
+        return 0
+
+    if args.command == "compare-harbor":
+        try:
+            report = compare_harbor_jobs(args.jobs, allow_model_difference=args.allow_model_difference)
+        except (OSError, ValueError) as exc:
+            print(f"Comparison rejected: {exc}")
+            return 1
+        args.report.parent.mkdir(parents=True, exist_ok=True)
+        args.report.write_text(report)
+        print(args.report)
         return 0
 
     if args.command == "doctor":

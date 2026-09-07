@@ -34,7 +34,7 @@ Audit date: 2026-09-02
 - Live provider tool calls are validated before execution.
 - Live provider prompts include the configured verifier command and prohibit chained shell snippets.
 - Repeated failed verifier commands are redirected by a controller loop guard into inspection or patch planning.
-- Controller redirects can follow through on already-reviewed patch plans without bypassing content-hash write validation.
+- Controller redirects gather diagnostic evidence only; provider-selected calls must plan and apply patches.
 - Live provider fallback structured-output schemas disable additional properties on every object.
 - Nullable schema placeholders are removed before tool validation or execution.
 - OpenAI-compatible Responses API payloads set `store: false`.
@@ -79,9 +79,18 @@ No unsafe implementation instances were found after Milestone 7 hardening. Remai
 - This is still a local developer tool, not a complete OS-level sandbox.
 - `approval_mode=auto` allows non-destructive mutating commands after policy checks.
 - The shell classifier is conservative and may block legitimate complex commands.
-- Live OpenAI mode is covered by mocked provider tests and missing-key smoke tests; run `termagent live-smoke --repo-root . --max-cost-usd 0.05` with a real API key before publishing a paid live-provider demo claim.
+- A historical live smoke passed before Milestone 15. The new model-only patch path and independent grader require a fresh live run.
 - The deterministic `repair` provider intentionally uses transparent heuristics for local baseline benchmarks. Generalization should be evaluated with live providers and broader tasks.
 - Pricing estimates can become stale and should be checked against official provider docs.
+
+## Milestone 15 Follow-Up
+
+Verification now uses the configured command's exit status rather than matching
+success words in output. Writes and shell commands invalidate prior success.
+Benchmarks and live smoke use a fresh grading directory with pristine tests and
+only allowlisted source changes. Grader subprocesses receive a limited environment
+without provider keys. This does not constrain arbitrary code at the OS level.
+See [release-readiness.md](release-readiness.md) for outstanding security work.
 
 ## Recommended Safe Defaults
 
