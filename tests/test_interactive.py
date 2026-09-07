@@ -57,6 +57,8 @@ def test_agent_config_for_task_maps_interactive_settings(tmp_path: Path):
             approval_mode="never",
             max_steps=3,
             test_command="pytest -q",
+            max_output_tokens=2048,
+            reasoning_effort="high",
             allow_network_commands=True,
         ),
         "repair bug",
@@ -68,6 +70,8 @@ def test_agent_config_for_task_maps_interactive_settings(tmp_path: Path):
     assert config.approval_mode == "never"
     assert config.max_steps == 3
     assert config.test_command == "pytest -q"
+    assert config.max_output_tokens == 2048
+    assert config.reasoning_effort == "high"
     assert config.allow_network_commands is True
 
 

@@ -13,7 +13,7 @@ from uuid import uuid4
 
 from .agent import TerminalAgent
 from .grading import grade_workspace
-from .models import AgentConfig
+from .models import AgentConfig, ReasoningEffort
 
 
 @dataclass(frozen=True)
@@ -46,6 +46,8 @@ def run_benchmark(
     repeats: int = 1,
     max_cost_usd: float = 0.05,
     max_total_cost_usd: float = 0.25,
+    max_output_tokens: int = 4_096,
+    reasoning_effort: ReasoningEffort | None = None,
 ) -> list[BenchResult]:
     if repeats < 1:
         raise ValueError("repeats must be at least 1")
@@ -89,6 +91,8 @@ def run_benchmark(
                 test_command=verify_command,
                 provider_retries=int(spec.get("provider_retries", 2)),
                 max_cost_usd=min(max_cost_usd, max_total_cost_usd - spent),
+                max_output_tokens=max_output_tokens,
+                reasoning_effort=reasoning_effort,
             )
             state = TerminalAgent(config).run()
             spent += state.estimated_cost_usd

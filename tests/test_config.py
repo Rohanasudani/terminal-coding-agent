@@ -22,6 +22,8 @@ def test_apply_config_file_overrides_agent_defaults(tmp_path: Path):
         max_validation_errors = 4
         observation_limit = 3
         max_observation_chars = 5000
+        max_output_tokens = 2048
+        reasoning_effort = "high"
         allow_network_commands = true
         log_dir = ".termagent/custom"
         """,
@@ -41,6 +43,8 @@ def test_apply_config_file_overrides_agent_defaults(tmp_path: Path):
     assert config.max_validation_errors == 4
     assert config.observation_limit == 3
     assert config.max_observation_chars == 5000
+    assert config.max_output_tokens == 2048
+    assert config.reasoning_effort == "high"
     assert config.allow_network_commands is True
     assert config.log_dir == Path(".termagent/custom")
 

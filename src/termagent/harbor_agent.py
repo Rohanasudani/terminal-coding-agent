@@ -26,6 +26,8 @@ class TermAgentHarbor(BaseAgent):
         max_cost_usd: float = 0.05,
         prompt_profile: str = "conservative",
         controller_recovery: bool = True,
+        max_output_tokens: int = 4_096,
+        reasoning_effort: str = "high",
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -47,6 +49,10 @@ class TermAgentHarbor(BaseAgent):
             raise ValueError("step and cost limits must be positive and finite")
         if prompt_profile not in {"conservative", "benchmark", "fast"}:
             raise ValueError("unsupported prompt profile")
+        if max_output_tokens < 256:
+            raise ValueError("max_output_tokens must be at least 256")
+        if reasoning_effort not in {"minimal", "low", "medium", "high"}:
+            raise ValueError("unsupported reasoning effort")
         self.wheel_hash = hashlib.sha256(wheels[0].read_bytes()).hexdigest()
         self.settings = {
             "repo": repo,
@@ -57,6 +63,8 @@ class TermAgentHarbor(BaseAgent):
             "max_cost_usd": max_cost_usd,
             "prompt_profile": prompt_profile,
             "controller_recovery": controller_recovery,
+            "max_output_tokens": max_output_tokens,
+            "reasoning_effort": reasoning_effort,
             "approval_mode": "auto",
         }
 
@@ -123,4 +131,7 @@ class TermAgentHarbor(BaseAgent):
             "cost_is_estimate": True,
             "controller_recovery": self.settings["controller_recovery"],
             "prompt_profile": self.settings["prompt_profile"],
+            "max_output_tokens": self.settings["max_output_tokens"],
+            "reasoning_effort": self.settings["reasoning_effort"],
+            "usage_is_complete": state["usage_is_complete"],
         }

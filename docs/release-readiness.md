@@ -37,8 +37,10 @@ and reliability requirements below are complete.
 - Corrected export build context and independent grader delivery.
 - Deterministic repair reward 1 and no-op reward 0 on the same task checksum.
 - Strict Harbor report comparison and controller-recovery ablation setting added.
+- Per-response output caps, explicit reasoning effort, and failed-retry usage accounting added.
+- The rebuilt wheel passed a key-free Harbor control with all comparison settings recorded.
 - Live competitor trials, matched reasoning controls, and the external benchmark
-  improvement cycle remain pending. See [controlled-experiments.md](controlled-experiments.md).
+  improvement cycle remain pending. See [matched-comparison-readiness.md](matched-comparison-readiness.md).
 
 ## Optional After First Release
 

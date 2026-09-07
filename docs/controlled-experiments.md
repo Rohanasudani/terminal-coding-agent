@@ -44,9 +44,10 @@ It is not an existing-agent comparison or Terminal-Bench score.
 
 Before paid trials, select a model supported by both agents, pin the competitor
 version, freeze the task revision and wheel, and allocate a combined budget.
-The pinned Codex adapter defaults to high reasoning; TermAgent currently uses
-provider defaults. Align reasoning and output limits before attributing differences
-to the agent architecture. Model-ID matching alone is insufficient.
+The pinned Codex adapter defaults to high reasoning; this experiment explicitly sets
+TermAgent to high reasoning too. Confirm both adapters' effective reasoning and output
+limits in their recorded configurations before attributing differences to the agent
+architecture. Model-ID matching alone is insufficient.
 
 For the exported Python development task:
 
@@ -59,6 +60,7 @@ harbor run -p .termagent/harbor-smoke/bugfix_calculator \
   -a termagent.harbor_agent:TermAgentHarbor -m "openai/$MODEL_ID" \
   --ak "wheel_dir=$PWD/.termagent/release-wheels" \
   --ak "test_command=python -m pytest -q" --ak max_cost_usd=0.05 \
+  --ak max_output_tokens=4096 --ak reasoning_effort=high \
   -k 3 -n 1 --jobs-dir .termagent/harbor-jobs --job-name termagent-live
 
 harbor run -p .termagent/harbor-smoke/bugfix_calculator \
@@ -69,9 +71,13 @@ termagent compare-harbor .termagent/harbor-jobs/termagent-live \
   .termagent/harbor-jobs/codex-live
 ```
 
-These paid templates have not been run. TermAgent's per-trial estimated cost limit
-does not limit Codex or total Harbor spend. Retry accounting and matched reasoning
-and output controls remain release work. For external tasks, set their actual
+These paid templates have not been run. TermAgent uses high reasoning and a 4,096-token
+per-response ceiling in this template. Confirm the pinned Codex adapter's effective
+reasoning and output controls in its recorded configuration before treating the run as
+matched. TermAgent's per-trial estimated cost limit
+does not limit Codex or total Harbor spend. Failed structured-output retries now retain
+their returned token usage; transport failures remain marked as incomplete accounting
+because the provider returns no usage body. For external tasks, set their actual
 container repository path with `--ak repo=...` and a visible verification command.
 Never point the agent at hidden benchmark grader scripts.
 
@@ -99,4 +105,5 @@ This comparison-and-improvement cycle is required before showcase submission.
 
 Sources: [Harbor agents](https://www.harborframework.com/docs/agents),
 [Harbor task structure](https://www.harborframework.com/docs/tasks),
-[Codex non-interactive execution](https://developers.openai.com/codex/noninteractive).
+[Codex non-interactive execution](https://developers.openai.com/codex/noninteractive),
+[OpenAI Responses API](https://developers.openai.com/api/reference/cli/resources/responses/methods/create).

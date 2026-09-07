@@ -5,6 +5,7 @@ import pytest
 from termagent import provider
 from termagent.provider import (
     OpenAICompatibleProvider,
+    ProviderError,
     compact_observations,
     extract_openai_tool_call,
     openai_ssl_context,
@@ -159,7 +160,42 @@ def test_openai_provider_retries_invalid_json_and_tracks_usage(monkeypatch):
     assert seen_payloads[0]["tool_choice"] == "required"
     assert seen_payloads[0]["tools"] == openai_tool_definitions()
     assert seen_payloads[0]["store"] is False
+    assert seen_payloads[0]["max_output_tokens"] == 4096
     assert "Configured verifier command:\npython -m pytest -q" in seen_payloads[0]["input"][1]["content"]
+
+
+def test_openai_provider_sets_reasoning_and_output_limit(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    instance = OpenAICompatibleProvider(
+        "gpt-5.6-luna", max_output_tokens=2048, reasoning_effort="high",
+    )
+
+    payload = instance._payload("Fix tests", [], [])
+
+    assert payload["max_output_tokens"] == 2048
+    assert payload["reasoning"] == {"effort": "high"}
+
+
+def test_invalid_response_failure_preserves_retry_usage(monkeypatch):
+    responses = [
+        {"output_text": "bad", "usage": {"input_tokens": 10, "output_tokens": 2}},
+        {"output_text": "still bad", "usage": {"input_tokens": 12, "output_tokens": 3}},
+    ]
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr(
+        provider.urllib.request,
+        "urlopen",
+        lambda *args, **kwargs: FakeResponse(responses.pop(0)),
+    )
+
+    with pytest.raises(ProviderError) as captured:
+        OpenAICompatibleProvider("gpt-5.6-luna", max_retries=1).next_action("Fix tests", [])
+
+    assert captured.value.usage.input_tokens == 22
+    assert captured.value.usage.output_tokens == 5
+    assert captured.value.attempts == 2
+    assert captured.value.usage_is_complete is True
 
 
 def test_openai_ssl_context_requires_certificate_validation():

@@ -53,6 +53,7 @@ def test_prompt_is_uploaded_as_data_and_credentials_are_not_in_config(tmp_path, 
         Path(target).write_text(json.dumps({
             "input_tokens": 20, "output_tokens": 10, "estimated_cost_usd": 0.01,
             "completed": False, "tests_passed": False, "steps": 3,
+            "usage_is_complete": True,
         }))
 
     environment.upload_file.side_effect = upload
@@ -70,6 +71,9 @@ def test_prompt_is_uploaded_as_data_and_credentials_are_not_in_config(tmp_path, 
     assert call["env"] == {"OPENAI_API_KEY": "test-only-secret"}
     assert context.n_input_tokens == 20
     assert context.metadata["completed"] is False
+    assert context.metadata["max_output_tokens"] == 4096
+    assert context.metadata["reasoning_effort"] == "high"
+    assert context.metadata["usage_is_complete"] is True
 
 
 def test_missing_key_fails_before_agent_process(tmp_path, monkeypatch):

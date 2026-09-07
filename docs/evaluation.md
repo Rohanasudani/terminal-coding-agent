@@ -30,7 +30,7 @@ The second command may fail tasks. Preserve those failures as the baseline.
 For a paid live run, set `OPENAI_API_KEY` locally, then:
 
 ```bash
-termagent bench --tasks-dir bench/evaluation --provider openai --repeats 3 --max-cost-usd 0.05 --max-total-cost-usd 0.45 --report .termagent/evaluation/live.json --markdown-report .termagent/evaluation/live.md
+termagent bench --tasks-dir bench/evaluation --provider openai --repeats 3 --reasoning-effort high --max-output-tokens 4096 --max-cost-usd 0.05 --max-total-cost-usd 0.45 --report .termagent/evaluation/live.json --markdown-report .termagent/evaluation/live.md
 ```
 
 Cost limits are estimates checked after provider responses, not a prepaid billing

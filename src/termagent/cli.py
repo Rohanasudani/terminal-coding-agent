@@ -47,6 +47,8 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--max-validation-errors", type=int)
     run.add_argument("--observation-limit", type=int)
     run.add_argument("--max-observation-chars", type=int)
+    run.add_argument("--max-output-tokens", type=int)
+    run.add_argument("--reasoning-effort", choices=["minimal", "low", "medium", "high"])
     run.add_argument("--allow-network-commands", action="store_true")
 
     tools = subparsers.add_parser("tools", help="List available tools")
@@ -62,6 +64,8 @@ def build_parser() -> argparse.ArgumentParser:
     bench.add_argument("--repeats", type=int, default=1)
     bench.add_argument("--max-cost-usd", type=float, default=0.05, help="Estimated limit per trial")
     bench.add_argument("--max-total-cost-usd", type=float, default=0.25, help="Estimated limit for this benchmark")
+    bench.add_argument("--max-output-tokens", type=int, default=4096)
+    bench.add_argument("--reasoning-effort", choices=["minimal", "low", "medium", "high"])
 
     harbor_export = subparsers.add_parser("harbor-export", help="Export local tasks to a Harbor-shaped dataset")
     harbor_export.add_argument("--tasks-dir", type=Path, default=Path("bench/tasks"))
@@ -96,6 +100,8 @@ def build_parser() -> argparse.ArgumentParser:
     app.add_argument("--prompt-profile", choices=["conservative", "benchmark", "fast"], default="conservative")
     app.add_argument("--max-cost-usd", type=float, default=0.25)
     app.add_argument("--allow-network-commands", action="store_true")
+    app.add_argument("--max-output-tokens", type=int, default=4096)
+    app.add_argument("--reasoning-effort", choices=["minimal", "low", "medium", "high"])
 
     live_smoke = subparsers.add_parser("live-smoke", help="Run a tiny capped OpenAI provider smoke test")
     live_smoke.add_argument("--repo-root", type=Path, default=Path("."))
@@ -140,6 +146,8 @@ def main(argv: list[str] | None = None) -> int:
                 "max_validation_errors": args.max_validation_errors,
                 "observation_limit": args.observation_limit,
                 "max_observation_chars": args.max_observation_chars,
+                "max_output_tokens": args.max_output_tokens,
+                "reasoning_effort": args.reasoning_effort,
                 "allow_network_commands": True if args.allow_network_commands else None,
             }.items()
             if value is not None
@@ -160,6 +168,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.repo_root, args.tasks_dir, artifacts_dir=args.report.parent,
                 provider=args.provider, model=args.model, repeats=args.repeats,
                 max_cost_usd=args.max_cost_usd, max_total_cost_usd=args.max_total_cost_usd,
+                max_output_tokens=args.max_output_tokens, reasoning_effort=args.reasoning_effort,
             )
         except (OSError, ValueError, RuntimeError) as exc:
             print(f"Benchmark stopped: {exc}")
@@ -226,6 +235,8 @@ def main(argv: list[str] | None = None) -> int:
                 prompt_profile=args.prompt_profile,
                 max_cost_usd=args.max_cost_usd,
                 allow_network_commands=args.allow_network_commands,
+                max_output_tokens=args.max_output_tokens,
+                reasoning_effort=args.reasoning_effort,
             )
         )
 

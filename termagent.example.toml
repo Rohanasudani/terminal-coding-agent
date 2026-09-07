@@ -10,5 +10,7 @@ max_cost_usd = 0.25
 max_validation_errors = 2
 observation_limit = 6
 max_observation_chars = 8000
+max_output_tokens = 4096
+reasoning_effort = "high"
 allow_network_commands = false
 log_dir = ".termagent/traces"

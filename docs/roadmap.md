@@ -180,3 +180,15 @@ Status: adapter and container controls tested; paid comparative evidence pending
 - comparison reports validate task checksums, repeat counts, and model identity
 - controller recovery can be disabled for a controlled ablation
 - competitor trials and an external evaluation-and-improvement cycle remain required
+
+## Milestone 17: Matched Live Comparison
+
+Status: controls implemented and package path verified; paid trials pending credentials
+
+- explicit reasoning-effort control for Responses API calls
+- configurable per-response output-token ceiling
+- usage from malformed structured-output retries retained in run totals
+- incomplete accounting identified when transport failures return no usage body
+- controls recorded in Harbor result metadata
+- rebuilt wheel passed an isolated installation and a key-free Harbor container trial
+- TermAgent-versus-Codex trials remain pending because the current shell has no API key

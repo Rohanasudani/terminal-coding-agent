@@ -6,9 +6,10 @@ import sys
 
 from .diagnostics import parse_pytest_failure
 from .logging import TraceLogger
-from .models import AgentConfig, AgentState, ToolCall
+from .models import AgentConfig, AgentState, TokenUsage, ToolCall
 from .pricing import estimate_cost_usd
 from .provider import (
+    ProviderError,
     build_provider,
     first_code_map_symbol_path,
     first_search_path,
@@ -34,6 +35,8 @@ class TerminalAgent:
             prompt_profile=config.prompt_profile,
             observation_limit=config.observation_limit,
             max_observation_chars=config.max_observation_chars,
+            max_output_tokens=config.max_output_tokens,
+            reasoning_effort=config.reasoning_effort,
         )
         self.logger = TraceLogger(config.log_dir)
         self.tool_names = {spec.name for spec in self.tools.specs()}
@@ -56,6 +59,8 @@ class TerminalAgent:
                 "max_cost_usd": self.config.max_cost_usd,
                 "allow_network_commands": self.config.allow_network_commands,
                 "controller_recovery": self.config.controller_recovery,
+                "max_output_tokens": self.config.max_output_tokens,
+                "reasoning_effort": self.config.reasoning_effort,
             },
         )
 
@@ -63,9 +68,25 @@ class TerminalAgent:
             state.steps = step
             try:
                 provider_output = self.provider.next_action(self.config.task, observations)
-            except RuntimeError as exc:
+            except ProviderError as exc:
+                self._record_usage(state, exc.usage)
+                state.usage_is_complete = exc.usage_is_complete
                 state.final_answer = f"Provider error: {exc}"
-                self.logger.write("provider_error", {"step": step, "error": str(exc)})
+                self.logger.write("provider_error", {
+                    "step": step,
+                    "error": str(exc),
+                    "attempts": exc.attempts,
+                    "input_tokens": exc.usage.input_tokens,
+                    "output_tokens": exc.usage.output_tokens,
+                    "usage_is_complete": exc.usage_is_complete,
+                })
+                break
+            except RuntimeError as exc:
+                state.usage_is_complete = False
+                state.final_answer = f"Provider error: {exc}"
+                self.logger.write(
+                    "provider_error", {"step": step, "error": str(exc), "usage_is_complete": False}
+                )
                 break
 
             call = normalize_tool_call(provider_output.tool_call)
@@ -83,12 +104,7 @@ class TerminalAgent:
                     },
                 )
                 call = controller_call
-            state.input_tokens += provider_output.usage.input_tokens
-            state.output_tokens += provider_output.usage.output_tokens
-            state.estimated_cost_usd = estimate_cost_usd(
-                self.config.model,
-                provider_output.usage,
-            ) + state.estimated_cost_usd
+            self._record_usage(state, provider_output.usage)
             self.logger.write(
                 "provider_usage",
                 {
@@ -255,6 +271,11 @@ class TerminalAgent:
         if self.config.max_cost_usd is None:
             return False
         return state.estimated_cost_usd > self.config.max_cost_usd
+
+    def _record_usage(self, state: AgentState, usage: TokenUsage) -> None:
+        state.input_tokens += usage.input_tokens
+        state.output_tokens += usage.output_tokens
+        state.estimated_cost_usd += estimate_cost_usd(self.config.model, usage)
 
     def _validate_tool_call(self, call: ToolCall) -> str | None:
         if call.name not in self.tool_names:

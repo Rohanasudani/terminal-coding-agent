@@ -5,7 +5,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
-from .models import AgentConfig, ApprovalMode, PromptProfile
+from .models import AgentConfig, ApprovalMode, PromptProfile, ReasoningEffort
 
 
 def load_config_file(path: Path) -> dict[str, Any]:
@@ -38,6 +38,8 @@ def apply_config_file(config: AgentConfig, path: Path) -> AgentConfig:
         "max_validation_errors",
         "observation_limit",
         "max_observation_chars",
+        "max_output_tokens",
+        "reasoning_effort",
         "allow_network_commands",
         "log_dir",
     }
@@ -68,6 +70,10 @@ def apply_config_file(config: AgentConfig, path: Path) -> AgentConfig:
         updates["observation_limit"] = int(data["observation_limit"])
     if "max_observation_chars" in data:
         updates["max_observation_chars"] = int(data["max_observation_chars"])
+    if "max_output_tokens" in data:
+        updates["max_output_tokens"] = int(data["max_output_tokens"])
+    if "reasoning_effort" in data:
+        updates["reasoning_effort"] = parse_reasoning_effort(data["reasoning_effort"])
     if "allow_network_commands" in data:
         updates["allow_network_commands"] = bool(data["allow_network_commands"])
     if "log_dir" in data:
@@ -86,6 +92,14 @@ def parse_prompt_profile(value: object) -> PromptProfile:
     if value in {"conservative", "benchmark", "fast"}:
         return value  # type: ignore[return-value]
     raise ValueError("prompt_profile must be one of: conservative, benchmark, fast")
+
+
+def parse_reasoning_effort(value: object) -> ReasoningEffort | None:
+    if value is None or value == "none":
+        return None
+    if value in {"minimal", "low", "medium", "high"}:
+        return value  # type: ignore[return-value]
+    raise ValueError("reasoning_effort must be one of: none, minimal, low, medium, high")
 
 
 def parse_optional_float(value: object) -> float | None:

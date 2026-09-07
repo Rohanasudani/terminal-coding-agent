@@ -113,12 +113,14 @@ termagent run \
   --task "Find the failing test, patch the bug, rerun tests, and show the final diff" \
   --provider openai \
   --approval-mode auto \
+  --reasoning-effort high \
+  --max-output-tokens 4096 \
   --max-cost-usd 0.25
 ```
 
 Use `repair` for deterministic local benchmark runs. Use `openai` when you want a real model to choose tools.
 
-By default, live mode uses conservative settings: bounded observation context, a small model-cost ceiling, no network shell commands, and required patch previews before writes. Add `--allow-network-commands` only for trusted repositories and tasks that genuinely need network access. See [docs/security-audit.md](docs/security-audit.md) for the current safety audit and known limitations.
+By default, live mode uses conservative settings: bounded observation context, a per-response output ceiling, a small model-cost ceiling, no network shell commands, and required patch previews before writes. Reasoning effort is explicit when provided. Add `--allow-network-commands` only for trusted repositories and tasks that genuinely need network access. See [docs/security-audit.md](docs/security-audit.md) for the current safety audit and known limitations.
 
 ## Example
 

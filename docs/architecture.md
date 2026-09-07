@@ -39,7 +39,7 @@ The provider boundary returns a structured tool call plus usage metadata. Local 
 
 The live provider does not execute model text directly. It only accepts a structured `{name, arguments}` tool call, and the agent validates that tool call before handing it to the tool registry.
 
-Live mode adds conservative controls around provider cost and context use. The provider receives only a bounded tail of observations, supports prompt profiles for different operating modes, and stops before tool execution if the estimated model cost exceeds the configured ceiling.
+Live mode adds conservative controls around provider cost and context use. The provider receives only a bounded tail of observations, supports prompt profiles and explicit reasoning effort, caps each response, and stops before tool execution if the estimated model cost exceeds the configured ceiling. Usage returned by malformed structured-output attempts remains part of the run accounting.
 
 ## Planned Writes
 

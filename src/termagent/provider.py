@@ -13,13 +13,28 @@ from dataclasses import dataclass, field
 import certifi
 
 from .diagnostics import parse_pytest_failure, tests_passed
-from .models import PromptProfile, ProviderOutput, TokenUsage, ToolCall
+from .models import PromptProfile, ProviderOutput, ReasoningEffort, TokenUsage, ToolCall
 
 
 class Provider(ABC):
     @abstractmethod
     def next_action(self, task: str, observations: list[str]) -> ProviderOutput:
         raise NotImplementedError
+
+
+class ProviderError(RuntimeError):
+    def __init__(
+        self,
+        message: str,
+        *,
+        usage: TokenUsage | None = None,
+        attempts: int = 0,
+        usage_is_complete: bool = False,
+    ) -> None:
+        super().__init__(message)
+        self.usage = usage or TokenUsage()
+        self.attempts = attempts
+        self.usage_is_complete = usage_is_complete
 
 
 @dataclass
@@ -117,6 +132,8 @@ class OpenAICompatibleProvider(Provider):
         prompt_profile: PromptProfile = "conservative",
         observation_limit: int = 6,
         max_observation_chars: int = 8_000,
+        max_output_tokens: int = 4_096,
+        reasoning_effort: ReasoningEffort | None = None,
     ) -> None:
         self.model = model
         self.test_command = test_command
@@ -124,6 +141,10 @@ class OpenAICompatibleProvider(Provider):
         self.prompt_profile = prompt_profile
         self.observation_limit = max(1, observation_limit)
         self.max_observation_chars = max(1_000, max_observation_chars)
+        if max_output_tokens < 256:
+            raise ValueError("max_output_tokens must be at least 256")
+        self.max_output_tokens = max_output_tokens
+        self.reasoning_effort = reasoning_effort
         self.api_key = os.environ.get("OPENAI_API_KEY", "")
 
     def next_action(self, task: str, observations: list[str]) -> ProviderOutput:
@@ -132,7 +153,12 @@ class OpenAICompatibleProvider(Provider):
 
         for attempt in range(1, self.max_retries + 2):
             payload = self._payload(task, observations, invalid_outputs)
-            data = self._request(payload)
+            try:
+                data = self._request(payload)
+            except RuntimeError as exc:
+                raise ProviderError(
+                    str(exc), usage=usage, attempts=attempt, usage_is_complete=False,
+                ) from exc
             usage = add_usage(usage, usage_from_response(data))
             try:
                 call = extract_openai_tool_call(data)
@@ -142,7 +168,12 @@ class OpenAICompatibleProvider(Provider):
                 invalid_outputs.append(f"{text[:500]}\nerror: {exc}")
 
         latest_error = invalid_outputs[-1].split("error:", maxsplit=1)[-1].strip() if invalid_outputs else "unknown parser error"
-        raise RuntimeError(f"provider returned invalid tool call after retries: {latest_error}")
+        raise ProviderError(
+            f"provider returned invalid tool call after retries: {latest_error}",
+            usage=usage,
+            attempts=self.max_retries + 1,
+            usage_is_complete=True,
+        )
 
     def _payload(self, task: str, observations: list[str], invalid_outputs: list[str]) -> dict[str, object]:
         repair_note = ""
@@ -169,7 +200,10 @@ class OpenAICompatibleProvider(Provider):
             ],
             "tools": openai_tool_definitions(),
             "tool_choice": "required",
+            "max_output_tokens": self.max_output_tokens,
         }
+        if self.reasoning_effort is not None:
+            payload["reasoning"] = {"effort": self.reasoning_effort}
         return payload
 
     def _request(self, payload: dict[str, object]) -> dict[str, object]:
@@ -606,6 +640,8 @@ def build_provider(
     prompt_profile: PromptProfile = "conservative",
     observation_limit: int = 6,
     max_observation_chars: int = 8_000,
+    max_output_tokens: int = 4_096,
+    reasoning_effort: ReasoningEffort | None = None,
 ) -> Provider:
     if name == "mock":
         return MockProvider()
@@ -619,5 +655,7 @@ def build_provider(
             prompt_profile=prompt_profile,
             observation_limit=observation_limit,
             max_observation_chars=max_observation_chars,
+            max_output_tokens=max_output_tokens,
+            reasoning_effort=reasoning_effort,
         )
     raise ValueError(f"unknown provider: {name}")

@@ -8,6 +8,7 @@ import pytest
 import termagent.agent as agent_module
 from termagent.agent import TerminalAgent, normalize_tool_call, summarize_subsystems
 from termagent.models import AgentConfig, ProviderOutput, TokenUsage, ToolCall, ToolResult
+from termagent.provider import ProviderError
 
 
 def test_mock_agent_fixes_calculator_fixture(tmp_path: Path):
@@ -252,6 +253,28 @@ def test_agent_stops_before_tool_execution_when_cost_limit_is_exceeded(tmp_path:
     assert state.final_answer is not None
     assert "cost ceiling" in state.final_answer
     assert not (tmp_path / "module.py").exists()
+
+
+def test_agent_accounts_for_usage_when_provider_retries_fail(tmp_path: Path, monkeypatch):
+    class FailedProvider:
+        def next_action(self, task: str, observations: list[str]) -> ProviderOutput:
+            raise ProviderError(
+                "invalid output",
+                usage=TokenUsage(input_tokens=1000, output_tokens=200),
+                attempts=2,
+                usage_is_complete=True,
+            )
+
+    monkeypatch.setattr(agent_module, "build_provider", lambda *args, **kwargs: FailedProvider())
+
+    state = TerminalAgent(
+        AgentConfig(repo=tmp_path, task="fix tests", provider="openai", model="gpt-5.6-luna")
+    ).run()
+
+    assert state.input_tokens == 1000
+    assert state.output_tokens == 200
+    assert state.estimated_cost_usd > 0
+    assert state.usage_is_complete is True
 
 
 def test_agent_accepts_grouped_plan_before_grouped_write(tmp_path: Path, monkeypatch):

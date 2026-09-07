@@ -25,6 +25,7 @@ class LiveSmokeResult:
     input_tokens: int
     output_tokens: int
     estimated_cost_usd: float
+    usage_is_complete: bool
     report_path: str
     note: str
 
@@ -50,6 +51,7 @@ def run_live_smoke(
             input_tokens=0,
             output_tokens=0,
             estimated_cost_usd=0.0,
+            usage_is_complete=True,
             report_path=str(report_path),
             note="OPENAI_API_KEY is not set; no live API call was made.",
         )
@@ -77,6 +79,8 @@ def run_live_smoke(
                 max_cost_usd=max_cost_usd,
                 observation_limit=4,
                 max_observation_chars=4000,
+                max_output_tokens=4096,
+                reasoning_effort="high",
             )
         ).run()
 
@@ -98,6 +102,7 @@ def run_live_smoke(
         input_tokens=state.input_tokens,
         output_tokens=state.output_tokens,
         estimated_cost_usd=round(state.estimated_cost_usd, 6),
+        usage_is_complete=state.usage_is_complete,
         report_path=str(report_path),
         note=note,
     )
@@ -124,6 +129,7 @@ def write_live_smoke_report(result: LiveSmokeResult, report_path: Path) -> None:
         f"- Changed files: `{files}`",
         f"- Tokens: `{result.input_tokens}` input, `{result.output_tokens}` output",
         f"- Estimated model cost: `${result.estimated_cost_usd:.6f}`",
+        f"- Usage accounting complete: `{result.usage_is_complete}`",
         f"- Note: {result.note}",
         "",
         "Run it locally:",

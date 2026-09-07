@@ -6,6 +6,7 @@ from typing import Any, Literal
 
 ApprovalMode = Literal["never", "suggest", "auto"]
 PromptProfile = Literal["conservative", "benchmark", "fast"]
+ReasoningEffort = Literal["minimal", "low", "medium", "high"]
 ToolStatus = Literal["ok", "error", "blocked"]
 
 
@@ -55,6 +56,8 @@ class AgentConfig:
     max_validation_errors: int = 2
     observation_limit: int = 6
     max_observation_chars: int = 8_000
+    max_output_tokens: int = 4_096
+    reasoning_effort: ReasoningEffort | None = None
     allow_network_commands: bool = False
     controller_recovery: bool = True
 
@@ -74,3 +77,4 @@ class AgentState:
     patch_plans: int = 0
     validation_errors: int = 0
     stopped_by_cost_limit: bool = False
+    usage_is_complete: bool = True

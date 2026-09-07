@@ -7,7 +7,7 @@ from typing import Protocol
 
 from .agent import TerminalAgent
 from .health import format_health_checks, run_health_checks
-from .models import AgentConfig, ApprovalMode, PromptProfile
+from .models import AgentConfig, ApprovalMode, PromptProfile, ReasoningEffort
 
 
 class TaskRunner(Protocol):
@@ -27,6 +27,8 @@ class InteractiveSettings:
     prompt_profile: PromptProfile = "conservative"
     max_cost_usd: float | None = 0.25
     allow_network_commands: bool = False
+    max_output_tokens: int = 4_096
+    reasoning_effort: ReasoningEffort | None = None
 
 
 def run_interactive_app(
@@ -84,6 +86,8 @@ def agent_config_for_task(settings: InteractiveSettings, task: str) -> AgentConf
         prompt_profile=settings.prompt_profile,
         max_cost_usd=settings.max_cost_usd,
         allow_network_commands=settings.allow_network_commands,
+        max_output_tokens=settings.max_output_tokens,
+        reasoning_effort=settings.reasoning_effort,
     )
 
 

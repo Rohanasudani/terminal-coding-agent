@@ -41,6 +41,8 @@ Audit date: 2026-09-02
 - Live provider HTTPS requests use `certifi` for certificate validation.
 - Invalid live-provider tool calls are logged and returned as observations for recovery.
 - Live mode caps observation count and character payload size to reduce token waste.
+- Live responses have a configurable output-token ceiling; benchmark reasoning effort is explicit.
+- Returned usage from failed structured-output retries is retained. Transport failures are marked incomplete.
 - Live mode has a configurable model-cost ceiling before tool execution.
 - Python patch planning validates syntax before approving planned writes.
 - Repository intelligence skips dependency and build folders such as `node_modules`, `dist`, and `build`.
@@ -54,6 +56,7 @@ The live provider sends only the latest bounded observations to the model. Defau
 
 - `observation_limit = 6`
 - `max_observation_chars = 8000`
+- `max_output_tokens = 4096`
 - `max_cost_usd = 0.25`
 - `provider_retries = 2`
 
