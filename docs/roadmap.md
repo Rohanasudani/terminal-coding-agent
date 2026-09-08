@@ -205,3 +205,28 @@ Status: complete with negative results
 - added a required-change invariant to prevent false completion on testless tasks
 - preserved all failures, costs, versions, and limitations
 - established that a bounded planning transition is required before broader claims
+
+## Milestone 19: Structured Planning And Progress Control
+
+Status: implementation and local ablation complete; external validation pending
+
+- first-class task plan with expected files and acceptance checks
+- plan-before-patch enforcement when planning is enabled
+- completion guard for missing declared deliverables
+- bounded repeated-discovery detection
+- progress phases in traces, summaries, and Harbor metadata
+- planning enabled/disabled controls for matched experiments
+- local ablation retained 8/8 pass rate with 0.625 additional mean steps
+
+The mechanism is implemented without task-specific source patches. Milestone 20 must
+test whether it improves pass rate on a frozen unseen Terminal-Bench 2 subset.
+
+## Milestone 20: Terminal-Bench 2 Campaign
+
+Status: next
+
+- select and checksum a representative unseen coding subset before live runs
+- verify oracle and no-op controls
+- compare TermAgent with planning on/off and one established agent
+- retain all failures, timeouts, costs, tokens, and exact versions
+- publish the experiment protocol before interpreting results

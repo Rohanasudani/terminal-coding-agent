@@ -44,6 +44,7 @@ def test_benchmark_trials_keep_separate_traces_and_provider_override(tmp_path):
     assert len(results) == 16
     assert all(result.provider == "mock" for result in results)
     assert {result.trial for result in results} == {1, 2}
+    assert all(result.task_planning is False for result in results)
     assert len({result.trace_dir for result in results}) == 16
     assert all(not result.baseline_passed for result in results)
 

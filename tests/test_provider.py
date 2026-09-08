@@ -6,6 +6,7 @@ from termagent import provider
 from termagent.provider import (
     OpenAICompatibleProvider,
     ProviderError,
+    RepairProvider,
     compact_observations,
     extract_openai_tool_call,
     openai_ssl_context,
@@ -49,6 +50,7 @@ def test_openai_function_tools_are_strict():
     tools = openai_tool_definitions()
 
     assert {tool["name"] for tool in tools} == {
+        "set_task_plan",
         "search",
         "read_file",
         "code_map",
@@ -90,6 +92,39 @@ def test_prompt_profiles_change_live_provider_instructions():
     assert "Do not use run_shell for file discovery" in conservative
     assert "creating a missing file" in conservative
     assert "reproducible benchmark success" in benchmark
+
+
+def test_structured_planning_prompt_requires_progression():
+    prompt = provider_system_prompt("benchmark", task_planning=True)
+
+    assert "use set_task_plan once" in prompt
+    assert "Do not repeat identical discovery calls" in prompt
+
+
+def test_repair_provider_registers_plan_when_enabled():
+    provider_instance = RepairProvider(test_command="pytest -q", task_planning=True)
+
+    first = provider_instance.next_action("Fix the bug", []).tool_call
+
+    assert first == provider.ToolCall("run_shell", {"command": "pytest -q", "timeout": 60})
+
+
+def test_repair_provider_plans_known_patch_before_preview():
+    provider_instance = RepairProvider(test_command="pytest -q", task_planning=True)
+    observation = (
+        'read_file: ok\nmetadata: {"path": "calculator.py"}\n'
+        "   1 | def add(a, b):\n   2 |     return a - b"
+    )
+
+    plan = provider_instance.next_action("Fix the add bug", [observation]).tool_call
+    preview = provider_instance.next_action(
+        "Fix the add bug",
+        [observation, "set_task_plan: ok\nmetadata: {}\nGoal: Fix the add bug"],
+    ).tool_call
+
+    assert plan.name == "set_task_plan"
+    assert plan.arguments["expected_paths"] == ["calculator.py"]
+    assert preview.name == "plan_patch"
 
 
 def test_compact_observations_caps_prompt_context():

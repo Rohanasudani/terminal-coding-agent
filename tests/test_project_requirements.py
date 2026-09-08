@@ -15,6 +15,7 @@ REQUIRED_COMMANDS = {
 }
 
 REQUIRED_TOOLS = {
+    "set_task_plan",
     "search",
     "read_file",
     "code_map",

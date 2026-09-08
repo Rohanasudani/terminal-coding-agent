@@ -11,8 +11,8 @@ A benchmarkable terminal coding agent inspired by tools like Claude Code and Cod
 Status: alpha. The first-release checklist is in [docs/release-readiness.md](docs/release-readiness.md).
 The project now includes a repeated same-model Harbor comparison, a measured
 development ablation, and honest negative results on two pinned external tasks.
-The [project scope](PROJECT_SCOPE.md) still requires a generalized improvement before
-the project is considered complete.
+Milestone 19 adds an ablatable structured-planning and progress-control mechanism;
+its external generalization test remains pending, so the project is not yet complete.
 The recorded live calculator run predates the removal of heuristic controller patches;
 it is historical integration evidence, not a current generalization score.
 
@@ -52,6 +52,8 @@ flowchart LR
 - `termagent tools`: inspect available structured tools
 - `termagent bench`: run local benchmark tasks and write a report
 - `termagent live-smoke`: run a tiny capped OpenAI provider smoke test
+- structured task plans with declared output paths and acceptance checks
+- bounded stagnation detection for repeated no-progress discovery
 - repo search powered by `rg` when available
 - Python, JavaScript, and TypeScript code map for symbols, imports, and references
 - file read/write with path sandboxing
@@ -72,6 +74,7 @@ flowchart LR
 - eight-task local benchmark suite with JSON and Markdown reports
 - Harbor-shaped benchmark export and report comparison tooling
 - optional Harbor 0.22.0 custom agent adapter and a controller-recovery ablation switch
+- planning enabled/disabled controls recorded in local and Harbor benchmark metadata
 - persistent per-task trace artifacts for benchmark debugging
 - JSONL traces for tool calls, observations, and final answers
 
@@ -182,6 +185,7 @@ See [docs/harbor-terminal-bench.md](docs/harbor-terminal-bench.md) for the Harbo
 See [docs/live-provider-demo.md](docs/live-provider-demo.md) for the sanitized live-provider smoke-test report.
 See [docs/milestone17-results.md](docs/milestone17-results.md) for the same-model Codex comparison and controller ablation.
 See [docs/milestone18-results.md](docs/milestone18-results.md) for pinned external-task failures and analysis.
+See [docs/milestone19-results.md](docs/milestone19-results.md) for the structured-planning development ablation.
 See [docs/project-brief.md](docs/project-brief.md) for resume bullets and interview talking points.
 
 Current local baseline:
@@ -216,6 +220,7 @@ This is the bridge to Terminal-Bench-style evaluation: the agent is designed aro
 - [Live provider demo](docs/live-provider-demo.md)
 - [Matched benchmark results](docs/milestone17-results.md)
 - [External validation results](docs/milestone18-results.md)
+- [Structured planning results](docs/milestone19-results.md)
 - [Repository intelligence](docs/repository-intelligence.md)
 - [Requirements traceability](docs/requirements-traceability.md)
 - [Security audit](docs/security-audit.md)
@@ -223,8 +228,8 @@ This is the bridge to Terminal-Bench-style evaluation: the agent is designed aro
 
 ## Roadmap
 
-- richer planning and reflection loop for repeated failures
-- validate the controller-recovery ablation on pinned external tasks
+- validate structured planning on a frozen Terminal-Bench 2 subset
+- compare planning enabled and disabled with matched live controls
 - sub-agent orchestration experiments
 - tree-sitter-backed repository intelligence
 - richer terminal UI

@@ -8,6 +8,7 @@ This document maps the original project requirements to implemented TermAgent mi
 | --- | --- | --- | --- |
 | Repo search | Complete | `search` tool uses ripgrep when available with fallback search | `tests/test_tools.py`, `termagent tools` |
 | File read/write tools | Complete | `read_file`, `plan_patch`, `write_file`, `plan_patch_set`, `write_patch_set` | `tests/test_tools.py`, `tests/test_agent.py` |
+| Generalized task planning | Implemented; external validation pending | `set_task_plan`, declared output checks, progress phases, bounded stagnation | `tests/test_planning.py`, `docs/milestone19-results.md` |
 | Shell execution | Complete | `run_shell` executes parsed argv under the safety classifier | `tests/test_safety.py`, `tests/test_tools.py` |
 | Approval gates | Complete | `never`, `suggest`, and `auto` approval modes | `tests/test_safety.py`, `tests/test_agent.py` |
 | Git diff previews | Complete | `git_diff` plus snapshot fallback for non-git fixtures | `tests/test_tools.py`, benchmark traces |
@@ -39,6 +40,7 @@ This document maps the original project requirements to implemented TermAgent mi
 | 12. Interactive agent app | Turns the CLI into a reusable local terminal app | `src/termagent/interactive.py`, `docs/interactive-app.md` |
 | 13. Requirements audit | Keeps project claims aligned with code and tests | `docs/requirements-traceability.md`, `tests/test_project_requirements.py` |
 | 14. Live-provider smoke readiness | Adds a repeatable capped live-provider demo path without committing raw traces | `src/termagent/live_smoke.py`, `docs/live-provider-demo.md` |
+| 19. Structured planning | Adds an ablatable plan and progress contract without controller-authored source changes | `src/termagent/planning.py`, `docs/milestone19-results.md` |
 
 ## Verification Checklist
 

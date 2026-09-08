@@ -11,6 +11,7 @@ from shlex import split
 
 from .code_map import build_code_map, format_code_map, format_references, validate_python_source
 from .models import ApprovalMode, ToolResult
+from .planning import validate_task_plan
 from .safety import classify_command, resolve_inside_root
 
 
@@ -36,6 +37,15 @@ class ToolRegistry:
 
     def specs(self) -> list[ToolSpec]:
         return [
+            ToolSpec(
+                "set_task_plan",
+                "Register the task goal, expected output files, and acceptance checks.",
+                {
+                    "summary": "string",
+                    "expected_paths": ["string"],
+                    "acceptance_checks": ["string"],
+                },
+            ),
             ToolSpec(
                 "search",
                 "Search repository text with ripgrep when available.",
@@ -86,6 +96,12 @@ class ToolRegistry:
 
     def call(self, name: str, arguments: dict[str, object]) -> ToolResult:
         try:
+            if name == "set_task_plan":
+                return self.set_task_plan(
+                    arguments.get("summary"),
+                    arguments.get("expected_paths"),
+                    arguments.get("acceptance_checks"),
+                )
             if name == "search":
                 return self.search(str(arguments.get("query", "")), arguments.get("glob"))
             if name == "read_file":
@@ -121,6 +137,23 @@ class ToolRegistry:
             return ToolResult("error", str(exc))
 
         return ToolResult("error", f"unknown tool: {name}")
+
+    def set_task_plan(
+        self,
+        summary: object,
+        expected_paths: object,
+        acceptance_checks: object,
+    ) -> ToolResult:
+        plan = validate_task_plan(self.repo, summary, expected_paths, acceptance_checks)
+        metadata = {
+            "summary": plan.summary,
+            "expected_paths": list(plan.expected_paths),
+            "acceptance_checks": list(plan.acceptance_checks),
+        }
+        lines = [f"Goal: {plan.summary}"]
+        lines.append("Expected paths: " + (", ".join(plan.expected_paths) or "not known yet"))
+        lines.append("Acceptance checks: " + "; ".join(plan.acceptance_checks))
+        return ToolResult("ok", "\n".join(lines), metadata)
 
     def search(self, query: str, glob: object | None = None) -> ToolResult:
         if not query:

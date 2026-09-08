@@ -61,6 +61,8 @@ class AgentConfig:
     allow_network_commands: bool = False
     controller_recovery: bool = True
     require_changes: bool = False
+    task_planning: bool = False
+    max_stagnation_events: int = 2
 
 
 @dataclass
@@ -79,3 +81,8 @@ class AgentState:
     validation_errors: int = 0
     stopped_by_cost_limit: bool = False
     usage_is_complete: bool = True
+    task_plan_summary: str | None = None
+    expected_paths: list[str] = field(default_factory=list)
+    acceptance_checks: list[str] = field(default_factory=list)
+    phase: str = "discover"
+    stagnation_events: int = 0

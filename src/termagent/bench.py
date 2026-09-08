@@ -34,6 +34,7 @@ class BenchResult:
     trial: int = 1
     agent_completed: bool = False
     baseline_passed: bool = False
+    task_planning: bool = False
 
 
 def run_benchmark(
@@ -48,6 +49,7 @@ def run_benchmark(
     max_total_cost_usd: float = 0.25,
     max_output_tokens: int = 4_096,
     reasoning_effort: ReasoningEffort | None = None,
+    task_planning: bool = False,
 ) -> list[BenchResult]:
     if repeats < 1:
         raise ValueError("repeats must be at least 1")
@@ -93,6 +95,7 @@ def run_benchmark(
                 max_cost_usd=min(max_cost_usd, max_total_cost_usd - spent),
                 max_output_tokens=max_output_tokens,
                 reasoning_effort=reasoning_effort,
+                task_planning=task_planning,
             )
             state = TerminalAgent(config).run()
             spent += state.estimated_cost_usd
@@ -118,6 +121,7 @@ def run_benchmark(
                     trial=trial,
                     agent_completed=state.completed,
                     baseline_passed=baseline.passed,
+                    task_planning=task_planning,
                 )
             )
             write_report(results, traces_root / "partial.json")
@@ -152,14 +156,15 @@ def write_markdown_report(results: list[BenchResult], path: Path) -> None:
         f"- Pass rate: {pass_rate:.1%}",
         f"- Estimated model cost: ${total_cost:.6f}",
         "",
-        "| Task | Trial | Category | Language | Result | Steps | Duration | Provider | Cost |",
-        "| --- | ---: | --- | --- | --- | ---: | ---: | --- | ---: |",
+        "| Task | Trial | Category | Language | Result | Steps | Planning | Duration | Provider | Cost |",
+        "| --- | ---: | --- | --- | --- | ---: | --- | ---: | --- | ---: |",
     ]
     for result in results:
         status = "pass" if result.passed else "fail"
         lines.append(
             f"| {result.task} | {result.trial} | {result.category} | {result.language} | {status} | "
-            f"{result.steps} | {result.duration_seconds:.3f}s | {result.provider} | "
+            f"{result.steps} | {'on' if result.task_planning else 'off'} | "
+            f"{result.duration_seconds:.3f}s | {result.provider} | "
             f"${result.estimated_cost_usd:.6f} |"
         )
 

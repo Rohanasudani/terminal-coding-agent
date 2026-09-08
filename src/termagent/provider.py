@@ -42,8 +42,10 @@ class RepairProvider(Provider):
     """A deterministic test-first repair loop for benchmarks and demos."""
 
     test_command: str = f"{sys.executable} -m pytest -q"
+    task_planning: bool = False
     pending_patch: dict[str, str] | None = field(default=None, init=False)
     pending_patch_set: list[dict[str, str]] | None = field(default=None, init=False)
+    pending_action_after_plan: ToolCall | None = field(default=None, init=False)
 
     def next_action(self, task: str, observations: list[str]) -> ProviderOutput:
         return ProviderOutput(self._choose_tool(task, observations))
@@ -55,13 +57,22 @@ class RepairProvider(Provider):
         if not observations:
             return ToolCall("run_shell", {"command": self.test_command, "timeout": 60})
 
+        if latest.startswith("set_task_plan: ok") and self.pending_action_after_plan:
+            action = self.pending_action_after_plan
+            self.pending_action_after_plan = None
+            return action
+
         if latest.startswith("run_shell: ok") and tests_passed(latest):
             return ToolCall("git_diff", {})
 
         patch_set = patch_set_from_task(task)
         if latest.startswith("run_shell: ok") and patch_set:
             self.pending_patch_set = patch_set
-            return ToolCall("plan_patch_set", {"files": patch_set})
+            return self._with_task_plan(
+                task,
+                ToolCall("plan_patch_set", {"files": patch_set}),
+                [item["path"] for item in patch_set],
+            )
 
         if latest.startswith("run_shell: ok"):
             failure = parse_pytest_failure(observations[-1])
@@ -108,9 +119,26 @@ class RepairProvider(Provider):
             patch = patch_from_read_output(task, observations[-1])
             if patch:
                 self.pending_patch = patch
-                return ToolCall("plan_patch", patch)
+                return self._with_task_plan(
+                    task,
+                    ToolCall("plan_patch", patch),
+                    [patch["path"]],
+                )
 
         return ToolCall("git_diff", {})
+
+    def _with_task_plan(self, task: str, action: ToolCall, expected_paths: list[str]) -> ToolCall:
+        if not self.task_planning:
+            return action
+        self.pending_action_after_plan = action
+        return ToolCall(
+            "set_task_plan",
+            {
+                "summary": task.strip() or "Complete the requested repository change",
+                "expected_paths": expected_paths,
+                "acceptance_checks": [f"The configured verifier passes: {self.test_command}"],
+            },
+        )
 
 
 @dataclass
@@ -134,6 +162,7 @@ class OpenAICompatibleProvider(Provider):
         max_observation_chars: int = 8_000,
         max_output_tokens: int = 4_096,
         reasoning_effort: ReasoningEffort | None = None,
+        task_planning: bool = False,
     ) -> None:
         self.model = model
         self.test_command = test_command
@@ -145,6 +174,7 @@ class OpenAICompatibleProvider(Provider):
             raise ValueError("max_output_tokens must be at least 256")
         self.max_output_tokens = max_output_tokens
         self.reasoning_effort = reasoning_effort
+        self.task_planning = task_planning
         self.api_key = os.environ.get("OPENAI_API_KEY", "")
 
     def next_action(self, task: str, observations: list[str]) -> ProviderOutput:
@@ -184,7 +214,12 @@ class OpenAICompatibleProvider(Provider):
             "model": self.model,
             "store": False,
             "input": [
-                {"role": "system", "content": provider_system_prompt(self.prompt_profile)},
+                {
+                    "role": "system",
+                    "content": provider_system_prompt(
+                        self.prompt_profile, task_planning=self.task_planning,
+                    ),
+                },
                 {
                     "role": "user",
                     "content": f"Task:\n{task}\n\nConfigured verifier command:\n"
@@ -233,7 +268,11 @@ def openai_ssl_context() -> ssl.SSLContext:
     return ssl.create_default_context(cafile=certifi.where())
 
 
-def provider_system_prompt(profile: PromptProfile = "conservative") -> str:
+def provider_system_prompt(
+    profile: PromptProfile = "conservative",
+    *,
+    task_planning: bool = False,
+) -> str:
     base = (
         "You are TermAgent, a terminal coding agent. Choose exactly one tool call. "
         "Start by gathering evidence with the configured verifier command, code_map, "
@@ -265,7 +304,16 @@ def provider_system_prompt(profile: PromptProfile = "conservative") -> str:
         ),
         "fast": " Prefer the shortest safe path to a verified diff.",
     }
-    return base + profiles[profile]
+    planning = ""
+    if task_planning:
+        planning = (
+            " After initial inspection and before any plan_patch call, use set_task_plan once. "
+            "State the concrete deliverables, repository-relative output paths when known, and "
+            "acceptance checks. Treat an empty repository or a passing smoke check as environment "
+            "evidence, not proof that requested deliverables exist. Do not repeat identical discovery "
+            "calls; move from discovery to a plan and then to implementation."
+        )
+    return base + planning + profiles[profile]
 
 
 def tool_call_response_format() -> dict[str, object]:
@@ -281,6 +329,7 @@ def tool_call_response_format() -> dict[str, object]:
                 "name": {
                     "type": "string",
                     "enum": [
+                        "set_task_plan",
                         "search",
                         "read_file",
                         "code_map",
@@ -297,6 +346,9 @@ def tool_call_response_format() -> dict[str, object]:
                     "type": "object",
                     "additionalProperties": False,
                     "required": [
+                        "summary",
+                        "expected_paths",
+                        "acceptance_checks",
                         "query",
                         "glob",
                         "path",
@@ -309,6 +361,15 @@ def tool_call_response_format() -> dict[str, object]:
                         "timeout",
                     ],
                     "properties": {
+                        "summary": {"type": ["string", "null"]},
+                        "expected_paths": {
+                            "type": ["array", "null"],
+                            "items": {"type": "string"},
+                        },
+                        "acceptance_checks": {
+                            "type": ["array", "null"],
+                            "items": {"type": "string"},
+                        },
                         "query": {"type": ["string", "null"]},
                         "glob": {"type": ["string", "null"]},
                         "path": {"type": ["string", "null"]},
@@ -339,6 +400,15 @@ def tool_call_response_format() -> dict[str, object]:
 
 def openai_tool_definitions() -> list[dict[str, object]]:
     return [
+        openai_tool(
+            "set_task_plan",
+            "Register the task goal, expected output files, and acceptance checks before patch planning.",
+            {
+                "summary": {"type": "string"},
+                "expected_paths": {"type": "array", "items": {"type": "string"}},
+                "acceptance_checks": {"type": "array", "items": {"type": "string"}},
+            },
+        ),
         openai_tool(
             "search",
             "Search repository text with ripgrep when available.",
@@ -645,11 +715,15 @@ def build_provider(
     max_observation_chars: int = 8_000,
     max_output_tokens: int = 4_096,
     reasoning_effort: ReasoningEffort | None = None,
+    task_planning: bool = False,
 ) -> Provider:
     if name == "mock":
-        return MockProvider()
+        return MockProvider(RepairProvider(task_planning=task_planning))
     if name == "repair":
-        return RepairProvider(test_command or f"{sys.executable} -m pytest -q")
+        return RepairProvider(
+            test_command or f"{sys.executable} -m pytest -q",
+            task_planning=task_planning,
+        )
     if name == "openai":
         return OpenAICompatibleProvider(
             model or os.environ.get("TERMAGENT_MODEL", "gpt-5.6-luna"),
@@ -660,5 +734,6 @@ def build_provider(
             max_observation_chars=max_observation_chars,
             max_output_tokens=max_output_tokens,
             reasoning_effort=reasoning_effort,
+            task_planning=task_planning,
         )
     raise ValueError(f"unknown provider: {name}")

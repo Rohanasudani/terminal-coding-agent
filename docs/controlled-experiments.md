@@ -89,6 +89,13 @@ is recorded in run configuration and context metadata. In a separate experiment,
 compare prompt profiles with `--ak prompt_profile=benchmark`. Change one factor at
 a time and keep failed trials. No improvement is claimed until measured.
 
+Milestone 19 adds a separate `task_planning` factor. Repeat a frozen run with
+`--ak task_planning=true` and `--ak task_planning=false` while holding the task
+checksums, wheel hash, model, reasoning effort, output limit, step limit, and cost
+limit constant. Select the external task subset before examining live outcomes.
+The local development ablation only establishes compatibility and overhead; external
+reward differences must be reported separately with every failed trial included.
+
 `compare-harbor` rejects incomplete jobs, missing trials, mismatched task checksums
 or trial counts, different/unidentified models, and retries needing separate review.
 It retains errors in the denominator and missing costs as unknown. Use

@@ -1,6 +1,6 @@
 # Security And Reliability Audit
 
-Audit date: 2026-09-02
+Audit date: 2026-09-07
 
 ## Milestone Verification
 
@@ -20,6 +20,11 @@ Audit date: 2026-09-02
 | 12. Interactive agent app | Complete | Interactive task loop reusing the same provider, safety policy, planned writes, traces, and cost controls |
 | 13. Requirements audit | Complete | Requirements traceability matrix, CLI/tool surface checks, public docs checks, honest-boundary assertions |
 | 14. Live-provider smoke readiness | Ready | Responses API `store: false`, capped `live-smoke` command, sanitized report, raw traces ignored |
+| 15. Evaluation integrity | Complete | Fresh verification, pristine graders, allowlisted solution files, no fixture-specific live patches |
+| 16. Harbor integration | Complete | Exact-wheel install, task checksums, oracle/no-op controls, comparison validation |
+| 17. Matched live comparison | Complete | Same-model development trials, usage controls, controller ablation |
+| 18. Pinned external validation | Complete | External failures retained, required-change guard, untracked diff support |
+| 19. Structured planning | Implemented | Plan-before-patch option, declared-path guard, bounded stagnation, ablation control |
 
 ## Implemented Controls
 
@@ -51,6 +56,9 @@ Audit date: 2026-09-02
 - Benchmark fixtures are copied into temporary workspaces before agent execution.
 - Harbor runs require a non-empty final diff, preventing testless tasks from completing without work.
 - Untracked-only Git changes are included through the startup snapshot fallback.
+- Planning-enabled runs reject patch planning until deliverables and acceptance checks are registered.
+- Declared output paths are confined to the repository and must exist before completion.
+- Repeated identical discovery calls are blocked at a configurable bound to limit wasted tokens.
 
 ## Cost And Token Controls
 

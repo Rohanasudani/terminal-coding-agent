@@ -51,6 +51,8 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--reasoning-effort", choices=["minimal", "low", "medium", "high"])
     run.add_argument("--allow-network-commands", action="store_true")
     run.add_argument("--require-changes", action="store_true")
+    run.add_argument("--task-planning", action=argparse.BooleanOptionalAction, default=None)
+    run.add_argument("--max-stagnation-events", type=int)
 
     tools = subparsers.add_parser("tools", help="List available tools")
     tools.add_argument("--repo", type=Path, default=Path("."))
@@ -67,6 +69,7 @@ def build_parser() -> argparse.ArgumentParser:
     bench.add_argument("--max-total-cost-usd", type=float, default=0.25, help="Estimated limit for this benchmark")
     bench.add_argument("--max-output-tokens", type=int, default=4096)
     bench.add_argument("--reasoning-effort", choices=["minimal", "low", "medium", "high"])
+    bench.add_argument("--task-planning", action=argparse.BooleanOptionalAction, default=False)
 
     harbor_export = subparsers.add_parser("harbor-export", help="Export local tasks to a Harbor-shaped dataset")
     harbor_export.add_argument("--tasks-dir", type=Path, default=Path("bench/tasks"))
@@ -103,6 +106,7 @@ def build_parser() -> argparse.ArgumentParser:
     app.add_argument("--allow-network-commands", action="store_true")
     app.add_argument("--max-output-tokens", type=int, default=4096)
     app.add_argument("--reasoning-effort", choices=["minimal", "low", "medium", "high"])
+    app.add_argument("--task-planning", action=argparse.BooleanOptionalAction, default=True)
 
     live_smoke = subparsers.add_parser("live-smoke", help="Run a tiny capped OpenAI provider smoke test")
     live_smoke.add_argument("--repo-root", type=Path, default=Path("."))
@@ -129,6 +133,7 @@ def main(argv: list[str] | None = None) -> int:
                 repo=args.repo,
                 task=args.task,
                 log_dir=Path(".termagent/traces"),
+                task_planning=True,
             ),
             config_path,
         )
@@ -151,6 +156,8 @@ def main(argv: list[str] | None = None) -> int:
                 "reasoning_effort": args.reasoning_effort,
                 "allow_network_commands": True if args.allow_network_commands else None,
                 "require_changes": True if args.require_changes else None,
+                "task_planning": args.task_planning,
+                "max_stagnation_events": args.max_stagnation_events,
             }.items()
             if value is not None
         }
@@ -171,6 +178,7 @@ def main(argv: list[str] | None = None) -> int:
                 provider=args.provider, model=args.model, repeats=args.repeats,
                 max_cost_usd=args.max_cost_usd, max_total_cost_usd=args.max_total_cost_usd,
                 max_output_tokens=args.max_output_tokens, reasoning_effort=args.reasoning_effort,
+                task_planning=args.task_planning,
             )
         except (OSError, ValueError, RuntimeError) as exc:
             print(f"Benchmark stopped: {exc}")
@@ -239,6 +247,7 @@ def main(argv: list[str] | None = None) -> int:
                 allow_network_commands=args.allow_network_commands,
                 max_output_tokens=args.max_output_tokens,
                 reasoning_effort=args.reasoning_effort,
+                task_planning=args.task_planning,
             )
         )
 

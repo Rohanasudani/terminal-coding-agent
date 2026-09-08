@@ -42,6 +42,8 @@ def apply_config_file(config: AgentConfig, path: Path) -> AgentConfig:
         "reasoning_effort",
         "allow_network_commands",
         "require_changes",
+        "task_planning",
+        "max_stagnation_events",
         "log_dir",
     }
     unknown = sorted(set(data) - allowed)
@@ -79,6 +81,10 @@ def apply_config_file(config: AgentConfig, path: Path) -> AgentConfig:
         updates["allow_network_commands"] = bool(data["allow_network_commands"])
     if "require_changes" in data:
         updates["require_changes"] = bool(data["require_changes"])
+    if "task_planning" in data:
+        updates["task_planning"] = bool(data["task_planning"])
+    if "max_stagnation_events" in data:
+        updates["max_stagnation_events"] = int(data["max_stagnation_events"])
     if "log_dir" in data:
         updates["log_dir"] = Path(str(data["log_dir"]))
 

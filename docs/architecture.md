@@ -11,11 +11,12 @@ The first version is intentionally small but structured like a serious agent run
 ## Agent Loop
 
 1. Receive a repository path and natural-language task from one-shot CLI mode or interactive app mode.
-2. Ask the provider for the next structured tool call.
-3. Execute that tool through the registry.
-4. Log the call and result as JSONL.
-5. Feed observations back into the provider.
-6. Stop when the provider asks for `git_diff` or the step budget is exhausted.
+2. Optionally register a structured task plan after initial discovery and before patch planning.
+3. Ask the provider for the next structured tool call.
+4. Reject premature writes, missing deliverables, or bounded repeated discovery.
+5. Execute valid tools through the registry and log calls and results as JSONL.
+6. Feed bounded observations back into the provider.
+7. Stop after verified review, a safety or cost limit, bounded stagnation, or the step budget.
 
 The default repair provider is deterministic so tests and benchmarks can run without API credits.
 
@@ -56,11 +57,25 @@ File edits go through a two-step contract:
 
 This catches accidental direct writes from live providers and makes traces easier to audit. Every successful final answer includes changed files, patch plans reviewed, tests run, failed test attempts, and residual risk.
 
+## Task Planning And Progress
+
+Planning-enabled runs use `set_task_plan` to separate task completion from test
+completion. A plan contains the requested outcome, known output paths, and acceptance
+checks. The agent will not accept a patch plan before this contract exists and will
+not finish while a declared output file is missing.
+
+The progress ledger records coarse phases rather than model-authored reasoning. It
+also hashes proposed discovery actions. Three identical consecutive discovery calls
+produce corrective guidance; continued repetition stops at a configurable bound.
+This saves tool execution and observation tokens without letting the controller write
+code on the provider's behalf. The feature can be disabled for ablation runs.
+
 ## Tool Layer
 
 The tool registry exposes a small set of high-leverage operations:
 
 - `search`: find relevant files and symbols
+- `set_task_plan`: register deliverables and acceptance checks
 - `read_file`: inspect source with line numbers
 - `code_map`: inspect Python, JavaScript, and TypeScript symbols and imports
 - `find_references`: find Python, JavaScript, and TypeScript name references for a symbol
@@ -117,7 +132,7 @@ The bridge also compares benchmark JSON reports so local repair runs, live-provi
 ## Next Technical Bets
 
 - tree-sitter-backed multi-language parsing
-- stronger live-provider repair strategies
+- external validation of structured planning
 - sub-agent orchestration experiments
 - Harbor-compatible custom agent packaging
 - small pinned Terminal-Bench subset run

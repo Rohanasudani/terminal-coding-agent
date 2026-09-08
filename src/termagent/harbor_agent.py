@@ -29,6 +29,8 @@ class TermAgentHarbor(BaseAgent):
         max_output_tokens: int = 4_096,
         reasoning_effort: str = "high",
         require_changes: bool = True,
+        task_planning: bool = True,
+        max_stagnation_events: int = 2,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -42,12 +44,14 @@ class TermAgentHarbor(BaseAgent):
             raise ValueError("live evaluation requires an explicit model")
         if self.model_name and "/" in self.model_name and not self.model_name.startswith("openai/"):
             raise ValueError("this adapter currently supports OpenAI model IDs only")
-        if not isinstance(controller_recovery, bool) or not isinstance(require_changes, bool):
-            raise TypeError("controller_recovery and require_changes must be booleans")
+        if not all(isinstance(value, bool) for value in (controller_recovery, require_changes, task_planning)):
+            raise TypeError("controller_recovery, require_changes, and task_planning must be booleans")
         if not PurePosixPath(repo).is_absolute() or not test_command.strip():
             raise ValueError("an absolute container repo and a visible verifier command are required")
         if max_steps < 1 or not math.isfinite(max_cost_usd) or max_cost_usd <= 0:
             raise ValueError("step and cost limits must be positive and finite")
+        if max_stagnation_events < 1:
+            raise ValueError("max_stagnation_events must be at least 1")
         if prompt_profile not in {"conservative", "benchmark", "fast"}:
             raise ValueError("unsupported prompt profile")
         if max_output_tokens < 256:
@@ -67,6 +71,8 @@ class TermAgentHarbor(BaseAgent):
             "max_output_tokens": max_output_tokens,
             "reasoning_effort": reasoning_effort,
             "require_changes": require_changes,
+            "task_planning": task_planning,
+            "max_stagnation_events": max_stagnation_events,
             "approval_mode": "auto",
         }
 
@@ -137,4 +143,8 @@ class TermAgentHarbor(BaseAgent):
             "reasoning_effort": self.settings["reasoning_effort"],
             "usage_is_complete": state["usage_is_complete"],
             "require_changes": self.settings["require_changes"],
+            "task_planning": self.settings["task_planning"],
+            "phase": state.get("phase"),
+            "stagnation_events": state.get("stagnation_events"),
+            "max_stagnation_events": self.settings["max_stagnation_events"],
         }

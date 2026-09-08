@@ -7,6 +7,7 @@ import sys
 from .diagnostics import parse_pytest_failure
 from .logging import TraceLogger
 from .models import AgentConfig, AgentState, TokenUsage, ToolCall
+from .planning import ProgressLedger
 from .pricing import estimate_cost_usd
 from .provider import (
     ProviderError,
@@ -20,6 +21,8 @@ from .tools import ToolRegistry, sha256_text
 
 class TerminalAgent:
     def __init__(self, config: AgentConfig) -> None:
+        if config.max_stagnation_events < 1:
+            raise ValueError("max_stagnation_events must be at least 1")
         self.config = config
         self.tools = ToolRegistry(
             config.repo,
@@ -37,10 +40,12 @@ class TerminalAgent:
             max_observation_chars=config.max_observation_chars,
             max_output_tokens=config.max_output_tokens,
             reasoning_effort=config.reasoning_effort,
+            task_planning=config.task_planning,
         )
         self.logger = TraceLogger(config.log_dir)
         self.tool_names = {spec.name for spec in self.tools.specs()}
         self.planned_writes: set[tuple[str, str]] = set()
+        self.progress = ProgressLedger(enabled=config.task_planning)
 
     def run(self) -> AgentState:
         state = AgentState()
@@ -62,6 +67,8 @@ class TerminalAgent:
                 "max_output_tokens": self.config.max_output_tokens,
                 "reasoning_effort": self.config.reasoning_effort,
                 "require_changes": self.config.require_changes,
+                "task_planning": self.config.task_planning,
+                "max_stagnation_events": self.config.max_stagnation_events,
             },
         )
 
@@ -161,6 +168,32 @@ class TerminalAgent:
                     break
                 continue
 
+            if self.config.task_planning and self.progress.record_proposal(call):
+                self.progress.stagnation_events += 1
+                state.stagnation_events = self.progress.stagnation_events
+                guidance = self._stagnation_guidance(call)
+                observations.append(
+                    "controller_stagnation: blocked\n"
+                    f"metadata: {json.dumps({'repeated_tool': call.name, 'phase': self.progress.phase}, sort_keys=True)}\n"
+                    f"{guidance}"
+                )
+                self.logger.write(
+                    "stagnation_detected",
+                    {
+                        "step": step,
+                        "tool": call.name,
+                        "phase": self.progress.phase,
+                        "events": self.progress.stagnation_events,
+                    },
+                )
+                if self.progress.stagnation_events >= self.config.max_stagnation_events:
+                    state.final_answer = (
+                        "Stopped after repeated no-progress tool selections. "
+                        f"Last blocked tool: `{call.name}`. {guidance}"
+                    )
+                    break
+                continue
+
             self.logger.write("tool_call", {"step": step, "name": call.name, "arguments": call.arguments})
             # Commands and writes may change files, even when they fail partway through.
             if call.name in {"write_file", "write_patch_set", "run_shell"}:
@@ -173,14 +206,22 @@ class TerminalAgent:
             observations.append(
                 f"{call.name}: {result.status}\nmetadata: {json.dumps(result.metadata, sort_keys=True)}\n{result.output}"
             )
+            if call.name == "set_task_plan" and result.status == "ok":
+                self.progress.register_plan(result.metadata)
+                if self.progress.plan is not None:
+                    state.task_plan_summary = self.progress.plan.summary
+                    state.expected_paths = list(self.progress.plan.expected_paths)
+                    state.acceptance_checks = list(self.progress.plan.acceptance_checks)
             if call.name == "plan_patch" and result.status == "ok":
                 relative_path = result.metadata.get("relative_path")
                 content_hash = result.metadata.get("content_sha256")
                 if isinstance(relative_path, str) and isinstance(content_hash, str):
                     self.planned_writes.add((relative_path, content_hash))
                     state.patch_plans += 1
+                    self.progress.mark_progress("implement")
             if call.name == "plan_patch_set" and result.status == "ok":
                 state.patch_plans += self._remember_grouped_plan(result.metadata)
+                self.progress.mark_progress("implement")
 
             if result.status == "blocked":
                 state.final_answer = (
@@ -197,9 +238,11 @@ class TerminalAgent:
                 content_hash = result.metadata.get("content_sha256")
                 if isinstance(relative_path, str) and isinstance(content_hash, str):
                     self.planned_writes.discard((relative_path, content_hash))
+                self.progress.mark_progress("verify")
             if call.name == "write_patch_set" and result.status == "ok":
                 last_failed_test_command = None
                 self._record_grouped_write(state, result.metadata)
+                self.progress.mark_progress("verify")
 
             if call.name == "run_shell" and self._is_verifier(call.arguments.get("command")):
                 command = call.arguments.get("command", "")
@@ -223,8 +266,26 @@ class TerminalAgent:
                             "failed_test_runs": state.failed_test_runs,
                         },
                     )
+                    self.progress.mark_progress("diagnose")
+                else:
+                    self.progress.mark_progress("review")
 
             if call.name == "git_diff" and result.status == "ok":
+                if self.config.task_planning and self.progress.plan is None:
+                    observations[-1] += (
+                        "\n\ncontroller_guidance: task_plan_required\n"
+                        "Register the goal, expected output paths, and acceptance checks with "
+                        "set_task_plan before finishing."
+                    )
+                    continue
+                missing_paths = self.progress.missing_expected_paths(self.tools.repo)
+                if missing_paths:
+                    observations[-1] += (
+                        "\n\ncontroller_guidance: missing_deliverables\n"
+                        "The task plan still has missing expected files: " + ", ".join(missing_paths)
+                    )
+                    self.progress.phase = "implement"
+                    continue
                 has_changes = result.output.strip() not in {"", "no diff"}
                 if self.config.require_changes and not has_changes:
                     observations[-1] += (
@@ -238,14 +299,19 @@ class TerminalAgent:
                     )
                     continue
                 state.completed = state.tests_passed
+                self.progress.mark_progress("complete" if state.completed else "review")
+                state.phase = self.progress.phase
                 state.final_answer = self._format_final_answer(state, result.output)
                 break
 
         if not state.final_answer:
             state.final_answer = observations[-1] if observations else "No actions were taken."
 
+        state.phase = self.progress.phase
+        state.stagnation_events = self.progress.stagnation_events
         self.logger.write("agent_finish", {
             "completed": state.completed, "tests_passed": state.tests_passed, "steps": state.steps,
+            "phase": state.phase, "stagnation_events": state.stagnation_events,
         })
         return state
 
@@ -275,6 +341,10 @@ class TerminalAgent:
             f"Residual risk: {residual_risk}.",
             f"Rollback guidance: {rollback}.",
         ]
+        if state.task_plan_summary:
+            lines.insert(1, f"Task plan: {state.task_plan_summary}")
+            lines.insert(2, f"Declared outputs: {', '.join(state.expected_paths) or 'discovered during implementation'}.")
+        lines.append(f"Progress phase: {state.phase}; stagnation events: {state.stagnation_events}.")
         if state.input_tokens or state.output_tokens:
             lines.append(
                 f"Tokens: {state.input_tokens} input, {state.output_tokens} output; "
@@ -298,6 +368,7 @@ class TerminalAgent:
         if not isinstance(call.arguments, dict):
             return "arguments must be a JSON object"
         required_args = {
+            "set_task_plan": {"summary", "expected_paths", "acceptance_checks"},
             "search": {"query"},
             "read_file": {"path"},
             "code_map": set(),
@@ -313,6 +384,7 @@ class TerminalAgent:
         if missing:
             return f"missing required argument(s): {', '.join(missing)}"
         allowed_args = {
+            "set_task_plan": {"summary", "expected_paths", "acceptance_checks"},
             "search": {"query", "glob"},
             "read_file": {"path", "start", "limit"},
             "code_map": {"query", "limit"},
@@ -327,6 +399,21 @@ class TerminalAgent:
         unexpected = sorted(set(call.arguments) - allowed_args)
         if unexpected:
             return f"unexpected argument(s): {', '.join(unexpected)}"
+        if call.name == "set_task_plan" and self.progress.plan is not None:
+            return "task plan is already registered; continue with the existing plan"
+        if (
+            call.name == "set_task_plan"
+            and self.config.task_planning
+            and self.config.require_changes
+            and not call.arguments.get("expected_paths")
+        ):
+            return "planning a required change needs at least one expected output path"
+        if (
+            self.config.task_planning
+            and call.name in {"plan_patch", "plan_patch_set"}
+            and self.progress.plan is None
+        ):
+            return "set_task_plan is required before planning file writes"
         if call.name == "write_file":
             plan_error = self._validate_planned_write(call)
             if plan_error:
@@ -336,6 +423,18 @@ class TerminalAgent:
             if plan_error:
                 return plan_error
         return None
+
+    def _stagnation_guidance(self, call: ToolCall) -> str:
+        if self.progress.plan is None:
+            return (
+                "Stop repeating discovery. Use set_task_plan to state the requested deliverables; "
+                "an empty repository is evidence that explicitly requested files must be created."
+            )
+        if self.progress.phase in {"plan", "implement"}:
+            return "Choose a concrete planned write that advances one declared deliverable."
+        if self.progress.phase == "verify":
+            return "Run the configured verifier once, then inspect failures or review the diff."
+        return f"Choose a different evidence source or action instead of repeating {call.name}."
 
     def _controller_redirect(
         self,

@@ -81,6 +81,8 @@ def run_live_smoke(
                 max_observation_chars=4000,
                 max_output_tokens=4096,
                 reasoning_effort="high",
+                require_changes=True,
+                task_planning=True,
             )
         ).run()
 

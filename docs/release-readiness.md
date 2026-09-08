@@ -19,8 +19,8 @@ and reliability requirements below are complete.
 
 ## Required Before Showcase Submission
 
-- Improve planning on testless and empty-workspace tasks, then validate that change on
-  a new pinned external task as required by [PROJECT_SCOPE.md](../PROJECT_SCOPE.md).
+- Validate the Milestone 19 planning mechanism on a frozen Terminal-Bench 2 subset
+  as required by [PROJECT_SCOPE.md](../PROJECT_SCOPE.md).
 - Repeat the live smoke after Milestone 15 and record all trials on the broader suite.
 - Run a pinned external task subset against at least one existing coding agent.
 - Review process isolation, credential access, shell policy, and stale patch previews;
@@ -42,6 +42,16 @@ and reliability requirements below are complete.
 - A matched TermAgent-versus-Codex development baseline and a controller-recovery
   ablation are complete. External validation produced honest negative results and
   identified the next planning gap. See [milestone18-results.md](milestone18-results.md).
+
+## Milestone 19 Evidence
+
+- Structured plans separate requested deliverables from verifier status.
+- Declared output paths must exist before completion.
+- Repeated identical discovery is detected and bounded.
+- Planning can be enabled or disabled in local and Harbor runs.
+- Both local ablation arms retained an 8/8 deterministic pass rate; the planning arm
+  added 0.625 mean steps.
+- No external quality claim is made until the Milestone 20 live campaign.
 
 ## Optional After First Release
 
