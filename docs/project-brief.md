@@ -1,23 +1,51 @@
-# Project Brief
+# Project Rationale
 
-## One-Line Summary
+## Summary
 
 TermAgent is a benchmarkable terminal coding agent with structured tools, safety gates, repository intelligence, cost tracking, and reproducible eval reports.
 
-## Recruiter Pitch
+## Project Motivation
 
-Most terminal agents are impressive demos but hard to evaluate. TermAgent treats agent behavior like an engineering system: every run is tool-mediated, traceable, cost-aware, and benchmarked. It can inspect repositories, plan patches before writing, run verifiers, enforce safety rules, and export tasks into a Harbor-shaped benchmark format.
+Coding-agent quality depends on more than whether a model can generate a plausible
+patch. The surrounding system must select useful context, constrain tool execution,
+distinguish test success from task completion, and preserve enough evidence to explain
+both successful and failed runs.
 
-## Resume Bullets
+TermAgent treats those behaviors as testable engineering components. Repository reads,
+writes, shell commands, verification, and final review pass through structured tools.
+Runs produce bounded traces and usage records, while local fixtures and Harbor tasks
+provide independent grading paths.
 
-- Built a benchmarkable terminal coding agent in Python with interactive app mode, structured repo search, file read/write tools, shell execution, approval gates, diff previews, JSONL traces, live-provider smoke tooling, and safe OpenAI-compatible integration.
-- Implemented a test-first repair loop with planned patch enforcement, token/cost accounting, Python/JavaScript/TypeScript repository intelligence, and an 8/8 local benchmark baseline.
-- Added Harbor/Terminal-Bench-style benchmark export tooling, comparison reports, CI coverage, and security documentation for reproducible agent evaluation.
+## Key Design Decisions
 
-## Interview Talking Points
+- **Structured execution:** provider output is validated as one typed tool call instead
+  of being passed directly to a shell.
+- **Two-phase writes:** file contents must receive a matching patch preview and content
+  hash before the corresponding write is accepted.
+- **Fresh verification:** any write or shell command invalidates earlier verifier
+  success, and completion requires the configured verifier to pass afterward.
+- **Task-aware completion:** optional structured plans record expected output files and
+  acceptance checks so a passing smoke command cannot hide missing deliverables.
+- **Bounded recovery:** repeated no-progress discovery is detected and stopped at a
+  configurable limit instead of consuming the remaining token and step budget.
+- **Separated evaluation:** deterministic fixtures catch runtime regressions, while live
+  model behavior is measured independently through pinned Harbor tasks.
+- **Explicit boundaries:** command classification, repository path checks, cost limits,
+  and network defaults reduce risk but are not presented as an operating-system sandbox.
 
-- Why structured tool calls are safer than free-form command generation.
-- How planned-write hashes prevent unreviewed live-provider file writes.
-- How benchmark fixtures, verifier commands, traces, and cost reports make agent progress measurable.
-- Why deterministic local providers are useful for regression testing even when live LLM providers are the real target.
-- What remains before claiming a public Terminal-Bench score: packaged Harbor custom agent, pinned model run, documented cost, and external benchmark results.
+## Evaluation Status
+
+- The deterministic local provider passes all eight regression tasks without API calls.
+- A packaged Harbor custom agent installs an exact wheel inside task containers and
+  records task checksums, model settings, usage, cost estimates, and agent metadata.
+- Matched development trials compared TermAgent and Codex with the same model; those
+  small fixtures are integration evidence, not a general ranking.
+- Two pinned external Terminal-Bench tasks produced zero reward and are retained as
+  negative results. Their traces motivated the structured-planning transition.
+- The planning-enabled and planning-disabled local arms both remain at 8/8, with a
+  measured 0.625-step mean overhead for explicit plan registration.
+- A frozen Terminal-Bench 2 campaign is still required before making an external
+  improvement claim or submitting a public leaderboard result.
+
+Detailed methods, controls, failures, and reproduction commands are linked from the
+main README and the milestone result documents.

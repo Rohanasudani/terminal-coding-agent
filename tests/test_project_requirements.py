@@ -85,3 +85,15 @@ def test_readme_and_security_audit_reference_latest_milestones():
     assert "termagent app" in readme
     assert "requirements-traceability.md" in readme
     assert "14. Live-provider smoke readiness" in security
+
+
+def test_public_project_rationale_avoids_resume_coaching_copy():
+    repo_root = Path(__file__).parents[1]
+    content = (repo_root / "docs" / "project-brief.md").read_text(encoding="utf-8")
+
+    assert "## Project Motivation" in content
+    assert "## Key Design Decisions" in content
+    assert "## Evaluation Status" in content
+    assert "Recruiter Pitch" not in content
+    assert "Resume Bullets" not in content
+    assert "Interview Talking Points" not in content

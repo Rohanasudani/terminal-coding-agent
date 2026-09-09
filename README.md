@@ -186,7 +186,7 @@ See [docs/live-provider-demo.md](docs/live-provider-demo.md) for the sanitized l
 See [docs/milestone17-results.md](docs/milestone17-results.md) for the same-model Codex comparison and controller ablation.
 See [docs/milestone18-results.md](docs/milestone18-results.md) for pinned external-task failures and analysis.
 See [docs/milestone19-results.md](docs/milestone19-results.md) for the structured-planning development ablation.
-See [docs/project-brief.md](docs/project-brief.md) for resume bullets and interview talking points.
+See [docs/project-brief.md](docs/project-brief.md) for the project rationale, design decisions, and evaluation status.
 
 Current local baseline:
 
@@ -224,7 +224,7 @@ This is the bridge to Terminal-Bench-style evaluation: the agent is designed aro
 - [Repository intelligence](docs/repository-intelligence.md)
 - [Requirements traceability](docs/requirements-traceability.md)
 - [Security audit](docs/security-audit.md)
-- [Project brief](docs/project-brief.md)
+- [Project rationale](docs/project-brief.md)
 
 ## Roadmap
 
