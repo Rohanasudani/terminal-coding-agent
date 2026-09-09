@@ -7,6 +7,7 @@ from pathlib import Path
 
 from .agent import TerminalAgent
 from .bench import run_benchmark, write_markdown_report, write_report
+from .campaign import verify_campaign
 from .config import apply_config_file
 from .experiments import compare_harbor_jobs
 from .harbor import (
@@ -88,6 +89,12 @@ def build_parser() -> argparse.ArgumentParser:
     harbor_compare.add_argument("jobs", nargs="+", type=Path)
     harbor_compare.add_argument("--allow-model-difference", action="store_true")
     harbor_compare.add_argument("--report", type=Path, default=Path(".termagent/harbor-comparison.md"))
+
+    campaign_verify = subparsers.add_parser(
+        "campaign-verify", help="Verify frozen external benchmark task bytes"
+    )
+    campaign_verify.add_argument("--manifest", required=True, type=Path)
+    campaign_verify.add_argument("--dataset-dir", required=True, type=Path)
 
     doctor = subparsers.add_parser("doctor", help="Check local TermAgent prerequisites")
     doctor.add_argument("--repo", type=Path, default=Path("."))
@@ -222,6 +229,17 @@ def main(argv: list[str] | None = None) -> int:
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(report)
         print(args.report)
+        return 0
+
+    if args.command == "campaign-verify":
+        try:
+            tasks = verify_campaign(args.manifest, args.dataset_dir)
+        except (OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            print(f"Campaign verification failed: {exc}")
+            return 1
+        for task in tasks:
+            print(f"PASS  {task.name}  {task.content_sha256}")
+        print(f"verified {len(tasks)} frozen tasks")
         return 0
 
     if args.command == "doctor":

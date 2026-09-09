@@ -223,10 +223,14 @@ test whether it improves pass rate on a frozen unseen Terminal-Bench 2 subset.
 
 ## Milestone 20: Terminal-Bench 2 Campaign
 
-Status: next
+Status: protocol and subset frozen; control and live runs in progress
 
 - select and checksum a representative unseen coding subset before live runs
 - verify oracle and no-op controls
 - compare TermAgent with planning on/off and one established agent
 - retain all failures, timeouts, costs, tokens, and exact versions
 - publish the experiment protocol before interpreting results
+
+The frozen three-task protocol and content hashes are recorded in
+[milestone20-protocol.md](milestone20-protocol.md) and
+[`bench/campaigns/milestone20.json`](../bench/campaigns/milestone20.json).

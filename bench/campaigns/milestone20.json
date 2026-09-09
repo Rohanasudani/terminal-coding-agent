@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "campaign": "milestone-20-terminal-bench-2",
+  "frozen_at": "2026-09-09",
+  "dataset": {
+    "name": "terminal-bench/terminal-bench-2",
+    "requested_ref": "latest",
+    "task_count_at_freeze": 89
+  },
+  "tasks": [
+    {
+      "name": "cancel-async-tasks",
+      "category": "python-concurrency",
+      "content_sha256": "4a404181f61b0fef1702a9eea8fe65dbcd13ef7740776cff25964a34ad07ffb4",
+      "repo": "/app",
+      "visible_verifier": "python -m py_compile run.py"
+    },
+    {
+      "name": "fix-code-vulnerability",
+      "category": "security-repair",
+      "content_sha256": "9248bc183f1cd3089ea949df846725ccbe6d24321d9273919fa090a099011376",
+      "repo": "/app",
+      "visible_verifier": "pytest -q"
+    },
+    {
+      "name": "cobol-modernization",
+      "category": "legacy-modernization",
+      "content_sha256": "c2c891719f9214d62c60efc93e44702136c5f48520de91d0c45d236f4fa194b9",
+      "repo": "/app",
+      "visible_verifier": "python -m py_compile program.py"
+    }
+  ],
+  "trials_per_task": 1,
+  "harbor": {
+    "version": "0.22.0",
+    "concurrency": 1,
+    "retries": 0
+  },
+  "model": {
+    "provider": "openai",
+    "name": "gpt-5.6-luna"
+  },
+  "termagent": {
+    "wheel_sha256": "7b87b7c68956d8cfb71f2c5b1a89487c75c281f29373e148af07484e56fda157",
+    "max_steps": 32,
+    "max_cost_usd_per_trial": 0.05,
+    "max_output_tokens_per_response": 4096,
+    "reasoning_effort": "high",
+    "prompt_profile": "benchmark",
+    "controller_recovery": true,
+    "max_stagnation_events": 2
+  },
+  "arms": [
+    {
+      "name": "termagent-planning-on",
+      "agent": "termagent",
+      "task_planning": true
+    },
+    {
+      "name": "termagent-planning-off",
+      "agent": "termagent",
+      "task_planning": false
+    },
+    {
+      "name": "codex-baseline",
+      "agent": "codex",
+      "version": "0.153.4"
+    }
+  ],
+  "controls": ["oracle", "nop"]
+}
