@@ -9,10 +9,11 @@ A benchmarkable terminal coding agent inspired by tools like Claude Code and Cod
 **Current baseline:** `8/8` local benchmark tasks pass with the deterministic repair provider.
 
 Status: alpha. The first-release checklist is in [docs/release-readiness.md](docs/release-readiness.md).
-The project now includes a repeated same-model Harbor comparison, a measured
-development ablation, and honest negative results on two pinned external tasks.
-Milestone 19 adds an ablatable structured-planning and progress-control mechanism;
-its external generalization test remains pending, so the project is not yet complete.
+The project now includes a repeated same-model Harbor comparison, measured
+development ablations, and a frozen three-task Terminal-Bench 2 campaign.
+Structured planning did not improve external pass rate: both TermAgent arms scored
+0/3, while Codex `0.153.4` scored 2/3 with the same model. The failed and errored
+trials are retained, so the project is not presented as outperforming established agents.
 The recorded live calculator run predates the removal of heuristic controller patches;
 it is historical integration evidence, not a current generalization score.
 
@@ -52,6 +53,8 @@ flowchart LR
 - `termagent tools`: inspect available structured tools
 - `termagent bench`: run local benchmark tasks and write a report
 - `termagent live-smoke`: run a tiny capped OpenAI provider smoke test
+- `termagent campaign-verify`: verify frozen external task bytes against a manifest
+- `termagent campaign-report`: validate and summarize a completed Harbor campaign
 - structured task plans with declared output paths and acceptance checks
 - bounded stagnation detection for repeated no-progress discovery
 - repo search powered by `rg` when available
@@ -186,6 +189,7 @@ See [docs/live-provider-demo.md](docs/live-provider-demo.md) for the sanitized l
 See [docs/milestone17-results.md](docs/milestone17-results.md) for the same-model Codex comparison and controller ablation.
 See [docs/milestone18-results.md](docs/milestone18-results.md) for pinned external-task failures and analysis.
 See [docs/milestone19-results.md](docs/milestone19-results.md) for the structured-planning development ablation.
+See [docs/milestone20-results.md](docs/milestone20-results.md) for the frozen Terminal-Bench 2 campaign.
 See [docs/project-brief.md](docs/project-brief.md) for the project rationale, design decisions, and evaluation status.
 
 Current local baseline:
@@ -208,6 +212,17 @@ Pinned external results are currently `0/1` for both TermAgent and Codex on
 `html-js-filter`, and `0/1` in both TermAgent recovery arms on
 `payments-pipeline-fix`. These failures are retained rather than excluded.
 
+Frozen Terminal-Bench 2 campaign using `openai/gpt-5.6-luna`, one trial per task:
+
+| Agent arm | Passed | Errors | Known cost |
+| --- | ---: | ---: | ---: |
+| TermAgent planning on | 0/3 | 1 | $0.037058 partial |
+| TermAgent planning off | 0/3 | 1 | $0.046531 partial |
+| Codex 0.153.4 | 2/3 | 0 | $0.057692 |
+
+This small campaign found no planning benefit. It supports a reproducible comparison
+and failure-analysis claim, not a full Terminal-Bench ranking.
+
 This is the bridge to Terminal-Bench-style evaluation: the agent is designed around reproducible tasks, verifier commands, execution logs, and pass/fail reports from day one.
 
 ## Documentation
@@ -221,6 +236,7 @@ This is the bridge to Terminal-Bench-style evaluation: the agent is designed aro
 - [Matched benchmark results](docs/milestone17-results.md)
 - [External validation results](docs/milestone18-results.md)
 - [Structured planning results](docs/milestone19-results.md)
+- [Frozen Terminal-Bench 2 results](docs/milestone20-results.md)
 - [Repository intelligence](docs/repository-intelligence.md)
 - [Requirements traceability](docs/requirements-traceability.md)
 - [Security audit](docs/security-audit.md)
@@ -228,8 +244,8 @@ This is the bridge to Terminal-Bench-style evaluation: the agent is designed aro
 
 ## Roadmap
 
-- validate structured planning on a frozen Terminal-Bench 2 subset
-- compare planning enabled and disabled with matched live controls
+- fix repository-independent final review and provider transport recovery
+- evaluate the next general improvements on a different held-out subset
 - sub-agent orchestration experiments
 - tree-sitter-backed repository intelligence
 - richer terminal UI

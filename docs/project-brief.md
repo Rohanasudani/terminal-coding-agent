@@ -44,8 +44,9 @@ provide independent grading paths.
   negative results. Their traces motivated the structured-planning transition.
 - The planning-enabled and planning-disabled local arms both remain at 8/8, with a
   measured 0.625-step mean overhead for explicit plan registration.
-- A frozen Terminal-Bench 2 campaign is still required before making an external
-  improvement claim or submitting a public leaderboard result.
+- A frozen three-task Terminal-Bench 2 campaign found no planning improvement:
+  both TermAgent arms scored 0/3 and Codex scored 2/3. The project makes no full
+  benchmark or leaderboard claim from this limited result.
 
 Detailed methods, controls, failures, and reproduction commands are linked from the
 main README and the milestone result documents.

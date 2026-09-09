@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "campaign": "milestone-20-terminal-bench-2",
+  "job_prefix": "milestone20",
   "frozen_at": "2026-09-09",
   "dataset": {
     "name": "terminal-bench/terminal-bench-2",

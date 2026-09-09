@@ -25,6 +25,7 @@ Audit date: 2026-09-07
 | 17. Matched live comparison | Complete | Same-model development trials, usage controls, controller ablation |
 | 18. Pinned external validation | Complete | External failures retained, required-change guard, untracked diff support |
 | 19. Structured planning | Implemented | Plan-before-patch option, declared-path guard, bounded stagnation, ablation control |
+| 20. Frozen external campaign | Complete | Three pinned tasks, oracle/no-op controls, planning ablation, Codex comparison, all failures retained |
 
 ## Implemented Controls
 
@@ -95,6 +96,10 @@ No unsafe implementation instances were found after Milestone 7 hardening. Remai
 - A historical live smoke passed before Milestone 15. The new model-only patch path and independent grader require a fresh live run.
 - The deterministic `repair` provider intentionally uses transparent heuristics for local baseline benchmarks. Generalization should be evaluated with live providers and broader tasks.
 - Pricing estimates can become stale and should be checked against official provider docs.
+- Provider timeouts and disconnects can end a Harbor trial before a summary is written;
+  Harbor records the error, but provider-side usage is unknown when no response arrives.
+- `git_diff` currently requires the Git executable even when snapshot fallback would
+  otherwise support a non-Git task directory.
 
 ## Milestone 15 Follow-Up
 

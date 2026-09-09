@@ -7,7 +7,7 @@ from pathlib import Path
 
 from .agent import TerminalAgent
 from .bench import run_benchmark, write_markdown_report, write_report
-from .campaign import verify_campaign
+from .campaign import render_campaign_report, verify_campaign
 from .config import apply_config_file
 from .experiments import compare_harbor_jobs
 from .harbor import (
@@ -95,6 +95,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     campaign_verify.add_argument("--manifest", required=True, type=Path)
     campaign_verify.add_argument("--dataset-dir", required=True, type=Path)
+
+    campaign_report = subparsers.add_parser(
+        "campaign-report", help="Validate and summarize a frozen Harbor campaign"
+    )
+    campaign_report.add_argument("--manifest", required=True, type=Path)
+    campaign_report.add_argument("--jobs-dir", required=True, type=Path)
+    campaign_report.add_argument("--report", required=True, type=Path)
 
     doctor = subparsers.add_parser("doctor", help="Check local TermAgent prerequisites")
     doctor.add_argument("--repo", type=Path, default=Path("."))
@@ -240,6 +247,17 @@ def main(argv: list[str] | None = None) -> int:
         for task in tasks:
             print(f"PASS  {task.name}  {task.content_sha256}")
         print(f"verified {len(tasks)} frozen tasks")
+        return 0
+
+    if args.command == "campaign-report":
+        try:
+            report = render_campaign_report(args.manifest, args.jobs_dir)
+        except (KeyError, OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            print(f"Campaign report rejected: {exc}")
+            return 1
+        args.report.parent.mkdir(parents=True, exist_ok=True)
+        args.report.write_text(report, encoding="utf-8")
+        print(args.report)
         return 0
 
     if args.command == "doctor":

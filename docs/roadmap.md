@@ -115,7 +115,7 @@ Status: complete
 - CI workflow
 - issue and pull request templates
 - contribution and security docs
-- project brief with resume bullets
+- developer-facing project rationale and design decisions
 - local health-check command
 
 Milestone 11 completed the public repository polish layer: CI, issue templates, PR template, contribution guide, security policy, project brief, demo commands, architecture diagram, package metadata, and local health checks.
@@ -125,7 +125,7 @@ Future public-launch improvements:
 - demo GIF
 - packaged CLI release
 - Harbor-compatible custom agent packaging
-- real pinned Terminal-Bench subset run
+- broader repeated external benchmark runs
 
 ## Milestone 12: Interactive Agent App
 
@@ -208,7 +208,7 @@ Status: complete with negative results
 
 ## Milestone 19: Structured Planning And Progress Control
 
-Status: implementation and local ablation complete; external validation pending
+Status: implementation and local ablation complete; external validation found no gain
 
 - first-class task plan with expected files and acceptance checks
 - plan-before-patch enforcement when planning is enabled
@@ -223,7 +223,7 @@ test whether it improves pass rate on a frozen unseen Terminal-Bench 2 subset.
 
 ## Milestone 20: Terminal-Bench 2 Campaign
 
-Status: protocol and subset frozen; control and live runs in progress
+Status: complete with negative planning result
 
 - select and checksum a representative unseen coding subset before live runs
 - verify oracle and no-op controls
@@ -234,3 +234,7 @@ Status: protocol and subset frozen; control and live runs in progress
 The frozen three-task protocol and content hashes are recorded in
 [milestone20-protocol.md](milestone20-protocol.md) and
 [`bench/campaigns/milestone20.json`](../bench/campaigns/milestone20.json).
+All controls passed. Planning-on and planning-off each scored 0/3, while Codex
+`0.153.4` scored 2/3 with the same model. Two TermAgent trials ended on provider
+transport errors and remain in the denominator. See
+[milestone20-results.md](milestone20-results.md).

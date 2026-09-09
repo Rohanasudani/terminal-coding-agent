@@ -8,10 +8,10 @@ This document maps the original project requirements to implemented TermAgent mi
 | --- | --- | --- | --- |
 | Repo search | Complete | `search` tool uses ripgrep when available with fallback search | `tests/test_tools.py`, `termagent tools` |
 | File read/write tools | Complete | `read_file`, `plan_patch`, `write_file`, `plan_patch_set`, `write_patch_set` | `tests/test_tools.py`, `tests/test_agent.py` |
-| Generalized task planning | Implemented; external validation pending | `set_task_plan`, declared output checks, progress phases, bounded stagnation | `tests/test_planning.py`, `docs/milestone19-results.md` |
+| Generalized task planning | Implemented; no external gain measured | `set_task_plan`, declared output checks, progress phases, bounded stagnation | `tests/test_planning.py`, `docs/milestone20-results.md` |
 | Shell execution | Complete | `run_shell` executes parsed argv under the safety classifier | `tests/test_safety.py`, `tests/test_tools.py` |
 | Approval gates | Complete | `never`, `suggest`, and `auto` approval modes | `tests/test_safety.py`, `tests/test_agent.py` |
-| Git diff previews | Complete | `git_diff` plus snapshot fallback for non-git fixtures | `tests/test_tools.py`, benchmark traces |
+| Git diff previews | Complete with caveat | `git_diff` plus snapshot fallback for non-git fixtures; missing Git executable is a known external failure | `tests/test_tools.py`, `docs/milestone20-results.md` |
 | Structured tool interfaces | Complete | Provider output is strict `{name, arguments}` JSON | `tests/test_provider.py`, `src/termagent/provider.py` |
 | Command logging | Complete | JSONL trace logger records agent events, tool calls, and tool results | `tests/test_agent.py`, `bench/results/traces` |
 | Safety controls | Complete | path sandbox, destructive command blocks, network defaults, planned writes, cost ceiling | `docs/security-audit.md`, full test suite |
@@ -19,7 +19,7 @@ This document maps the original project requirements to implemented TermAgent mi
 | Benchmarking | Complete | `termagent bench`, JSON/Markdown reports, 8 local tasks | `termagent bench --repo-root .` |
 | Multi-language repository intelligence | Complete | Python AST plus JavaScript/TypeScript scanner for symbols/imports/references | `tests/test_code_map.py` |
 | Live LLM mode | Complete with caveat | OpenAI-compatible provider with native function calls, strict per-tool argument schemas, nullable argument normalization, `store: false`, `certifi` TLS validation, cost accounting, and a capped smoke-run command | mocked tests; real key smoke run still requires local `OPENAI_API_KEY` |
-| Terminal-Bench direction | Complete with caveat | Harbor-shaped export and comparison reports | `tests/test_harbor.py`, `termagent harbor-export` |
+| Terminal-Bench evaluation | Complete for frozen subset | Harbor adapter, frozen task hashes, controls, three live arms, validated campaign report | `tests/test_campaign.py`, `docs/milestone20-results.md` |
 | Interactive agent app | Complete | `termagent app` repeated task loop with `:doctor`, `:help`, `:quit` | `tests/test_interactive.py` |
 
 ## Milestone Compliance
@@ -41,6 +41,7 @@ This document maps the original project requirements to implemented TermAgent mi
 | 13. Requirements audit | Keeps project claims aligned with code and tests | `docs/requirements-traceability.md`, `tests/test_project_requirements.py` |
 | 14. Live-provider smoke readiness | Adds a repeatable capped live-provider demo path without committing raw traces | `src/termagent/live_smoke.py`, `docs/live-provider-demo.md` |
 | 19. Structured planning | Adds an ablatable plan and progress contract without controller-authored source changes | `src/termagent/planning.py`, `docs/milestone19-results.md` |
+| 20. Frozen Terminal-Bench 2 campaign | Tests planning on/off and Codex on three checksum-pinned tasks | `bench/campaigns/milestone20.json`, `docs/milestone20-results.md` |
 
 ## Verification Checklist
 
@@ -66,7 +67,7 @@ Expected result: no matches.
 
 - The local `repair` provider is deterministic and intentionally uses transparent heuristics for regression testing.
 - OpenAI live mode is implemented and tested with mocked HTTP responses. A historical live smoke passed, but the model-only patch path introduced in Milestone 15 requires a fresh live run before making current live-performance claims.
-- Harbor export produces Harbor-shaped local tasks. It is not a public Terminal-Bench leaderboard score.
+- The frozen three-task Harbor campaign is not a public Terminal-Bench leaderboard score.
 - JavaScript and TypeScript indexing is conservative; tree-sitter-backed parsing remains a future deeper implementation.
 - TermAgent is a local developer tool with safety controls, not a complete operating-system sandbox.
 

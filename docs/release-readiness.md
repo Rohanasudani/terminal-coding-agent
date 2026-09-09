@@ -19,10 +19,7 @@ and reliability requirements below are complete.
 
 ## Required Before Showcase Submission
 
-- Validate the Milestone 19 planning mechanism on a frozen Terminal-Bench 2 subset
-  as required by [PROJECT_SCOPE.md](../PROJECT_SCOPE.md).
 - Repeat the live smoke after Milestone 15 and record all trials on the broader suite.
-- Run a pinned external task subset against at least one existing coding agent.
 - Review process isolation, credential access, shell policy, and stale patch previews;
   add regression tests for concrete bypasses. The current classifier is not a sandbox.
 - Verify accounting for unsuccessful provider retries and per-response output limits.
@@ -52,6 +49,17 @@ and reliability requirements below are complete.
 - Both local ablation arms retained an 8/8 deterministic pass rate; the planning arm
   added 0.625 mean steps.
 - No external quality claim is made until the Milestone 20 live campaign.
+
+## Milestone 20 Evidence
+
+- Froze three unseen coding-focused Terminal-Bench 2 tasks by content hash before runs.
+- Oracle passed 3/3 and no-op passed 0/3, establishing working verifier controls.
+- Compared planning enabled, planning disabled, and Codex `0.153.4` with
+  `openai/gpt-5.6-luna`, one trial per task and no Harbor retries.
+- Planning-on and planning-off each scored 0/3; Codex scored 2/3.
+- Preserved two provider transport errors, unknown usage, all zero rewards, exact
+  versions, task checksums, known costs, and limitations.
+- Added machine-checkable campaign verification and report generation commands.
 
 ## Optional After First Release
 
