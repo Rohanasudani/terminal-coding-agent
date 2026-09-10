@@ -38,6 +38,7 @@ class ProviderOutput:
     tool_call: ToolCall
     usage: TokenUsage = field(default_factory=TokenUsage)
     attempts: int = 1
+    usage_is_complete: bool = True
 
 
 @dataclass(frozen=True)

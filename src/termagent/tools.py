@@ -335,14 +335,19 @@ class ToolRegistry:
         return ToolResult("ok", output[:20_000], {"returncode": completed.returncode})
 
     def _is_git_repo(self) -> bool:
-        completed = subprocess.run(
-            ["git", "rev-parse", "--is-inside-work-tree"],
-            cwd=self.repo,
-            text=True,
-            capture_output=True,
-            timeout=5,
-            check=False,
-        )
+        if shutil.which("git") is None:
+            return False
+        try:
+            completed = subprocess.run(
+                ["git", "rev-parse", "--is-inside-work-tree"],
+                cwd=self.repo,
+                text=True,
+                capture_output=True,
+                timeout=5,
+                check=False,
+            )
+        except OSError:
+            return False
         return completed.returncode == 0 and completed.stdout.strip() == "true"
 
     def _snapshot(self) -> dict[str, str]:

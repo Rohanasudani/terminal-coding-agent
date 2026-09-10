@@ -61,6 +61,20 @@ and reliability requirements below are complete.
   versions, task checksums, known costs, and limitations.
 - Added machine-checkable campaign verification and report generation commands.
 
+## Post-Campaign Reliability Recovery
+
+- Final review now uses the internal before/after snapshot when the Git executable is
+  unavailable, covering the failure observed in the frozen campaign.
+- Timeouts, disconnects, URL errors, and selected transient HTTP responses receive at
+  most `provider_retries + 1` total attempts with capped exponential backoff.
+- Billing and malformed-request failures are not retried.
+- A recovered request remains marked with incomplete usage because a failed request
+  without usage data may still have incurred provider-side cost.
+- Exhausted transport failures become ordinary incomplete agent states, allowing the
+  Harbor runner to write `summary.json` and retain the trial for grading.
+- These changes were tested on local fixtures only. The frozen Milestone 20 results were
+  not rerun or rewritten.
+
 ## Optional After First Release
 
 Subagents, a graphical website, more providers, tree-sitter indexing, and a richer

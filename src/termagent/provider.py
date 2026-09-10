@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import http.client
 import json
 import os
 import re
 import ssl
 import sys
+import time
 import urllib.error
 import urllib.request
 from abc import ABC, abstractmethod
@@ -35,6 +37,12 @@ class ProviderError(RuntimeError):
         self.usage = usage or TokenUsage()
         self.attempts = attempts
         self.usage_is_complete = usage_is_complete
+
+
+class ProviderRequestError(RuntimeError):
+    def __init__(self, message: str, *, retryable: bool) -> None:
+        super().__init__(message)
+        self.retryable = retryable
 
 
 @dataclass
@@ -180,19 +188,32 @@ class OpenAICompatibleProvider(Provider):
     def next_action(self, task: str, observations: list[str]) -> ProviderOutput:
         invalid_outputs: list[str] = []
         usage = TokenUsage()
+        usage_is_complete = True
 
         for attempt in range(1, self.max_retries + 2):
             payload = self._payload(task, observations, invalid_outputs)
             try:
                 data = self._request(payload)
-            except RuntimeError as exc:
+            except ProviderRequestError as exc:
+                usage_is_complete = False
+                if exc.retryable and attempt <= self.max_retries:
+                    time.sleep(min(0.25 * (2 ** (attempt - 1)), 2.0))
+                    continue
                 raise ProviderError(
-                    str(exc), usage=usage, attempts=attempt, usage_is_complete=False,
+                    str(exc),
+                    usage=usage,
+                    attempts=attempt,
+                    usage_is_complete=usage_is_complete,
                 ) from exc
             usage = add_usage(usage, usage_from_response(data))
             try:
                 call = extract_openai_tool_call(data)
-                return ProviderOutput(tool_call=call, usage=usage, attempts=attempt)
+                return ProviderOutput(
+                    tool_call=call,
+                    usage=usage,
+                    attempts=attempt,
+                    usage_is_complete=usage_is_complete,
+                )
             except (TypeError, ValueError) as exc:
                 text = extract_output_text(data)
                 invalid_outputs.append(f"{text[:500]}\nerror: {exc}")
@@ -202,7 +223,7 @@ class OpenAICompatibleProvider(Provider):
             f"provider returned invalid tool call after retries: {latest_error}",
             usage=usage,
             attempts=self.max_retries + 1,
-            usage_is_complete=True,
+            usage_is_complete=usage_is_complete,
         )
 
     def _payload(self, task: str, observations: list[str], invalid_outputs: list[str]) -> dict[str, object]:
@@ -259,9 +280,26 @@ class OpenAICompatibleProvider(Provider):
                 return json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
             body = exc.read().decode("utf-8", errors="replace")[:800]
-            raise RuntimeError(f"OpenAI API request failed with HTTP {exc.code}: {body}") from exc
+            raise ProviderRequestError(
+                f"OpenAI API request failed with HTTP {exc.code}: {body}",
+                retryable=is_retryable_http_error(exc.code, body),
+            ) from exc
         except urllib.error.URLError as exc:
-            raise RuntimeError(f"OpenAI API request failed: {exc.reason}") from exc
+            raise ProviderRequestError(
+                f"OpenAI API request failed: {exc.reason}", retryable=True,
+            ) from exc
+        except (TimeoutError, ConnectionError, http.client.HTTPException) as exc:
+            raise ProviderRequestError(
+                f"OpenAI API request failed: {type(exc).__name__}: {exc}", retryable=True,
+            ) from exc
+
+
+def is_retryable_http_error(status: int, body: str) -> bool:
+    if status == 429 and any(
+        marker in body.lower() for marker in ("insufficient_quota", "credit_balance")
+    ):
+        return False
+    return status in {408, 409, 429, 500, 502, 503, 504}
 
 
 def openai_ssl_context() -> ssl.SSLContext:

@@ -277,6 +277,27 @@ def test_agent_accounts_for_usage_when_provider_retries_fail(tmp_path: Path, mon
     assert state.usage_is_complete is True
 
 
+def test_agent_marks_recovered_provider_usage_incomplete(tmp_path: Path, monkeypatch):
+    class RecoveredProvider:
+        def next_action(self, task: str, observations: list[str]) -> ProviderOutput:
+            return ProviderOutput(
+                ToolCall("git_diff", {}),
+                usage=TokenUsage(input_tokens=100, output_tokens=20),
+                attempts=2,
+                usage_is_complete=False,
+            )
+
+    monkeypatch.setattr(agent_module, "build_provider", lambda *args, **kwargs: RecoveredProvider())
+
+    state = TerminalAgent(
+        AgentConfig(repo=tmp_path, task="review", provider="openai", max_steps=1)
+    ).run()
+
+    assert state.usage_is_complete is False
+    assert state.input_tokens == 100
+    assert state.output_tokens == 20
+
+
 def test_agent_accepts_grouped_plan_before_grouped_write(tmp_path: Path, monkeypatch):
     class GroupedWriteProvider:
         def next_action(self, task: str, observations: list[str]) -> ProviderOutput:

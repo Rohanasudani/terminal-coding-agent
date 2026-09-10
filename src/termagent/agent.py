@@ -115,6 +115,9 @@ class TerminalAgent:
                 )
                 call = controller_call
             self._record_usage(state, provider_output.usage)
+            state.usage_is_complete = (
+                state.usage_is_complete and provider_output.usage_is_complete
+            )
             self.logger.write(
                 "provider_usage",
                 {
@@ -123,6 +126,7 @@ class TerminalAgent:
                     "input_tokens": provider_output.usage.input_tokens,
                     "output_tokens": provider_output.usage.output_tokens,
                     "estimated_cost_usd": state.estimated_cost_usd,
+                    "usage_is_complete": provider_output.usage_is_complete,
                 },
             )
             if self._cost_limit_exceeded(state):

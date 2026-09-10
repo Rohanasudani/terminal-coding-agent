@@ -68,3 +68,9 @@ The next engineering work should address repository-independent final review, bo
 inspection-to-edit transitions, and graceful provider transport failures. Those changes
 must be tested on development fixtures and a different held-out task set, not rerun on
 this frozen subset as though it were still unseen.
+
+## Post-Campaign Note
+
+The Git-independent review and provider transport failure paths identified here were
+implemented and regression-tested after this campaign. The original outcomes above
+remain unchanged. See [milestone21-reliability.md](milestone21-reliability.md).

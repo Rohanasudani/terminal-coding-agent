@@ -237,6 +237,7 @@ This is the bridge to Terminal-Bench-style evaluation: the agent is designed aro
 - [External validation results](docs/milestone18-results.md)
 - [Structured planning results](docs/milestone19-results.md)
 - [Frozen Terminal-Bench 2 results](docs/milestone20-results.md)
+- [Post-campaign reliability recovery](docs/milestone21-reliability.md)
 - [Repository intelligence](docs/repository-intelligence.md)
 - [Requirements traceability](docs/requirements-traceability.md)
 - [Security audit](docs/security-audit.md)
@@ -244,7 +245,6 @@ This is the bridge to Terminal-Bench-style evaluation: the agent is designed aro
 
 ## Roadmap
 
-- fix repository-independent final review and provider transport recovery
 - evaluate the next general improvements on a different held-out subset
 - sub-agent orchestration experiments
 - tree-sitter-backed repository intelligence

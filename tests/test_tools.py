@@ -120,6 +120,23 @@ def test_git_diff_falls_back_to_snapshot_outside_git_repo(tmp_path: Path):
     assert "+value = 2" in result.output
 
 
+def test_git_diff_falls_back_to_snapshot_when_git_is_unavailable(tmp_path: Path, monkeypatch):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    target = repo / "module.py"
+    target.write_text("value = 1\n", encoding="utf-8")
+    tools = ToolRegistry(repo, "auto")
+
+    target.write_text("value = 2\n", encoding="utf-8")
+    monkeypatch.setattr("termagent.tools.shutil.which", lambda command: None)
+    result = tools.call("git_diff", {})
+
+    assert result.status == "ok"
+    assert result.metadata["source"] == "snapshot"
+    assert "-value = 1" in result.output
+    assert "+value = 2" in result.output
+
+
 def test_git_diff_includes_new_untracked_file(tmp_path: Path):
     repo = tmp_path / "repo"
     repo.mkdir()

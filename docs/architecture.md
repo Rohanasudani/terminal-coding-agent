@@ -84,7 +84,8 @@ The tool registry exposes a small set of high-leverage operations:
 - `write_file`: patch files and return unified diffs
 - `write_patch_set`: apply coordinated multi-file edits after a grouped plan
 - `run_shell`: execute commands under a safety policy
-- `git_diff`: show the final repository diff
+- `git_diff`: show the final repository diff, with an internal snapshot fallback when
+  Git is unavailable or the task directory is not a Git repository
 
 The agent does not get raw filesystem access. Every path is resolved inside the repository root. For non-git fixture workspaces, `git_diff` falls back to an internal snapshot diff so benchmarks still get a clean before/after report.
 

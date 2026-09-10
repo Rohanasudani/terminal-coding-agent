@@ -9,6 +9,7 @@ from termagent.provider import (
     RepairProvider,
     compact_observations,
     extract_openai_tool_call,
+    is_retryable_http_error,
     openai_ssl_context,
     openai_tool_definitions,
     parse_tool_call,
@@ -232,6 +233,68 @@ def test_invalid_response_failure_preserves_retry_usage(monkeypatch):
     assert captured.value.usage.output_tokens == 5
     assert captured.value.attempts == 2
     assert captured.value.usage_is_complete is True
+
+
+def test_openai_provider_recovers_from_transient_disconnect(monkeypatch):
+    responses = [
+        provider.http.client.RemoteDisconnected("connection closed"),
+        {
+            "output": [
+                {"type": "function_call", "name": "git_diff", "arguments": "{}"}
+            ],
+            "usage": {"input_tokens": 8, "output_tokens": 2},
+        },
+    ]
+    sleeps: list[float] = []
+
+    def fake_urlopen(*args, **kwargs):
+        response = responses.pop(0)
+        if isinstance(response, BaseException):
+            raise response
+        return FakeResponse(response)
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr(provider.urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(provider.time, "sleep", sleeps.append)
+
+    output = OpenAICompatibleProvider(
+        "gpt-5.6-luna", max_retries=1,
+    ).next_action("Inspect the repository", [])
+
+    assert output.tool_call.name == "git_diff"
+    assert output.attempts == 2
+    assert output.usage == provider.TokenUsage(input_tokens=8, output_tokens=2)
+    assert output.usage_is_complete is False
+    assert sleeps == [0.25]
+
+
+def test_openai_provider_exhausts_transient_retries_cleanly(monkeypatch):
+    attempts = 0
+
+    def fake_urlopen(*args, **kwargs):
+        nonlocal attempts
+        attempts += 1
+        raise TimeoutError("request timed out")
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr(provider.urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(provider.time, "sleep", lambda seconds: None)
+
+    with pytest.raises(ProviderError) as captured:
+        OpenAICompatibleProvider(
+            "gpt-5.6-luna", max_retries=2,
+        ).next_action("Inspect the repository", [])
+
+    assert attempts == 3
+    assert captured.value.attempts == 3
+    assert captured.value.usage_is_complete is False
+    assert "TimeoutError" in str(captured.value)
+
+
+def test_billing_429_is_not_retried():
+    assert is_retryable_http_error(429, '{"code":"rate_limit_exceeded"}') is True
+    assert is_retryable_http_error(429, '{"code":"insufficient_quota"}') is False
+    assert is_retryable_http_error(400, "invalid request") is False
 
 
 def test_openai_ssl_context_requires_certificate_validation():

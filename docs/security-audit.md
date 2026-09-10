@@ -96,10 +96,11 @@ No unsafe implementation instances were found after Milestone 7 hardening. Remai
 - A historical live smoke passed before Milestone 15. The new model-only patch path and independent grader require a fresh live run.
 - The deterministic `repair` provider intentionally uses transparent heuristics for local baseline benchmarks. Generalization should be evaluated with live providers and broader tasks.
 - Pricing estimates can become stale and should be checked against official provider docs.
-- Provider timeouts and disconnects can end a Harbor trial before a summary is written;
-  Harbor records the error, but provider-side usage is unknown when no response arrives.
-- `git_diff` currently requires the Git executable even when snapshot fallback would
-  otherwise support a non-Git task directory.
+- Provider timeouts, disconnects, and retryable HTTP failures receive bounded retries.
+  If recovery fails, the run writes a normal failed summary. Usage remains explicitly
+  incomplete when any request ends without a response body.
+- Final review falls back to the agent's initial filesystem snapshot when Git is absent
+  or the task directory is not a Git repository.
 
 ## Milestone 15 Follow-Up
 

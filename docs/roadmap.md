@@ -238,3 +238,17 @@ All controls passed. Planning-on and planning-off each scored 0/3, while Codex
 `0.153.4` scored 2/3 with the same model. Two TermAgent trials ended on provider
 transport errors and remain in the denominator. See
 [milestone20-results.md](milestone20-results.md).
+
+## Milestone 21: Post-Campaign Reliability Recovery
+
+Status: complete without rerunning the frozen subset
+
+- fall back to filesystem snapshot review when Git is unavailable
+- retry transient provider failures with a bounded exponential delay
+- avoid retrying malformed requests and exhausted billing accounts
+- preserve incomplete usage accounting after unanswered requests
+- ensure exhausted provider failures still produce a Harbor summary
+
+Implementation evidence is recorded in
+[milestone21-reliability.md](milestone21-reliability.md). The next quality work must use
+a different held-out task set.

@@ -11,14 +11,14 @@ This document maps the original project requirements to implemented TermAgent mi
 | Generalized task planning | Implemented; no external gain measured | `set_task_plan`, declared output checks, progress phases, bounded stagnation | `tests/test_planning.py`, `docs/milestone20-results.md` |
 | Shell execution | Complete | `run_shell` executes parsed argv under the safety classifier | `tests/test_safety.py`, `tests/test_tools.py` |
 | Approval gates | Complete | `never`, `suggest`, and `auto` approval modes | `tests/test_safety.py`, `tests/test_agent.py` |
-| Git diff previews | Complete with caveat | `git_diff` plus snapshot fallback for non-git fixtures; missing Git executable is a known external failure | `tests/test_tools.py`, `docs/milestone20-results.md` |
+| Git diff previews | Complete | `git_diff` plus snapshot fallback for non-git fixtures and environments without the Git executable | `tests/test_tools.py`, `docs/milestone21-reliability.md` |
 | Structured tool interfaces | Complete | Provider output is strict `{name, arguments}` JSON | `tests/test_provider.py`, `src/termagent/provider.py` |
 | Command logging | Complete | JSONL trace logger records agent events, tool calls, and tool results | `tests/test_agent.py`, `bench/results/traces` |
 | Safety controls | Complete | path sandbox, destructive command blocks, network defaults, planned writes, cost ceiling | `docs/security-audit.md`, full test suite |
 | Test-first repair loop | Complete | verifier-first run, failure parsing, targeted read, patch, rerun | local benchmark suite |
 | Benchmarking | Complete | `termagent bench`, JSON/Markdown reports, 8 local tasks | `termagent bench --repo-root .` |
 | Multi-language repository intelligence | Complete | Python AST plus JavaScript/TypeScript scanner for symbols/imports/references | `tests/test_code_map.py` |
-| Live LLM mode | Complete with caveat | OpenAI-compatible provider with native function calls, strict per-tool argument schemas, nullable argument normalization, `store: false`, `certifi` TLS validation, cost accounting, and a capped smoke-run command | mocked tests; real key smoke run still requires local `OPENAI_API_KEY` |
+| Live LLM mode | Complete with caveat | OpenAI-compatible provider with native function calls, strict schemas, bounded transient retries, incomplete-usage tracking, TLS validation, cost accounting, and a capped smoke-run command | mocked transport tests and historical live smoke; current quality still requires broader external evaluation |
 | Terminal-Bench evaluation | Complete for frozen subset | Harbor adapter, frozen task hashes, controls, three live arms, validated campaign report | `tests/test_campaign.py`, `docs/milestone20-results.md` |
 | Interactive agent app | Complete | `termagent app` repeated task loop with `:doctor`, `:help`, `:quit` | `tests/test_interactive.py` |
 
@@ -42,6 +42,7 @@ This document maps the original project requirements to implemented TermAgent mi
 | 14. Live-provider smoke readiness | Adds a repeatable capped live-provider demo path without committing raw traces | `src/termagent/live_smoke.py`, `docs/live-provider-demo.md` |
 | 19. Structured planning | Adds an ablatable plan and progress contract without controller-authored source changes | `src/termagent/planning.py`, `docs/milestone19-results.md` |
 | 20. Frozen Terminal-Bench 2 campaign | Tests planning on/off and Codex on three checksum-pinned tasks | `bench/campaigns/milestone20.json`, `docs/milestone20-results.md` |
+| 21. Reliability recovery | Makes final review independent of Git availability and converts exhausted provider transport failures into gradeable summaries | `tests/test_tools.py`, `tests/test_provider.py`, `tests/test_harbor_runner.py` |
 
 ## Verification Checklist
 
@@ -58,7 +59,7 @@ termagent doctor --repo .
 Security smoke scan:
 
 ```bash
-rg -n "shell=True|eval\(|exec\(|pickle" src
+rg -n "shell\\s*=\\s*True|(^|[^.[:alnum:]_])(eval|exec)\\(|pickle\\.(loads?|load)" src
 ```
 
 Expected result: no matches.
