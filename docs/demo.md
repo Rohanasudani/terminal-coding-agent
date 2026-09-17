@@ -1,13 +1,13 @@
 # Demo
 
-## Local Repair Run
+## Local Fixture Run
 
 Use a temporary fixture copy so repeated demos do not alter the checked-in task:
 
 ```bash
 demo_repo="$(mktemp -d)"
 cp tests/fixtures/sample_repo/*.py "$demo_repo/"
-termagent app --repo "$demo_repo" --provider repair --approval-mode auto
+termagent app --repo "$demo_repo" --provider fixture --approval-mode auto
 ```
 
 Then enter:
@@ -35,12 +35,13 @@ Expected behavior:
 - reruns the verifier
 - prints the final diff summary
 
-This demo uses deterministic repair heuristics. It is not a live-model result.
+This demo uses task-specific fixture patterns to exercise the runtime. It is not a
+live-model result or an agent-quality benchmark.
 
 ## Installed-Package Recording
 
 `demo.cast` is an asciicast v2 recording of actual command output from the
-deterministic JavaScript repair run in a fresh virtual environment. Replay with
+deterministic JavaScript fixture run in a fresh virtual environment. Replay with
 `asciinema play docs/demo.cast` when asciinema is installed. Regenerate it with:
 
 ```bash

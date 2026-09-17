@@ -45,7 +45,7 @@ controlled Harbor comparisons use `termagent compare-harbor`; it checks task has
 trial counts, identified model IDs, and missing trials before producing a report.
 
 ```bash
-termagent compare-bench bench/results/latest.json --label repair
+termagent compare-bench bench/results/latest.json --label fixture
 ```
 
 This writes `bench/results/comparison.md` with pass rate, task count, and estimated model cost for each report.
@@ -56,7 +56,7 @@ Compare multiple reports:
 termagent compare-bench \
   bench/results/latest.json \
   bench/results/openai-smoke.json \
-  --label repair \
+  --label fixture \
   --label openai-smoke
 ```
 

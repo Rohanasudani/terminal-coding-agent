@@ -11,7 +11,7 @@ This opens a small task loop:
 ```text
 TermAgent interactive mode
 repo: /path/to/repo
-provider: repair
+provider: fixture
 approval: suggest
 Type a coding task, :doctor, :help, or :quit.
 termagent>

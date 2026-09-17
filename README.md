@@ -6,7 +6,8 @@
 
 A benchmarkable terminal coding agent inspired by tools like Claude Code and Codex. It can inspect a repository, plan changes, use structured tools, preview diffs, obey safety gates, track token/cost usage, and produce reproducible benchmark logs.
 
-**Current baseline:** `8/8` local benchmark tasks pass with the deterministic repair provider.
+The offline fixture suite currently passes `8/8`. It exercises the runtime and tool
+contracts with transparent scripted repairs; it is not a model-quality benchmark.
 
 Status: alpha. The first-release checklist is in [docs/release-readiness.md](docs/release-readiness.md).
 The project now includes a repeated same-model Harbor comparison, measured
@@ -69,7 +70,7 @@ flowchart LR
 - Python syntax validation before planned patches are approved
 - test-first repair loop that runs the verifier, parses failures, searches likely symbols, patches, reruns tests, and reports the final diff
 - deterministic mock provider for tests and demos
-- deterministic repair provider for benchmarkable local coding tasks
+- isolated fixture provider for deterministic runtime regression tasks
 - OpenAI-compatible provider with strict structured tool-call output and retry handling
 - `termagent.toml` project config
 - token usage and estimated model cost reporting
@@ -98,7 +99,7 @@ termagent doctor
 termagent bench --repo-root .
 ```
 
-These commands use the deterministic provider and make no API calls. See
+These commands use the deterministic fixture provider and make no API calls. See
 [the demo](docs/demo.md) for an isolated interactive run and terminal recording.
 Python 3.11+ is required; Node.js 22+ runs the JavaScript fixtures.
 
@@ -129,7 +130,9 @@ termagent run \
   --max-cost-usd 0.25
 ```
 
-Use `repair` for deterministic local benchmark runs. Use `openai` when you want a real model to choose tools.
+Use `fixture` for deterministic runtime checks. Use `openai` when you want a real model
+to choose tools. The fixture provider contains task-specific patterns and is not an
+agent-quality baseline.
 
 By default, live mode uses conservative settings: bounded observation context, a per-response output ceiling, a small model-cost ceiling, no network shell commands, and required patch previews before writes. Reasoning effort is explicit when provided. Add `--allow-network-commands` only for trusted repositories and tasks that genuinely need network access. See [docs/security-audit.md](docs/security-audit.md) for the current safety audit and known limitations.
 
@@ -201,7 +204,7 @@ Current local baseline:
 
 | Provider | Tasks | Passed | Pass Rate | Model Cost |
 | --- | ---: | ---: | ---: | ---: |
-| repair | 8 | 8 | 100% | $0.000000 |
+| fixture (runtime regression only) | 8 | 8 | 100% | $0.000000 |
 
 Matched Harbor development baseline using `openai/gpt-5.6-luna`, three trials each:
 

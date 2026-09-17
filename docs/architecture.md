@@ -18,7 +18,9 @@ The first version is intentionally small but structured like a serious agent run
 6. Feed bounded observations back into the provider.
 7. Stop after verified review, a safety or cost limit, bounded stagnation, or the step budget.
 
-The default repair provider is deterministic so tests and benchmarks can run without API credits.
+The default fixture provider is deterministic so runtime regression tests can run
+without API credits. Its scripted repairs are isolated from the live provider path and
+are not evidence of model quality.
 
 ## Interactive App Mode
 
@@ -34,7 +36,7 @@ This keeps the agent behavior measurable: each improvement should increase bench
 
 The provider boundary returns a structured tool call plus usage metadata. Local modes return zero-token usage, while live OpenAI-compatible mode parses usage from the Responses API result and rolls it into the final report.
 
-- `repair`: deterministic test-first loop for cheap regression tests and benchmark tasks
+- `fixture`: transparent task-specific behavior for runtime regression tests
 - `mock`: stable alias for local tests and demos
 - `openai`: live provider that requests strict JSON schema output, validates the selected tool, retries malformed responses, and estimates cost from token usage
 
@@ -130,7 +132,7 @@ The harness copies each fixture into a temporary workspace, runs the agent, exec
 
 The Harbor bridge exports local benchmark tasks into a Harbor-shaped directory layout with `task.toml`, `instruction.md`, `environment/Dockerfile`, `tests/test.sh`, and `solution/solve.sh`. The generated verifier script runs the local task verifier and writes `1` or `0` to `/logs/verifier/reward.txt`, matching Harbor's reward-file convention.
 
-The bridge also compares benchmark JSON reports so local repair runs, live-provider smoke runs, and future Harbor runs can be summarized side by side.
+The bridge also compares benchmark JSON reports so local fixture runs, live-provider smoke runs, and future Harbor runs can be summarized side by side.
 
 ## Next Technical Bets
 

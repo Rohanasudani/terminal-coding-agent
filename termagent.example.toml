@@ -1,5 +1,5 @@
 [termagent]
-provider = "repair"
+provider = "fixture"
 model = "gpt-5.6-luna"
 approval_mode = "suggest"
 max_steps = 12

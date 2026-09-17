@@ -18,7 +18,7 @@ class TaskRunner(Protocol):
 @dataclass(frozen=True)
 class InteractiveSettings:
     repo: Path
-    provider: str = "repair"
+    provider: str = "fixture"
     model: str = "gpt-5.6-luna"
     approval_mode: ApprovalMode = "suggest"
     max_steps: int = 12

@@ -7,4 +7,6 @@ Each directory is a self-contained coding task with:
 
 The benchmark harness never edits these fixtures in place. It copies them, runs the agent, persists traces under `bench/results/traces`, and writes JSON plus Markdown reports.
 
-Current deterministic baseline: `8/8` tasks pass with the `repair` provider.
+Current runtime regression result: `8/8` tasks pass with the `fixture` provider. The
+provider contains transparent task-specific patterns, so this result does not measure
+model quality or generalization.

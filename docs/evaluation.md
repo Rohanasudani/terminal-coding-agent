@@ -2,9 +2,9 @@
 
 ## What Is Measured
 
-`bench/tasks` contains eight small deterministic repair regression tasks.
+`bench/tasks` contains eight small deterministic runtime regression tasks.
 `bench/evaluation` contains three broader public development tasks. They have no
-repair heuristics in the agent runtime. Reference fixes in `tests/test_grading.py`
+fixture patterns in the offline provider. Reference fixes in `tests/test_grading.py`
 validate that their tests distinguish the broken fixture from a correct solution;
 those fixes are never supplied to the agent by the harness.
 
@@ -23,7 +23,7 @@ From an activated development environment at the repository root:
 
 ```bash
 termagent bench --repo-root .
-termagent bench --tasks-dir bench/evaluation --provider repair --report .termagent/evaluation/repair.json --markdown-report .termagent/evaluation/repair.md
+termagent bench --tasks-dir bench/evaluation --provider fixture --report .termagent/evaluation/fixture.json --markdown-report .termagent/evaluation/fixture.md
 ```
 
 The second command may fail tasks. Preserve those failures as the baseline.
@@ -45,7 +45,7 @@ and review/redact before publishing. A failed run must remain in the denominator
 
 ## Comparison Protocol Still Required For Release
 
-Measured on 2026-09-06, one deterministic `repair` trial per development task:
+Measured on 2026-09-06, one deterministic fixture trial per development task:
 
 | Task | Result | Steps |
 | --- | --- | ---: |
@@ -60,7 +60,7 @@ Freeze a task set and commit before further tuning. Record task revision, model 
 agent revision, command, limits, and all repeated trials. Use identical tasks,
 verifiers, models where supported, and budgets for the comparator agent. Report
 pass rate, latency, cost, and failure categories. Never put evaluator answers or
-task-specific repair code into the runtime.
+task-specific fixture patterns into the live provider path.
 
 The public development tasks above do not establish performance on unseen work.
 A pinned external task subset and a real comparator run remain release work.

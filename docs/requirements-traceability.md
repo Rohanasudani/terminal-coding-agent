@@ -45,6 +45,7 @@ This document maps the original project requirements to implemented TermAgent mi
 | 21. Reliability recovery | Makes final review independent of Git availability and converts exhausted provider transport failures into gradeable summaries | `tests/test_tools.py`, `tests/test_provider.py`, `tests/test_harbor_runner.py` |
 | 22. Inspection-to-edit recovery | Bounds discovery, records evidence, and requires model-authored patch plans without controller-generated code | `tests/test_planning.py`, `docs/milestone22-results.md` |
 | 23. Post-recovery external evaluation | Complete; controls passed, all nine live arms retained, failures analyzed | `bench/campaigns/milestone23.json`, `docs/milestone23-results.md` |
+| 24. Runtime boundary cleanup | Closes mutating-option approval bypasses and isolates fixture answers from live provider code | `tests/test_safety.py`, `tests/test_fixture_provider.py` |
 
 ## Verification Checklist
 
@@ -68,7 +69,8 @@ Expected result: no matches.
 
 ## Honest Boundaries
 
-- The local `repair` provider is deterministic and intentionally uses transparent heuristics for regression testing.
+- The local `fixture` provider is deterministic and intentionally uses transparent
+  task-specific patterns for runtime regression testing, not model evaluation.
 - OpenAI live mode is implemented and tested with mocked HTTP responses. A historical live smoke passed, but the model-only patch path introduced in Milestone 15 requires a fresh live run before making current live-performance claims.
 - The frozen three-task Harbor campaign is not a public Terminal-Bench leaderboard score.
 - JavaScript and TypeScript indexing is conservative; tree-sitter-backed parsing remains a future deeper implementation.

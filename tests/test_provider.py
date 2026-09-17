@@ -6,7 +6,6 @@ from termagent import provider
 from termagent.provider import (
     OpenAICompatibleProvider,
     ProviderError,
-    RepairProvider,
     compact_observations,
     extract_openai_tool_call,
     is_retryable_http_error,
@@ -14,7 +13,6 @@ from termagent.provider import (
     openai_tool_definitions,
     parse_tool_call,
     provider_system_prompt,
-    symbol_imported_by_test,
     tool_call_response_format,
 )
 
@@ -101,32 +99,6 @@ def test_structured_planning_prompt_requires_progression():
     assert "use set_task_plan once" in prompt
     assert "Do not repeat identical discovery calls" in prompt
     assert "controller_transition: required" in prompt
-
-
-def test_repair_provider_registers_plan_when_enabled():
-    provider_instance = RepairProvider(test_command="pytest -q", task_planning=True)
-
-    first = provider_instance.next_action("Fix the bug", []).tool_call
-
-    assert first == provider.ToolCall("run_shell", {"command": "pytest -q", "timeout": 60})
-
-
-def test_repair_provider_plans_known_patch_before_preview():
-    provider_instance = RepairProvider(test_command="pytest -q", task_planning=True)
-    observation = (
-        'read_file: ok\nmetadata: {"path": "calculator.py"}\n'
-        "   1 | def add(a, b):\n   2 |     return a - b"
-    )
-
-    plan = provider_instance.next_action("Fix the add bug", [observation]).tool_call
-    preview = provider_instance.next_action(
-        "Fix the add bug",
-        [observation, "set_task_plan: ok\nmetadata: {}\nGoal: Fix the add bug"],
-    ).tool_call
-
-    assert plan.name == "set_task_plan"
-    assert plan.arguments["expected_paths"] == ["calculator.py"]
-    assert preview.name == "plan_patch"
 
 
 def test_compact_observations_caps_prompt_context():
@@ -302,16 +274,3 @@ def test_openai_ssl_context_requires_certificate_validation():
     context = openai_ssl_context()
 
     assert context.verify_mode == provider.ssl.CERT_REQUIRED
-
-
-def test_symbol_imported_by_test_extracts_imported_function():
-    observation = """
-read_file: ok
-metadata: {"path": "/tmp/repo/test_users.py"}
-   1 | from users import normalize_email
-   2 |
-   3 | def test_lowercases_email():
-   4 |     assert normalize_email("MAYA@EXAMPLE.COM") == "maya@example.com"
-"""
-
-    assert symbol_imported_by_test(observation) == "normalize_email"

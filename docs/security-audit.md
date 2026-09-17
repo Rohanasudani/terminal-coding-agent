@@ -1,6 +1,6 @@
 # Security And Reliability Audit
 
-Audit date: 2026-09-07
+Audit date: 2026-09-16
 
 ## Milestone Verification
 
@@ -26,6 +26,7 @@ Audit date: 2026-09-07
 | 18. Pinned external validation | Complete | External failures retained, required-change guard, untracked diff support |
 | 19. Structured planning | Implemented | Plan-before-patch option, declared-path guard, bounded stagnation, ablation control |
 | 20. Frozen external campaign | Complete | Three pinned tasks, oracle/no-op controls, planning ablation, Codex comparison, all failures retained |
+| 24. Runtime boundary cleanup | Complete | Mutating option detection, destructive `find` blocking, fixture/live provider separation |
 
 ## Implemented Controls
 
@@ -36,6 +37,8 @@ Audit date: 2026-09-07
 - Network commands such as `curl`, `wget`, `ssh`, `scp`, and `rsync` are blocked by default.
 - Inline interpreter execution such as `python -c` and `node -e` is blocked.
 - Shell control operators such as `;`, `&&`, pipes, backticks, and command substitution are blocked.
+- In-place `sed`, file-writing `find`, and Git output flags cannot use the read-only
+  command path; destructive `find -delete` is blocked even in auto mode.
 - Live provider uses native OpenAI function calls with strict per-tool argument schemas.
 - Live provider tool calls are validated before execution.
 - Live provider prompts include the configured verifier command and prohibit chained shell snippets.
@@ -94,7 +97,9 @@ No unsafe implementation instances were found after Milestone 7 hardening. Remai
 - `approval_mode=auto` allows non-destructive mutating commands after policy checks.
 - The shell classifier is conservative and may block legitimate complex commands.
 - A historical live smoke passed before Milestone 15. The new model-only patch path and independent grader require a fresh live run.
-- The deterministic `repair` provider intentionally uses transparent heuristics for local baseline benchmarks. Generalization should be evaluated with live providers and broader tasks.
+- The deterministic `fixture` provider intentionally uses transparent task-specific
+  patterns for runtime regression checks. It is isolated from the live provider module
+  and is not model-quality evidence.
 - Pricing estimates can become stale and should be checked against official provider docs.
 - Provider timeouts, disconnects, and retryable HTTP failures receive bounded retries.
   If recovery fails, the run writes a normal failed summary. Usage remains explicitly

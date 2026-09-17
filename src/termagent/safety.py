@@ -38,6 +38,11 @@ READ_ONLY_GIT_SUBCOMMANDS = {
     "status",
 }
 
+MUTATING_OPTIONS = {
+    "find": {"-exec", "-execdir", "-fls", "-fprint", "-fprintf", "-ok", "-okdir"},
+    "git": {"--output"},
+}
+
 DESTRUCTIVE_TOKENS = {
     "rm",
     "rmdir",
@@ -115,6 +120,9 @@ def classify_command(
     if executable in DESTRUCTIVE_TOKENS or tokens.intersection(DESTRUCTIVE_TOKENS):
         return SafetyDecision(False, False, "destructive command blocked by safety policy")
 
+    if executable == "find" and "-delete" in parts:
+        return SafetyDecision(False, False, "destructive command blocked by safety policy")
+
     if not allow_network and (executable in NETWORK_COMMANDS or tokens.intersection(NETWORK_COMMANDS)):
         return SafetyDecision(False, False, "network command blocked by safety policy")
 
@@ -124,10 +132,21 @@ def classify_command(
     if any(marker in command for marker in SHELL_METACHARS):
         return SafetyDecision(False, False, "shell control operator blocked by safety policy")
 
-    if executable == "git" and len(parts) > 1 and parts[1] in READ_ONLY_GIT_SUBCOMMANDS:
+    mutates_files = has_mutating_option(executable, parts[1:])
+
+    if (
+        executable == "git"
+        and len(parts) > 1
+        and parts[1] in READ_ONLY_GIT_SUBCOMMANDS
+        and not mutates_files
+    ):
         return SafetyDecision(True, False, "read-only git command allowed")
 
-    if executable in READ_ONLY_COMMANDS and not tokens.intersection(WRITE_HINTS):
+    if (
+        executable in READ_ONLY_COMMANDS
+        and not mutates_files
+        and not tokens.intersection(WRITE_HINTS)
+    ):
         return SafetyDecision(True, False, "read-only command allowed")
 
     if approval_mode == "auto":
@@ -141,3 +160,18 @@ def classify_command(
 
 def is_inline_interpreter(executable: str) -> bool:
     return executable in INLINE_EXECUTABLES or executable.startswith("python")
+
+
+def has_mutating_option(executable: str, arguments: list[str]) -> bool:
+    if executable == "sed":
+        for argument in arguments:
+            if argument == "--in-place" or argument.startswith("--in-place="):
+                return True
+            if argument.startswith("-") and not argument.startswith("--") and "i" in argument[1:]:
+                return True
+
+    options = MUTATING_OPTIONS.get(executable, set())
+    return any(
+        argument in options or any(argument.startswith(f"{option}=") for option in options)
+        for argument in arguments
+    )

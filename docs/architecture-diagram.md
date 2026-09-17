@@ -6,7 +6,7 @@ flowchart TD
     CLI --> Config[Project config]
     CLI --> Agent[Agent loop]
     Agent --> Provider[Provider boundary]
-    Provider --> Mock[Mock/repair provider]
+    Provider --> Mock[Mock/fixture provider]
     Provider --> OpenAI[OpenAI-compatible provider]
     Agent --> Validator[Tool-call validator]
     Validator --> Tools[Tool registry]

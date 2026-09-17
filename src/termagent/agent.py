@@ -7,14 +7,10 @@ import sys
 from .diagnostics import parse_pytest_failure
 from .logging import TraceLogger
 from .models import AgentConfig, AgentState, TokenUsage, ToolCall
+from .observations import first_code_map_symbol_path, first_search_path
 from .planning import ProgressLedger
 from .pricing import estimate_cost_usd
-from .provider import (
-    ProviderError,
-    build_provider,
-    first_code_map_symbol_path,
-    first_search_path,
-)
+from .provider import ProviderError, build_provider
 from .safety import resolve_inside_root
 from .tools import ToolRegistry, sha256_text
 

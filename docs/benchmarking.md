@@ -39,7 +39,7 @@ The export includes task metadata, instructions, container setup, workspace file
 Compare benchmark reports:
 
 ```bash
-termagent compare-bench bench/results/latest.json --label repair
+termagent compare-bench bench/results/latest.json --label fixture
 ```
 
 ## Current Suite
@@ -54,7 +54,7 @@ termagent compare-bench bench/results/latest.json --label repair
 | `bugfix_slugify` | whitespace and separator normalization |
 | `bugfix_word_count` | character count vs. token count |
 
-Current deterministic baseline: `8/8` tasks pass with the `repair` provider.
+Current runtime regression result: `8/8` tasks pass with the `fixture` provider.
 
 ## Why Start Local
 
@@ -79,4 +79,6 @@ This project should eventually package `termagent` as a Harbor-compatible custom
 
 ## Anti-Cheating Rule
 
-Do not hardcode benchmark answers as the final strategy. The deterministic `repair` provider uses small, transparent heuristics as a local baseline. Real improvement should come from better planning, repository intelligence, live-provider behavior, and broader benchmark coverage.
+The deterministic `fixture` provider uses transparent task-specific patterns. Its
+results validate orchestration, grading, tracing, and tool contracts only. Agent
+quality must be measured with live providers and held-out external tasks.

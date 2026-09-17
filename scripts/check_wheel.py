@@ -1,4 +1,4 @@
-"""Install a built wheel offline and repair a fixture outside the source checkout."""
+"""Install a built wheel offline and run a fixture outside the source checkout."""
 
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ def main() -> None:
         started = time.monotonic()
         result = subprocess.run([
             str(termagent), "run", "--repo", str(repo),
-            "--provider", "repair", "--task", spec["instruction"],
+            "--provider", "fixture", "--task", spec["instruction"],
             "--test-command", spec["verify"], "--approval-mode", "auto",
             "--log-dir", str(directory / "traces"),
         ], cwd=directory, env=environment, capture_output=True, text=True, timeout=90, check=False)
@@ -54,8 +54,8 @@ def main() -> None:
 
         if args.record:
             prompt = (
-                "Deterministic repair provider; clean wheel install; no API calls.\r\n"
-                '$ termagent run --repo /tmp/demo-repo --provider repair '
+                "Deterministic fixture provider; clean wheel install; no API calls.\r\n"
+                '$ termagent run --repo /tmp/demo-repo --provider fixture '
                 '--task "Fix totalWithTax and run tests" '
                 '--test-command "node test_cart.js" --approval-mode auto\r\n'
             )

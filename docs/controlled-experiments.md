@@ -30,14 +30,14 @@ termagent harbor-export --task-id bugfix_calculator --output-dir .termagent/harb
 harbor run -p .termagent/harbor-smoke/bugfix_calculator \
   -a termagent.harbor_agent:TermAgentHarbor \
   --ak "wheel_dir=$PWD/.termagent/release-wheels" \
-  --ak "test_command=python -m pytest -q" --ak provider=repair \
+  --ak "test_command=python -m pytest -q" --ak provider=fixture \
   --ak max_steps=12 -n 1 --jobs-dir .termagent/harbor-jobs
 harbor run -p .termagent/harbor-smoke/bugfix_calculator -a nop \
   -n 1 --jobs-dir .termagent/harbor-jobs
 ```
 
 The [measured report](harbor-integration-result.md) records reward 1 for deterministic
-repair and reward 0 for no-op, with no model calls. This verifies integration only.
+fixture run and reward 0 for no-op, with no model calls. This verifies integration only.
 It is not an existing-agent comparison or Terminal-Bench score.
 
 ## Same-Model Comparison Templates

@@ -29,7 +29,7 @@ def test_live_adapter_requires_explicit_model(tmp_path):
 
 
 def test_adapter_install_uses_uploaded_wheels_offline(tmp_path):
-    agent = make_agent(tmp_path, provider="repair")
+    agent = make_agent(tmp_path, provider="fixture")
     environment = AsyncMock()
     environment.exec.return_value = ExecResult(return_code=0)
     asyncio.run(agent.setup(environment))

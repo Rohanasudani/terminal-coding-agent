@@ -46,7 +46,7 @@ def test_repair_agent_stops_when_test_command_needs_approval(tmp_path: Path):
             task="Fix the calculator add bug and run tests",
             approval_mode="suggest",
             max_steps=4,
-            provider="repair",
+            provider="fixture",
         )
     ).run()
 

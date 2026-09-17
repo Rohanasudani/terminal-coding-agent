@@ -39,7 +39,7 @@ class TermAgentHarbor(BaseAgent):
         wheels = list(self.wheel_dir.glob("terminal_coding_agent-*.whl"))
         if len(wheels) != 1:
             raise ValueError("wheel_dir must contain exactly one built TermAgent wheel and its dependencies")
-        if provider not in {"openai", "repair", "mock"}:
+        if provider not in {"openai", "fixture", "repair", "mock"}:
             raise ValueError("unsupported provider")
         if provider == "openai" and not self.model_name:
             raise ValueError("live evaluation requires an explicit model")

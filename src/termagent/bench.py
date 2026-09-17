@@ -91,7 +91,7 @@ def run_benchmark(
                 approval_mode="auto",
                 max_steps=int(spec.get("max_steps", 8)),
                 log_dir=trace_dir,
-                provider=provider or str(spec.get("provider", "repair")),
+                provider=provider or str(spec.get("provider", "fixture")),
                 model=model or str(spec.get("model", "gpt-5.6-luna")),
                 test_command=verify_command,
                 provider_retries=int(spec.get("provider_retries", 2)),

@@ -48,7 +48,7 @@ class AgentConfig:
     approval_mode: ApprovalMode = "suggest"
     max_steps: int = 12
     log_dir: Path | None = None
-    provider: str = "repair"
+    provider: str = "fixture"
     model: str = "gpt-5.6-luna"
     test_command: str = "{python} -m pytest -q"
     provider_retries: int = 2
