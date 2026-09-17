@@ -42,7 +42,7 @@ already exists, preventing accidental replacement of a frozen result.
 cd /path/to/terminal-coding-agent
 source .venv/bin/activate
 cp .env.example .env
-# Edit .env and replace the placeholder with your project key.
+# Edit .env and add your project key after OPENAI_API_KEY=.
 ./scripts/run_milestone23_live.sh
 ```
 
