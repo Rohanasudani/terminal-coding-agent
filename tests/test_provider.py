@@ -100,6 +100,7 @@ def test_structured_planning_prompt_requires_progression():
 
     assert "use set_task_plan once" in prompt
     assert "Do not repeat identical discovery calls" in prompt
+    assert "controller_transition: required" in prompt
 
 
 def test_repair_provider_registers_plan_when_enabled():

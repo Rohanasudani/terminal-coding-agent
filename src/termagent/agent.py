@@ -23,6 +23,8 @@ class TerminalAgent:
     def __init__(self, config: AgentConfig) -> None:
         if config.max_stagnation_events < 1:
             raise ValueError("max_stagnation_events must be at least 1")
+        if config.max_discovery_actions < 1:
+            raise ValueError("max_discovery_actions must be at least 1")
         self.config = config
         self.tools = ToolRegistry(
             config.repo,
@@ -69,6 +71,7 @@ class TerminalAgent:
                 "require_changes": self.config.require_changes,
                 "task_planning": self.config.task_planning,
                 "max_stagnation_events": self.config.max_stagnation_events,
+                "max_discovery_actions": self.config.max_discovery_actions,
             },
         )
 
@@ -172,6 +175,39 @@ class TerminalAgent:
                     break
                 continue
 
+            if (
+                self.config.task_planning
+                and self.config.require_changes
+                and not self.progress.transition_allows(call)
+            ):
+                self.progress.record_transition_deferral()
+                state.transition_events = self.progress.transition_events
+                guidance = self._patch_transition_guidance()
+                observations.append(
+                    "controller_transition: required\n"
+                    f"metadata: {json.dumps({'rejected_tool': call.name, 'phase': self.progress.phase}, sort_keys=True)}\n"
+                    f"{guidance}"
+                )
+                self.logger.write(
+                    "patch_transition_required",
+                    {
+                        "step": step,
+                        "rejected_tool": call.name,
+                        "phase": self.progress.phase,
+                        "events": self.progress.transition_events,
+                        "discovery_actions": self.progress.discovery_actions,
+                        "inspected_paths": self.progress.inspected_paths,
+                        "inspected_symbols": self.progress.inspected_symbols,
+                    },
+                )
+                if self.progress.transition_events >= self.config.max_stagnation_events:
+                    state.final_answer = (
+                        "Stopped after the provider repeatedly deferred a required patch plan. "
+                        + guidance
+                    )
+                    break
+                continue
+
             if self.config.task_planning and self.progress.record_proposal(call):
                 self.progress.stagnation_events += 1
                 state.stagnation_events = self.progress.stagnation_events
@@ -210,6 +246,16 @@ class TerminalAgent:
             observations.append(
                 f"{call.name}: {result.status}\nmetadata: {json.dumps(result.metadata, sort_keys=True)}\n{result.output}"
             )
+            if self.progress.record_discovery(
+                call,
+                result,
+                self.tools.repo,
+                max_actions=self.config.max_discovery_actions,
+            ) and self.config.require_changes:
+                observations[-1] += (
+                    "\n\ncontroller_transition: required\n" + self._patch_transition_guidance()
+                )
+            self._sync_progress_state(state)
             if call.name == "set_task_plan" and result.status == "ok":
                 self.progress.register_plan(result.metadata)
                 if self.progress.plan is not None:
@@ -222,10 +268,10 @@ class TerminalAgent:
                 if isinstance(relative_path, str) and isinstance(content_hash, str):
                     self.planned_writes.add((relative_path, content_hash))
                     state.patch_plans += 1
-                    self.progress.mark_progress("implement")
+                    self.progress.mark_patch_planned()
             if call.name == "plan_patch_set" and result.status == "ok":
                 state.patch_plans += self._remember_grouped_plan(result.metadata)
-                self.progress.mark_progress("implement")
+                self.progress.mark_patch_planned()
 
             if result.status == "blocked":
                 state.final_answer = (
@@ -242,10 +288,12 @@ class TerminalAgent:
                 content_hash = result.metadata.get("content_sha256")
                 if isinstance(relative_path, str) and isinstance(content_hash, str):
                     self.planned_writes.discard((relative_path, content_hash))
+                self.progress.reset_discovery_cycle()
                 self.progress.mark_progress("verify")
             if call.name == "write_patch_set" and result.status == "ok":
                 last_failed_test_command = None
                 self._record_grouped_write(state, result.metadata)
+                self.progress.reset_discovery_cycle()
                 self.progress.mark_progress("verify")
 
             if call.name == "run_shell" and self._is_verifier(call.arguments.get("command")):
@@ -271,6 +319,7 @@ class TerminalAgent:
                         },
                     )
                     self.progress.mark_progress("diagnose")
+                    self.progress.reset_discovery_cycle()
                 else:
                     self.progress.mark_progress("review")
 
@@ -313,9 +362,12 @@ class TerminalAgent:
 
         state.phase = self.progress.phase
         state.stagnation_events = self.progress.stagnation_events
+        self._sync_progress_state(state)
         self.logger.write("agent_finish", {
             "completed": state.completed, "tests_passed": state.tests_passed, "steps": state.steps,
             "phase": state.phase, "stagnation_events": state.stagnation_events,
+            "discovery_actions": state.discovery_actions,
+            "transition_events": state.transition_events,
         })
         return state
 
@@ -349,6 +401,10 @@ class TerminalAgent:
             lines.insert(1, f"Task plan: {state.task_plan_summary}")
             lines.insert(2, f"Declared outputs: {', '.join(state.expected_paths) or 'discovered during implementation'}.")
         lines.append(f"Progress phase: {state.phase}; stagnation events: {state.stagnation_events}.")
+        lines.append(
+            f"Discovery actions: {state.discovery_actions}; patch-transition deferrals: "
+            f"{state.transition_events}."
+        )
         if state.input_tokens or state.output_tokens:
             lines.append(
                 f"Tokens: {state.input_tokens} input, {state.output_tokens} output; "
@@ -439,6 +495,27 @@ class TerminalAgent:
         if self.progress.phase == "verify":
             return "Run the configured verifier once, then inspect failures or review the diff."
         return f"Choose a different evidence source or action instead of repeating {call.name}."
+
+    def _patch_transition_guidance(self) -> str:
+        evidence = self.progress.evidence_summary()
+        if self.progress.plan is None:
+            action = (
+                "Call set_task_plan now with concrete expected paths and acceptance checks. "
+                "Then submit model-authored file contents through plan_patch or plan_patch_set."
+            )
+        else:
+            action = (
+                "Do not inspect or rerun the verifier again. Use the evidence already gathered to "
+                "submit model-authored file contents through plan_patch or plan_patch_set."
+            )
+        return f"The discovery budget is exhausted. {evidence} {action}"
+
+    def _sync_progress_state(self, state: AgentState) -> None:
+        state.discovery_actions = self.progress.discovery_actions
+        state.transition_events = self.progress.transition_events
+        state.inspected_paths = list(self.progress.inspected_paths)
+        state.inspected_symbols = list(self.progress.inspected_symbols)
+        state.search_queries = list(self.progress.search_queries)
 
     def _controller_redirect(
         self,

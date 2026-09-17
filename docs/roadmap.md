@@ -252,3 +252,18 @@ Status: complete without rerunning the frozen subset
 Implementation evidence is recorded in
 [milestone21-reliability.md](milestone21-reliability.md). The next quality work must use
 a different held-out task set.
+
+## Milestone 22: Inspection-To-Edit Recovery
+
+Status: implementation and local ablation complete
+
+- count successful discovery actions instead of only identical calls
+- retain inspected paths, symbols, and search queries in state and Harbor metadata
+- require a task plan or model-authored patch plan after a bounded evidence budget
+- stop providers that repeatedly ignore the transition request
+- expose the discovery budget in CLI, TOML, interactive, benchmark, and Harbor settings
+- preserve 8/8 in planning-on and planning-off deterministic local runs
+
+The controller supplies no task solution or source content. See
+[milestone22-results.md](milestone22-results.md). Milestone 23 must freeze a different
+held-out subset before evaluating whether this mechanism improves live-model quality.

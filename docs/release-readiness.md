@@ -75,6 +75,22 @@ and reliability requirements below are complete.
 - These changes were tested on local fixtures only. The frozen Milestone 20 results were
   not rerun or rewritten.
 
+## Milestone 22 Evidence
+
+- Planning-enabled required-change runs now count discovery actions and retain inspected
+  paths, symbols, and search queries.
+- Six successful discovery actions is the default per-cycle budget; it is configurable
+  through CLI, TOML, interactive, benchmark, and Harbor paths.
+- Budget exhaustion rejects further inspection and asks the provider for a task plan or
+  exact patch preview. The controller never constructs source file contents.
+- Repeated transition deferral stops at the existing stagnation bound.
+- Scripted tests cover a successful discovery-to-patch transition, refusal to transition,
+  evidence tracking, and early detection of repeated empty evidence.
+- Both deterministic local ablation arms remained 8/8. No external performance gain is
+  claimed until Milestone 23 evaluates a different held-out set.
+- A fresh wheel installed offline and completed the independent JavaScript repair check,
+  confirming the new state and configuration fields survive packaging.
+
 ## Optional After First Release
 
 Subagents, a graphical website, more providers, tree-sitter indexing, and a richer

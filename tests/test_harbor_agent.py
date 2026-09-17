@@ -67,6 +67,7 @@ def test_prompt_is_uploaded_as_data_and_credentials_are_not_in_config(tmp_path, 
     assert uploaded["require_changes"] is True
     assert uploaded["task_planning"] is True
     assert uploaded["max_stagnation_events"] == 2
+    assert uploaded["max_discovery_actions"] == 6
     assert "test-only-secret" not in json.dumps(uploaded)
     call = environment.exec.await_args.kwargs
     assert prompt not in call["command"]
@@ -80,6 +81,8 @@ def test_prompt_is_uploaded_as_data_and_credentials_are_not_in_config(tmp_path, 
     assert context.metadata["require_changes"] is True
     assert context.metadata["task_planning"] is True
     assert context.metadata["max_stagnation_events"] == 2
+    assert context.metadata["max_discovery_actions"] == 6
+    assert context.metadata["search_queries"] == []
 
 
 def test_missing_key_fails_before_agent_process(tmp_path, monkeypatch):

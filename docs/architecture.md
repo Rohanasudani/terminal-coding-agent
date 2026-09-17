@@ -65,10 +65,12 @@ checks. The agent will not accept a patch plan before this contract exists and w
 not finish while a declared output file is missing.
 
 The progress ledger records coarse phases rather than model-authored reasoning. It
-also hashes proposed discovery actions. Three identical consecutive discovery calls
-produce corrective guidance; continued repetition stops at a configurable bound.
-This saves tool execution and observation tokens without letting the controller write
-code on the provider's behalf. The feature can be disabled for ablation runs.
+hashes proposed discovery actions, records inspected paths and symbols, and measures
+successful discovery calls. Three identical calls still produce corrective guidance.
+For required-change tasks, exhausting the configurable discovery budget requires the
+provider to register a task plan or submit model-authored contents through
+`plan_patch`/`plan_patch_set`; repeated deferral stops the run. The controller never
+constructs source content. Planning can be disabled for ablation runs.
 
 ## Tool Layer
 

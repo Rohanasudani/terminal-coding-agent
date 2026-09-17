@@ -30,6 +30,7 @@ class InteractiveSettings:
     max_output_tokens: int = 4_096
     reasoning_effort: ReasoningEffort | None = None
     task_planning: bool = True
+    max_discovery_actions: int = 6
 
 
 def run_interactive_app(
@@ -90,6 +91,7 @@ def agent_config_for_task(settings: InteractiveSettings, task: str) -> AgentConf
         max_output_tokens=settings.max_output_tokens,
         reasoning_effort=settings.reasoning_effort,
         task_planning=settings.task_planning,
+        max_discovery_actions=settings.max_discovery_actions,
     )
 
 

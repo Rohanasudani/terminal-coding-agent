@@ -44,6 +44,7 @@ def apply_config_file(config: AgentConfig, path: Path) -> AgentConfig:
         "require_changes",
         "task_planning",
         "max_stagnation_events",
+        "max_discovery_actions",
         "log_dir",
     }
     unknown = sorted(set(data) - allowed)
@@ -85,6 +86,8 @@ def apply_config_file(config: AgentConfig, path: Path) -> AgentConfig:
         updates["task_planning"] = bool(data["task_planning"])
     if "max_stagnation_events" in data:
         updates["max_stagnation_events"] = int(data["max_stagnation_events"])
+    if "max_discovery_actions" in data:
+        updates["max_discovery_actions"] = int(data["max_discovery_actions"])
     if "log_dir" in data:
         updates["log_dir"] = Path(str(data["log_dir"]))
 

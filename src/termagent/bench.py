@@ -35,6 +35,8 @@ class BenchResult:
     agent_completed: bool = False
     baseline_passed: bool = False
     task_planning: bool = False
+    discovery_actions: int = 0
+    transition_events: int = 0
 
 
 def run_benchmark(
@@ -50,6 +52,7 @@ def run_benchmark(
     max_output_tokens: int = 4_096,
     reasoning_effort: ReasoningEffort | None = None,
     task_planning: bool = False,
+    max_discovery_actions: int = 6,
 ) -> list[BenchResult]:
     if repeats < 1:
         raise ValueError("repeats must be at least 1")
@@ -96,6 +99,8 @@ def run_benchmark(
                 max_output_tokens=max_output_tokens,
                 reasoning_effort=reasoning_effort,
                 task_planning=task_planning,
+                require_changes=True,
+                max_discovery_actions=max_discovery_actions,
             )
             state = TerminalAgent(config).run()
             spent += state.estimated_cost_usd
@@ -122,6 +127,8 @@ def run_benchmark(
                     agent_completed=state.completed,
                     baseline_passed=baseline.passed,
                     task_planning=task_planning,
+                    discovery_actions=state.discovery_actions,
+                    transition_events=state.transition_events,
                 )
             )
             write_report(results, traces_root / "partial.json")
@@ -156,14 +163,15 @@ def write_markdown_report(results: list[BenchResult], path: Path) -> None:
         f"- Pass rate: {pass_rate:.1%}",
         f"- Estimated model cost: ${total_cost:.6f}",
         "",
-        "| Task | Trial | Category | Language | Result | Steps | Planning | Duration | Provider | Cost |",
-        "| --- | ---: | --- | --- | --- | ---: | --- | ---: | --- | ---: |",
+        "| Task | Trial | Category | Language | Result | Steps | Planning | Discovery | Transitions | Duration | Provider | Cost |",
+        "| --- | ---: | --- | --- | --- | ---: | --- | ---: | ---: | ---: | --- | ---: |",
     ]
     for result in results:
         status = "pass" if result.passed else "fail"
         lines.append(
             f"| {result.task} | {result.trial} | {result.category} | {result.language} | {status} | "
             f"{result.steps} | {'on' if result.task_planning else 'off'} | "
+            f"{result.discovery_actions} | {result.transition_events} | "
             f"{result.duration_seconds:.3f}s | {result.provider} | "
             f"${result.estimated_cost_usd:.6f} |"
         )

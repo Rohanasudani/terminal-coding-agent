@@ -74,6 +74,7 @@ def test_agent_config_for_task_maps_interactive_settings(tmp_path: Path):
     assert config.reasoning_effort == "high"
     assert config.allow_network_commands is True
     assert config.task_planning is True
+    assert config.max_discovery_actions == 6
 
 
 def test_interactive_text_is_human_readable(tmp_path: Path):

@@ -64,6 +64,7 @@ class AgentConfig:
     require_changes: bool = False
     task_planning: bool = False
     max_stagnation_events: int = 2
+    max_discovery_actions: int = 6
 
 
 @dataclass
@@ -87,3 +88,8 @@ class AgentState:
     acceptance_checks: list[str] = field(default_factory=list)
     phase: str = "discover"
     stagnation_events: int = 0
+    discovery_actions: int = 0
+    transition_events: int = 0
+    inspected_paths: list[str] = field(default_factory=list)
+    inspected_symbols: list[str] = field(default_factory=list)
+    search_queries: list[str] = field(default_factory=list)

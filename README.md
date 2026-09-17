@@ -57,6 +57,8 @@ flowchart LR
 - `termagent campaign-report`: validate and summarize a completed Harbor campaign
 - structured task plans with declared output paths and acceptance checks
 - bounded stagnation detection for repeated no-progress discovery
+- evidence-aware inspection budgets that require a model-authored patch plan before
+  further exploration
 - repo search powered by `rg` when available
 - Python, JavaScript, and TypeScript code map for symbols, imports, and references
 - file read/write with path sandboxing
@@ -190,6 +192,7 @@ See [docs/milestone17-results.md](docs/milestone17-results.md) for the same-mode
 See [docs/milestone18-results.md](docs/milestone18-results.md) for pinned external-task failures and analysis.
 See [docs/milestone19-results.md](docs/milestone19-results.md) for the structured-planning development ablation.
 See [docs/milestone20-results.md](docs/milestone20-results.md) for the frozen Terminal-Bench 2 campaign.
+See [docs/milestone22-results.md](docs/milestone22-results.md) for inspection-to-edit recovery and its local ablation.
 See [docs/project-brief.md](docs/project-brief.md) for the project rationale, design decisions, and evaluation status.
 
 Current local baseline:
@@ -238,6 +241,7 @@ This is the bridge to Terminal-Bench-style evaluation: the agent is designed aro
 - [Structured planning results](docs/milestone19-results.md)
 - [Frozen Terminal-Bench 2 results](docs/milestone20-results.md)
 - [Post-campaign reliability recovery](docs/milestone21-reliability.md)
+- [Inspection-to-edit recovery](docs/milestone22-results.md)
 - [Repository intelligence](docs/repository-intelligence.md)
 - [Requirements traceability](docs/requirements-traceability.md)
 - [Security audit](docs/security-audit.md)
@@ -245,7 +249,7 @@ This is the bridge to Terminal-Bench-style evaluation: the agent is designed aro
 
 ## Roadmap
 
-- evaluate the next general improvements on a different held-out subset
+- freeze and evaluate a different held-out subset for Milestone 23
 - sub-agent orchestration experiments
 - tree-sitter-backed repository intelligence
 - richer terminal UI

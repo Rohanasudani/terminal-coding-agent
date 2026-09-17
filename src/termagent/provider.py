@@ -349,7 +349,9 @@ def provider_system_prompt(
             "State the concrete deliverables, repository-relative output paths when known, and "
             "acceptance checks. Treat an empty repository or a passing smoke check as environment "
             "evidence, not proof that requested deliverables exist. Do not repeat identical discovery "
-            "calls; move from discovery to a plan and then to implementation."
+            "calls; move from discovery to a plan and then to implementation. If an observation says "
+            "controller_transition: required, stop inspecting and produce the requested task plan or "
+            "model-authored patch plan from the evidence already gathered."
         )
     return base + planning + profiles[profile]
 

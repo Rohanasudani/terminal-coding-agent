@@ -16,4 +16,5 @@ allow_network_commands = false
 require_changes = false
 task_planning = true
 max_stagnation_events = 2
+max_discovery_actions = 6
 log_dir = ".termagent/traces"

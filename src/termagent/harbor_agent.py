@@ -31,6 +31,7 @@ class TermAgentHarbor(BaseAgent):
         require_changes: bool = True,
         task_planning: bool = True,
         max_stagnation_events: int = 2,
+        max_discovery_actions: int = 6,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -52,6 +53,8 @@ class TermAgentHarbor(BaseAgent):
             raise ValueError("step and cost limits must be positive and finite")
         if max_stagnation_events < 1:
             raise ValueError("max_stagnation_events must be at least 1")
+        if max_discovery_actions < 1:
+            raise ValueError("max_discovery_actions must be at least 1")
         if prompt_profile not in {"conservative", "benchmark", "fast"}:
             raise ValueError("unsupported prompt profile")
         if max_output_tokens < 256:
@@ -73,6 +76,7 @@ class TermAgentHarbor(BaseAgent):
             "require_changes": require_changes,
             "task_planning": task_planning,
             "max_stagnation_events": max_stagnation_events,
+            "max_discovery_actions": max_discovery_actions,
             "approval_mode": "auto",
         }
 
@@ -147,4 +151,10 @@ class TermAgentHarbor(BaseAgent):
             "phase": state.get("phase"),
             "stagnation_events": state.get("stagnation_events"),
             "max_stagnation_events": self.settings["max_stagnation_events"],
+            "max_discovery_actions": self.settings["max_discovery_actions"],
+            "discovery_actions": state.get("discovery_actions"),
+            "transition_events": state.get("transition_events"),
+            "inspected_paths": state.get("inspected_paths", []),
+            "inspected_symbols": state.get("inspected_symbols", []),
+            "search_queries": state.get("search_queries", []),
         }

@@ -6,7 +6,7 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .models import ToolCall
+from .models import ToolCall, ToolResult
 from .safety import resolve_inside_root
 
 
@@ -23,8 +23,19 @@ class ProgressLedger:
     phase: str = "discover"
     plan: TaskPlan | None = None
     stagnation_events: int = 0
+    discovery_actions: int = 0
+    transition_events: int = 0
+    transition_required: bool = False
+    inspected_paths: list[str] = field(default_factory=list)
+    inspected_symbols: list[str] = field(default_factory=list)
+    search_queries: list[str] = field(default_factory=list)
     _last_signature: str | None = field(default=None, init=False)
     _repeat_count: int = field(default=0, init=False)
+    _cycle_discovery_actions: int = field(default=0, init=False)
+    _cycle_no_new_evidence: int = field(default=0, init=False)
+    _evidence_signatures: set[str] = field(default_factory=set, init=False)
+
+    discovery_tools = frozenset({"search", "read_file", "code_map", "find_references"})
 
     def record_proposal(self, call: ToolCall) -> bool:
         """Return true when an inspection proposal repeats without intervening progress."""
@@ -46,6 +57,53 @@ class ProgressLedger:
         }:
             return False
         return self._repeat_count >= 3
+
+    def record_discovery(
+        self,
+        call: ToolCall,
+        result: ToolResult,
+        repo: Path,
+        *,
+        max_actions: int,
+    ) -> bool:
+        """Record successful inspection evidence and return whether transition is now required."""
+        if not self.enabled or call.name not in self.discovery_tools or result.status != "ok":
+            return False
+
+        self.discovery_actions += 1
+        self._cycle_discovery_actions += 1
+        if self._record_evidence(call, result, repo):
+            self._cycle_no_new_evidence = 0
+        else:
+            self._cycle_no_new_evidence += 1
+        if self._cycle_discovery_actions >= max_actions or self._cycle_no_new_evidence >= 2:
+            self.transition_required = True
+        return self.transition_required
+
+    def transition_allows(self, call: ToolCall) -> bool:
+        if not self.transition_required:
+            return True
+        if self.plan is None:
+            return call.name == "set_task_plan"
+        return call.name in {"plan_patch", "plan_patch_set"}
+
+    def record_transition_deferral(self) -> None:
+        self.transition_events += 1
+
+    def mark_patch_planned(self) -> None:
+        self.reset_discovery_cycle()
+        self.mark_progress("implement")
+
+    def reset_discovery_cycle(self) -> None:
+        self._cycle_discovery_actions = 0
+        self._cycle_no_new_evidence = 0
+        self.transition_required = False
+
+    def evidence_summary(self) -> str:
+        paths = ", ".join(self.inspected_paths[-6:]) or "none recorded"
+        symbols = ", ".join(self.inspected_symbols[-6:]) or "none recorded"
+        queries = ", ".join(self.search_queries[-4:]) or "none recorded"
+        return f"Inspected paths: {paths}. Symbols: {symbols}. Search queries: {queries}."
 
     def register_plan(self, metadata: dict[str, object]) -> None:
         summary = metadata.get("summary")
@@ -73,6 +131,30 @@ class ProgressLedger:
         if self.plan is None:
             return []
         return [path for path in self.plan.expected_paths if not (repo / path).is_file()]
+
+    def _record_evidence(self, call: ToolCall, result: ToolResult, repo: Path) -> bool:
+        signature = hashlib.sha256(result.output.encode("utf-8")).hexdigest()
+        is_new = signature not in self._evidence_signatures
+        self._evidence_signatures.add(signature)
+
+        if call.name == "read_file":
+            path = result.metadata.get("path", call.arguments.get("path"))
+            if isinstance(path, str):
+                candidate = Path(path)
+                try:
+                    normalized = os.fspath(candidate.resolve().relative_to(repo.resolve()))
+                except ValueError:
+                    normalized = str(call.arguments.get("path", path))
+                _append_unique(self.inspected_paths, normalized)
+        if call.name in {"code_map", "find_references"}:
+            value = call.arguments.get("query") or call.arguments.get("symbol")
+            if isinstance(value, str) and value.strip():
+                _append_unique(self.inspected_symbols, value.strip())
+        if call.name == "search":
+            value = call.arguments.get("query")
+            if isinstance(value, str) and value.strip():
+                _append_unique(self.search_queries, value.strip())
+        return is_new
 
 
 def validate_task_plan(
@@ -119,3 +201,8 @@ def _string_list(value: object, name: str, *, allow_empty: bool) -> list[str]:
     if not value and not allow_empty:
         raise ValueError(f"{name} must not be empty")
     return value
+
+
+def _append_unique(items: list[str], value: str) -> None:
+    if value not in items:
+        items.append(value)
