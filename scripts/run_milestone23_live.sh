@@ -10,7 +10,15 @@ WHEELS="$ROOT/.termagent/milestone23-wheel"
 MANIFEST="$ROOT/bench/campaigns/milestone23.json"
 REPORT="$ROOT/docs/milestone23-results.md"
 
-: "${OPENAI_API_KEY:?Export OPENAI_API_KEY before starting the paid campaign}"
+ENV_ARGS=()
+if [[ -z "${OPENAI_API_KEY:-}" ]]; then
+  if [[ -f "$ROOT/.env" ]] && grep -q '^OPENAI_API_KEY=.' "$ROOT/.env"; then
+    ENV_ARGS=(--env-file "$ROOT/.env")
+  else
+    echo "Export OPENAI_API_KEY or add it to the gitignored $ROOT/.env file" >&2
+    exit 1
+  fi
+fi
 
 "$TERMAGENT" campaign-verify --manifest "$MANIFEST" --dataset-dir "$DATASET"
 "$TERMAGENT" campaign-controls --manifest "$MANIFEST" --jobs-dir "$JOBS"
@@ -39,6 +47,7 @@ run_termagent() {
     --ak reasoning_effort=high --ak prompt_profile=benchmark \
     --ak controller_recovery=true --ak "task_planning=$planning" \
     --ak max_stagnation_events=2 --ak max_discovery_actions=6 \
+    "${ENV_ARGS[@]}" \
     -k 1 -n 1 --max-retries 0 --yes --jobs-dir "$JOBS" --job-name "$job"
 }
 
@@ -52,6 +61,7 @@ run_codex() {
 
   "$HARBOR" run -p "$DATASET/$task" \
     -a codex -m openai/gpt-5.6-luna --ak version=0.153.4 \
+    "${ENV_ARGS[@]}" \
     -k 1 -n 1 --max-retries 0 --yes --jobs-dir "$JOBS" --job-name "$job"
 }
 

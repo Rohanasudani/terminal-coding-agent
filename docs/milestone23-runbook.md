@@ -33,14 +33,16 @@ To reproduce the key-free controls in a fresh checkout after downloading the dat
 
 ## Live Campaign
 
-The script requires the key through the process environment and never writes it to a
-config, trace, command argument, or committed file. It stops if any target job directory
+The script accepts the key through the process environment or a gitignored `.env` file.
+Harbor reads the file directly; the script does not source it as shell code or place the
+key in a command argument, trace, or committed file. It stops if any target job directory
 already exists, preventing accidental replacement of a frozen result.
 
 ```bash
 cd /path/to/terminal-coding-agent
 source .venv/bin/activate
-export OPENAI_API_KEY="your-project-key"
+cp .env.example .env
+# Edit .env and replace the placeholder with your project key.
 ./scripts/run_milestone23_live.sh
 ```
 
