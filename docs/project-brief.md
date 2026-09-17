@@ -47,6 +47,10 @@ provide independent grading paths.
 - A frozen three-task Terminal-Bench 2 campaign found no planning improvement:
   both TermAgent arms scored 0/3 and Codex scored 2/3. The project makes no full
   benchmark or leaderboard claim from this limited result.
+- A second frozen post-recovery campaign on three different tasks also found no
+  TermAgent planning benefit: both TermAgent arms scored 0/3 and Codex scored 3/3.
+  The retained failures expose task-image portability and completion-verification gaps
+  that now define the next engineering work.
 
 Detailed methods, controls, failures, and reproduction commands are linked from the
 main README and the milestone result documents.

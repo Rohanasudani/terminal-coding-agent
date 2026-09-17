@@ -1,13 +1,14 @@
 # Milestone 23 Status
 
-Status as of 2026-09-16: protocol frozen and controls passed; live arms pending local
-provider credentials.
+Status as of 2026-09-16: complete and superseded by
+[milestone23-results.md](milestone23-results.md).
 
 The task subset, wheel, source commit, model, competitor version, budgets, retry policy,
-and reporting rules are immutable. Oracle passed 3/3 and no-op passed 0/3 with no
-exceptions. `OPENAI_API_KEY` was not present in the execution shell, so no paid model
-trial was started and no live result is claimed.
+and reporting rules remained frozen. Oracle passed 3/3 and no-op passed 0/3 with no
+exceptions. All nine live arms then ran once with no retries. Codex passed 3/3;
+TermAgent passed 0/3 in both planning modes, with one setup exception per mode on a
+task image that could not install the Python 3.12+ wheel.
 
-Continue with [milestone23-runbook.md](milestone23-runbook.md). This status file should
-be marked superseded by the generated results report only after all nine live trials
-complete.
+The generated report retains rewards, exceptions, token usage, known cost, duration,
+controller telemetry, limitations, and failure analysis. Raw trajectories remain in
+the gitignored local Harbor jobs directory and are not published.

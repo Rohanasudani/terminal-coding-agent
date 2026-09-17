@@ -194,7 +194,7 @@ See [docs/milestone18-results.md](docs/milestone18-results.md) for pinned extern
 See [docs/milestone19-results.md](docs/milestone19-results.md) for the structured-planning development ablation.
 See [docs/milestone20-results.md](docs/milestone20-results.md) for the frozen Terminal-Bench 2 campaign.
 See [docs/milestone22-results.md](docs/milestone22-results.md) for inspection-to-edit recovery and its local ablation.
-See [docs/milestone23-status.md](docs/milestone23-status.md) for the frozen post-recovery campaign and control status.
+See [docs/milestone23-results.md](docs/milestone23-results.md) for the frozen post-recovery campaign and failure analysis.
 See [docs/project-brief.md](docs/project-brief.md) for the project rationale, design decisions, and evaluation status.
 
 Current local baseline:
@@ -228,6 +228,18 @@ Frozen Terminal-Bench 2 campaign using `openai/gpt-5.6-luna`, one trial per task
 This small campaign found no planning benefit. It supports a reproducible comparison
 and failure-analysis claim, not a full Terminal-Bench ranking.
 
+Post-recovery campaign on a different frozen Terminal-Bench 2 subset:
+
+| Agent arm | Passed | Errors | Known cost |
+| --- | ---: | ---: | ---: |
+| TermAgent planning on | 0/3 | 1 | $0.040728 partial |
+| TermAgent planning off | 0/3 | 1 | $0.029758 partial |
+| Codex 0.153.4 | 3/3 | 0 | $0.030488 |
+
+The task controls passed, every live arm ran once without retries, and all failures are
+retained. The result identifies wheel portability, premature completion, and verifier
+coverage as the next engineering targets; it does not establish a leaderboard score.
+
 This is the bridge to Terminal-Bench-style evaluation: the agent is designed around reproducible tasks, verifier commands, execution logs, and pass/fail reports from day one.
 
 ## Documentation
@@ -244,7 +256,7 @@ This is the bridge to Terminal-Bench-style evaluation: the agent is designed aro
 - [Frozen Terminal-Bench 2 results](docs/milestone20-results.md)
 - [Post-campaign reliability recovery](docs/milestone21-reliability.md)
 - [Inspection-to-edit recovery](docs/milestone22-results.md)
-- [Milestone 23 campaign status](docs/milestone23-status.md)
+- [Post-recovery external results](docs/milestone23-results.md)
 - [Repository intelligence](docs/repository-intelligence.md)
 - [Requirements traceability](docs/requirements-traceability.md)
 - [Security audit](docs/security-audit.md)
@@ -252,7 +264,7 @@ This is the bridge to Terminal-Bench-style evaluation: the agent is designed aro
 
 ## Roadmap
 
-- complete the frozen Milestone 23 live arms after loading local provider credentials
+- improve task-image portability and completion verification from Milestone 23 findings
 - sub-agent orchestration experiments
 - tree-sitter-backed repository intelligence
 - richer terminal UI

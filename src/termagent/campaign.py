@@ -227,7 +227,8 @@ def _campaign_arm(trial: dict[str, object]) -> str:
         return "codex-baseline"
     if info["name"] != "termagent":
         raise ValueError(f"unexpected campaign agent: {info['name']}")
-    metadata = trial.get("agent_result", {}).get("metadata") or {}
+    result = trial.get("agent_result") or {}
+    metadata = result.get("metadata") or {}
     planning = metadata.get("task_planning")
     if not isinstance(planning, bool):
         config = trial["config"]["agent"]["kwargs"]

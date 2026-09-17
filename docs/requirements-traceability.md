@@ -8,7 +8,7 @@ This document maps the original project requirements to implemented TermAgent mi
 | --- | --- | --- | --- |
 | Repo search | Complete | `search` tool uses ripgrep when available with fallback search | `tests/test_tools.py`, `termagent tools` |
 | File read/write tools | Complete | `read_file`, `plan_patch`, `write_file`, `plan_patch_set`, `write_patch_set` | `tests/test_tools.py`, `tests/test_agent.py` |
-| Generalized task planning | Implemented; new recovery not externally evaluated | `set_task_plan`, declared output checks, evidence ledger, bounded discovery-to-patch transition | `tests/test_planning.py`, `docs/milestone22-results.md` |
+| Generalized task planning | Implemented and externally evaluated; no quality gain on the frozen Milestone 23 subset | `set_task_plan`, declared output checks, evidence ledger, bounded discovery-to-patch transition | `tests/test_planning.py`, `docs/milestone23-results.md` |
 | Shell execution | Complete | `run_shell` executes parsed argv under the safety classifier | `tests/test_safety.py`, `tests/test_tools.py` |
 | Approval gates | Complete | `never`, `suggest`, and `auto` approval modes | `tests/test_safety.py`, `tests/test_agent.py` |
 | Git diff previews | Complete | `git_diff` plus snapshot fallback for non-git fixtures and environments without the Git executable | `tests/test_tools.py`, `docs/milestone21-reliability.md` |
@@ -44,7 +44,7 @@ This document maps the original project requirements to implemented TermAgent mi
 | 20. Frozen Terminal-Bench 2 campaign | Tests planning on/off and Codex on three checksum-pinned tasks | `bench/campaigns/milestone20.json`, `docs/milestone20-results.md` |
 | 21. Reliability recovery | Makes final review independent of Git availability and converts exhausted provider transport failures into gradeable summaries | `tests/test_tools.py`, `tests/test_provider.py`, `tests/test_harbor_runner.py` |
 | 22. Inspection-to-edit recovery | Bounds discovery, records evidence, and requires model-authored patch plans without controller-generated code | `tests/test_planning.py`, `docs/milestone22-results.md` |
-| 23. Post-recovery external evaluation | Frozen and integrity-checked; controls passed, paid arms pending credentials | `bench/campaigns/milestone23.json`, `docs/milestone23-status.md` |
+| 23. Post-recovery external evaluation | Complete; controls passed, all nine live arms retained, failures analyzed | `bench/campaigns/milestone23.json`, `docs/milestone23-results.md` |
 
 ## Verification Checklist
 

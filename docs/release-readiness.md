@@ -91,7 +91,7 @@ and reliability requirements below are complete.
 - A fresh wheel installed offline and completed the independent JavaScript repair check,
   confirming the new state and configuration fields survive packaging.
 
-## Milestone 23 Preflight
+## Milestone 23 Evidence
 
 - Froze three new Terminal-Bench 2 tasks before controls or live model calls.
 - Committed exact task, wheel, source, Harbor, model, competitor, and controller settings.
@@ -100,8 +100,16 @@ and reliability requirements below are complete.
 - Oracle passed 3/3 and no-op passed 0/3 with zero exceptions.
 - Added a rerun-resistant live script that requires an environment key and refuses to
   overwrite existing frozen trials.
-- Paid arms remain pending because the execution shell did not contain
-  `OPENAI_API_KEY`; no performance result is claimed yet.
+- Ran all nine live trials once with zero retries. Codex passed 3/3; both TermAgent
+  planning arms passed 0/3.
+- Retained one setup exception in each TermAgent arm where the task image could not
+  install the Python 3.12+ wheel.
+- The four gradeable TermAgent trials passed their configured visible verifier but
+  received zero benchmark reward. Planning-off exhausted 32 steps on both tasks;
+  planning-on did not produce a successful inspection-to-edit recovery.
+- Known campaign cost was `$0.070486` for TermAgent and `$0.030488` for Codex, with
+  TermAgent cost partial because exception trials have no usage record.
+- The report makes no leaderboard or general-superiority claim.
 
 ## Optional After First Release
 

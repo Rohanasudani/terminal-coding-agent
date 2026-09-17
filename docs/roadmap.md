@@ -270,7 +270,7 @@ held-out subset before evaluating whether this mechanism improves live-model qua
 
 ## Milestone 23: Frozen Post-Recovery Evaluation
 
-Status: protocol and controls complete; paid arms pending credentials
+Status: complete
 
 - froze three tasks not used in Milestones 18 or 20
 - pinned task hashes, source commit, wheel hash, Harbor, model, Codex, and all limits
@@ -278,6 +278,10 @@ Status: protocol and controls complete; paid arms pending credentials
 - passed oracle 3/3 and no-op 0/3 with no exceptions
 - added `campaign-controls` verification and report telemetry for discovery/transition
 - added a script that refuses missing credentials and existing trial directories
+- ran all nine frozen live arms once with no retries
+- recorded Codex at 3/3 and both TermAgent planning arms at 0/3
+- retained two setup exceptions caused by Python wheel incompatibility in one task image
+- documented controller telemetry, partial costs, limitations, and next engineering work
 
-No paid trial was started without a key, and no quality result is claimed. Continue
-from [milestone23-runbook.md](milestone23-runbook.md).
+The result is a controlled failure-analysis campaign, not a public leaderboard score.
+See [milestone23-results.md](milestone23-results.md).
