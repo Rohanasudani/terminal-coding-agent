@@ -44,6 +44,7 @@ This document maps the original project requirements to implemented TermAgent mi
 | 20. Frozen Terminal-Bench 2 campaign | Tests planning on/off and Codex on three checksum-pinned tasks | `bench/campaigns/milestone20.json`, `docs/milestone20-results.md` |
 | 21. Reliability recovery | Makes final review independent of Git availability and converts exhausted provider transport failures into gradeable summaries | `tests/test_tools.py`, `tests/test_provider.py`, `tests/test_harbor_runner.py` |
 | 22. Inspection-to-edit recovery | Bounds discovery, records evidence, and requires model-authored patch plans without controller-generated code | `tests/test_planning.py`, `docs/milestone22-results.md` |
+| 23. Post-recovery external evaluation | Frozen and integrity-checked; controls passed, paid arms pending credentials | `bench/campaigns/milestone23.json`, `docs/milestone23-status.md` |
 
 ## Verification Checklist
 

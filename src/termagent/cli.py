@@ -7,7 +7,7 @@ from pathlib import Path
 
 from .agent import TerminalAgent
 from .bench import run_benchmark, write_markdown_report, write_report
-from .campaign import render_campaign_report, verify_campaign
+from .campaign import render_campaign_report, verify_campaign, verify_campaign_controls
 from .config import apply_config_file
 from .experiments import compare_harbor_jobs
 from .harbor import (
@@ -104,6 +104,12 @@ def build_parser() -> argparse.ArgumentParser:
     campaign_report.add_argument("--manifest", required=True, type=Path)
     campaign_report.add_argument("--jobs-dir", required=True, type=Path)
     campaign_report.add_argument("--report", required=True, type=Path)
+
+    campaign_controls = subparsers.add_parser(
+        "campaign-controls", help="Verify oracle/no-op controls for a frozen campaign"
+    )
+    campaign_controls.add_argument("--manifest", required=True, type=Path)
+    campaign_controls.add_argument("--jobs-dir", required=True, type=Path)
 
     doctor = subparsers.add_parser("doctor", help="Check local TermAgent prerequisites")
     doctor.add_argument("--repo", type=Path, default=Path("."))
@@ -263,6 +269,20 @@ def main(argv: list[str] | None = None) -> int:
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(report, encoding="utf-8")
         print(args.report)
+        return 0
+
+    if args.command == "campaign-controls":
+        try:
+            controls = verify_campaign_controls(args.manifest, args.jobs_dir)
+        except (KeyError, OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            print(f"Campaign control verification failed: {exc}")
+            return 1
+        for control in controls:
+            print(
+                f"PASS  {control.name}  oracle={control.oracle_reward:.0f} "
+                f"nop={control.nop_reward:.0f}  {control.task_checksum}"
+            )
+        print(f"verified {len(controls)} campaign control pairs")
         return 0
 
     if args.command == "doctor":

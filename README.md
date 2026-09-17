@@ -55,6 +55,7 @@ flowchart LR
 - `termagent live-smoke`: run a tiny capped OpenAI provider smoke test
 - `termagent campaign-verify`: verify frozen external task bytes against a manifest
 - `termagent campaign-report`: validate and summarize a completed Harbor campaign
+- `termagent campaign-controls`: verify a frozen campaign's oracle/no-op gate
 - structured task plans with declared output paths and acceptance checks
 - bounded stagnation detection for repeated no-progress discovery
 - evidence-aware inspection budgets that require a model-authored patch plan before
@@ -193,6 +194,7 @@ See [docs/milestone18-results.md](docs/milestone18-results.md) for pinned extern
 See [docs/milestone19-results.md](docs/milestone19-results.md) for the structured-planning development ablation.
 See [docs/milestone20-results.md](docs/milestone20-results.md) for the frozen Terminal-Bench 2 campaign.
 See [docs/milestone22-results.md](docs/milestone22-results.md) for inspection-to-edit recovery and its local ablation.
+See [docs/milestone23-status.md](docs/milestone23-status.md) for the frozen post-recovery campaign and control status.
 See [docs/project-brief.md](docs/project-brief.md) for the project rationale, design decisions, and evaluation status.
 
 Current local baseline:
@@ -242,6 +244,7 @@ This is the bridge to Terminal-Bench-style evaluation: the agent is designed aro
 - [Frozen Terminal-Bench 2 results](docs/milestone20-results.md)
 - [Post-campaign reliability recovery](docs/milestone21-reliability.md)
 - [Inspection-to-edit recovery](docs/milestone22-results.md)
+- [Milestone 23 campaign status](docs/milestone23-status.md)
 - [Repository intelligence](docs/repository-intelligence.md)
 - [Requirements traceability](docs/requirements-traceability.md)
 - [Security audit](docs/security-audit.md)
@@ -249,7 +252,7 @@ This is the bridge to Terminal-Bench-style evaluation: the agent is designed aro
 
 ## Roadmap
 
-- freeze and evaluate a different held-out subset for Milestone 23
+- complete the frozen Milestone 23 live arms after loading local provider credentials
 - sub-agent orchestration experiments
 - tree-sitter-backed repository intelligence
 - richer terminal UI

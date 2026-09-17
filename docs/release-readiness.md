@@ -91,6 +91,18 @@ and reliability requirements below are complete.
 - A fresh wheel installed offline and completed the independent JavaScript repair check,
   confirming the new state and configuration fields survive packaging.
 
+## Milestone 23 Preflight
+
+- Froze three new Terminal-Bench 2 tasks before controls or live model calls.
+- Committed exact task, wheel, source, Harbor, model, competitor, and controller settings.
+- Added machine-checkable oracle/no-op control verification and discovery telemetry to
+  campaign reports.
+- Oracle passed 3/3 and no-op passed 0/3 with zero exceptions.
+- Added a rerun-resistant live script that requires an environment key and refuses to
+  overwrite existing frozen trials.
+- Paid arms remain pending because the execution shell did not contain
+  `OPENAI_API_KEY`; no performance result is claimed yet.
+
 ## Optional After First Release
 
 Subagents, a graphical website, more providers, tree-sitter indexing, and a richer

@@ -16,6 +16,14 @@ class VerifiedCampaignTask:
     path: Path
 
 
+@dataclass(frozen=True)
+class VerifiedCampaignControl:
+    name: str
+    task_checksum: str
+    oracle_reward: float
+    nop_reward: float
+
+
 def task_tree_sha256(task_dir: Path) -> str:
     """Hash regular task files with their relative paths and sizes."""
     if not task_dir.is_dir():
@@ -69,6 +77,29 @@ def verify_campaign(manifest_path: Path, dataset_dir: Path) -> list[VerifiedCamp
     return verified
 
 
+def verify_campaign_controls(
+    manifest_path: Path, jobs_dir: Path,
+) -> list[VerifiedCampaignControl]:
+    """Verify that a frozen campaign's oracle/no-op gate passed for every task."""
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    job_prefix = manifest.get("job_prefix")
+    if not isinstance(job_prefix, str) or not job_prefix:
+        raise ValueError("campaign manifest must define job_prefix")
+    controls, checksums = _load_controls(jobs_dir / f"{job_prefix}-controls")
+    expected = [entry["name"] for entry in manifest.get("tasks", [])]
+    if set(controls) != set(expected):
+        raise ValueError("control campaign tasks do not match the frozen manifest")
+    return [
+        VerifiedCampaignControl(
+            name=name,
+            task_checksum=checksums[name],
+            oracle_reward=controls[name]["oracle"],
+            nop_reward=controls[name]["nop"],
+        )
+        for name in expected
+    ]
+
+
 def render_campaign_report(manifest_path: Path, jobs_dir: Path) -> str:
     """Validate and summarize one-trial Harbor jobs from a frozen campaign."""
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -101,8 +132,9 @@ def render_campaign_report(manifest_path: Path, jobs_dir: Path) -> str:
             raise ValueError(f"{name}: campaign arms are incomplete")
         trials.extend(task_trials)
 
+    report_title = manifest.get("report_title", "Frozen Terminal-Bench Campaign Results")
     lines = [
-        "# Milestone 20: Terminal-Bench 2 Results", "",
+        f"# {report_title}", "",
         "## Frozen Configuration", "",
         f"- Harbor: `{manifest['harbor']['version']}`",
         f"- Model: `{expected_model['provider']}/{expected_model['name']}`",
@@ -121,19 +153,22 @@ def render_campaign_report(manifest_path: Path, jobs_dir: Path) -> str:
     lines.extend([
         "", "All oracle trials passed and all no-op trials failed without exceptions.", "",
         "## Live Results", "",
-        "| Task | Arm | Reward | Error | Input Tokens | Output Tokens | Cost | Duration |",
-        "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+        "| Task | Arm | Reward | Error | Input Tokens | Output Tokens | Cost | Duration | Discovery | Transitions |",
+        "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ])
     for entry in sorted(trials, key=lambda item: (item["trial"]["task_name"], item["arm"])):
         trial = entry["trial"]
         result = trial.get("agent_result") or {}
         reward = ((trial.get("verifier_result") or {}).get("rewards") or {}).get("reward")
         duration = _duration_seconds(trial)
+        metadata = result.get("metadata") or {}
         lines.append(
             f"| `{trial['task_name'].split('/')[-1]}` | `{entry['arm']}` | "
             f"{_number(reward, 0)} | {'yes' if trial.get('exception_info') else 'no'} | "
             f"{_number(result.get('n_input_tokens'), 0)} | {_number(result.get('n_output_tokens'), 0)} | "
-            f"{_money(result.get('cost_usd'))} | {_number(duration, 1)}s |"
+            f"{_money(result.get('cost_usd'))} | {_number(duration, 1)}s | "
+            f"{_number(metadata.get('discovery_actions'), 0)} | "
+            f"{_number(metadata.get('transition_events'), 0)} |"
         )
 
     lines.extend(["", "## Aggregate", "", "| Arm | Passed | Errors | Known Cost |", "| --- | ---: | ---: | ---: |"])
@@ -151,12 +186,9 @@ def render_campaign_report(manifest_path: Path, jobs_dir: Path) -> str:
 
     lines.extend([
         "", "## Interpretation", "",
-        "Structured planning did not improve grader pass rate on this frozen subset. Both",
-        "TermAgent arms scored 0/3. Codex scored 2/3. The TermAgent COBOL trials ended",
-        "on provider transport failures before Harbor could grade them, so their usage and",
-        "cost remain unknown and their outcomes stay in the denominator as errors.", "",
-        "This three-task, one-trial campaign is evidence about this subset only. It is not a",
-        "Terminal-Bench leaderboard result or a claim that one agent is globally superior.", "",
+        "This report preserves every frozen trial, including errors and zero rewards. The",
+        "campaign is evidence about this subset only; it is not a Terminal-Bench leaderboard",
+        "result or a claim that one agent is globally superior.", "",
     ])
     return "\n".join(lines)
 

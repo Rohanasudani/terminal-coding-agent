@@ -267,3 +267,17 @@ Status: implementation and local ablation complete
 The controller supplies no task solution or source content. See
 [milestone22-results.md](milestone22-results.md). Milestone 23 must freeze a different
 held-out subset before evaluating whether this mechanism improves live-model quality.
+
+## Milestone 23: Frozen Post-Recovery Evaluation
+
+Status: protocol and controls complete; paid arms pending credentials
+
+- froze three tasks not used in Milestones 18 or 20
+- pinned task hashes, source commit, wheel hash, Harbor, model, Codex, and all limits
+- excluded candidates whose public README disclosed solution or verifier details
+- passed oracle 3/3 and no-op 0/3 with no exceptions
+- added `campaign-controls` verification and report telemetry for discovery/transition
+- added a script that refuses missing credentials and existing trial directories
+
+No paid trial was started without a key, and no quality result is claimed. Continue
+from [milestone23-runbook.md](milestone23-runbook.md).

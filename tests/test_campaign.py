@@ -3,7 +3,12 @@ from pathlib import Path
 
 import pytest
 
-from termagent.campaign import render_campaign_report, task_tree_sha256, verify_campaign
+from termagent.campaign import (
+    render_campaign_report,
+    task_tree_sha256,
+    verify_campaign,
+    verify_campaign_controls,
+)
 
 
 def write_manifest(path: Path, name: str, digest: str) -> None:
@@ -152,3 +157,35 @@ def test_render_campaign_report_requires_and_summarizes_all_arms(tmp_path: Path)
     assert "| `codex-baseline` | 1/1 | 0 | $0.010000 |" in report
     assert "| `termagent-planning-on` | 0/1 | 0 | $0.010000 |" in report
     assert "`task-hash`" in report
+    assert "| unknown | unknown |" in report
+
+
+def test_verify_campaign_controls_accepts_exact_oracle_nop_gate(tmp_path: Path):
+    jobs = tmp_path / "jobs"
+    controls = jobs / "milestone23-controls"
+    for agent, reward in (("oracle", 1.0), ("nop", 0.0)):
+        trial = controls / f"sample-{agent}"
+        trial.mkdir(parents=True)
+        (trial / "result.json").write_text(
+            json.dumps(
+                {
+                    "task_name": "terminal-bench/sample",
+                    "task_checksum": "task-hash",
+                    "agent_info": {"name": agent},
+                    "verifier_result": {"rewards": {"reward": reward}},
+                    "exception_info": None,
+                }
+            ),
+            encoding="utf-8",
+        )
+    manifest = tmp_path / "campaign.json"
+    manifest.write_text(
+        json.dumps({"job_prefix": "milestone23", "tasks": [{"name": "sample"}]}),
+        encoding="utf-8",
+    )
+
+    verified = verify_campaign_controls(manifest, jobs)
+
+    assert verified[0].name == "sample"
+    assert verified[0].oracle_reward == 1.0
+    assert verified[0].nop_reward == 0.0

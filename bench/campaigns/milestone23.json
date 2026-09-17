@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "campaign": "milestone-23-terminal-bench-2",
+  "report_title": "Milestone 23: Post-Recovery Terminal-Bench 2 Results",
+  "job_prefix": "milestone23",
+  "frozen_at": "2026-09-16",
+  "dataset": {
+    "name": "terminal-bench/terminal-bench-2",
+    "requested_ref": "latest",
+    "task_count_at_freeze": 89
+  },
+  "tasks": [
+    {
+      "name": "polyglot-c-py",
+      "category": "cross-language-implementation",
+      "content_sha256": "7c7afcb317d56426def848f059e9e7abca1b7a43fc8b2f35621527ce46b47eed",
+      "repo": "/app",
+      "visible_verifier": "python3 /app/polyglot/main.py.c 10"
+    },
+    {
+      "name": "kv-store-grpc",
+      "category": "multi-file-service",
+      "content_sha256": "db1e1c83e684a3eecf13880f6350346e5ab45eea4e99c05444008149f948f606",
+      "repo": "/app",
+      "visible_verifier": "python3 -m compileall -q /app"
+    },
+    {
+      "name": "multi-source-data-merger",
+      "category": "data-pipeline",
+      "content_sha256": "27e62692dba1540bbac546a40f1a2bf3f4350e02a5d469e2077c61facd36800a",
+      "repo": "/app",
+      "visible_verifier": "python3 -m compileall -q /app"
+    }
+  ],
+  "trials_per_task": 1,
+  "harbor": {
+    "version": "0.22.0",
+    "concurrency": 1,
+    "retries": 0
+  },
+  "model": {
+    "provider": "openai",
+    "name": "gpt-5.6-luna"
+  },
+  "termagent": {
+    "source_commit": "793f06b9ac0e8f687e99990c48da8403df932c39",
+    "wheel_sha256": "3fdae4d2a481d988609af670e404dbee82c6e9fbde65011fc2ea8912831d521e",
+    "max_steps": 32,
+    "max_cost_usd_per_trial": 0.05,
+    "max_output_tokens_per_response": 4096,
+    "reasoning_effort": "high",
+    "prompt_profile": "benchmark",
+    "controller_recovery": true,
+    "max_stagnation_events": 2,
+    "max_discovery_actions": 6
+  },
+  "arms": [
+    {
+      "name": "termagent-planning-on",
+      "agent": "termagent",
+      "task_planning": true
+    },
+    {
+      "name": "termagent-planning-off",
+      "agent": "termagent",
+      "task_planning": false
+    },
+    {
+      "name": "codex-baseline",
+      "agent": "codex",
+      "version": "0.153.4"
+    }
+  ],
+  "controls": ["oracle", "nop"]
+}

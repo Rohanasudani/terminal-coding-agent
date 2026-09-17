@@ -1,0 +1,14 @@
+{
+  "job_name": "milestone23-controls",
+  "jobs_dir": ".termagent/harbor-jobs",
+  "n_concurrent_trials": 1,
+  "agents": [
+    {"name": "oracle"},
+    {"name": "nop"}
+  ],
+  "tasks": [
+    {"path": ".termagent/milestone23-registry/terminal-bench-2/polyglot-c-py"},
+    {"path": ".termagent/milestone23-registry/terminal-bench-2/kv-store-grpc"},
+    {"path": ".termagent/milestone23-registry/terminal-bench-2/multi-source-data-merger"}
+  ]
+}
