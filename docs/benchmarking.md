@@ -1,84 +1,135 @@
-# Benchmarking Plan
+# Benchmarking
 
-The project is benchmark-first. The local harness is small today, but it is shaped to grow toward Terminal-Bench-style evaluation.
+TermAgent uses three evaluation layers. They answer different questions and should not
+be combined into one headline score.
 
-## Local Benchmarks
+## Runtime Regression Fixtures
 
-Run:
+`bench/tasks` contains eight small tasks for tool and controller regression. The
+`fixture` provider has transparent task-specific patterns, so its `8/8` result checks:
+
+- verifier-first execution
+- search and code-map plumbing
+- single-file and grouped patch contracts
+- write enforcement and final diffs
+- Python and JavaScript fixture support
+- trace and report generation
+
+It does not measure live-model quality or generalization.
 
 ```bash
 termagent bench --repo-root .
 ```
 
-The harness writes:
+Reports are written to `bench/results/latest.json` and `bench/results/latest.md`.
+Per-run traces stay under the ignored trace directory.
 
-- `bench/results/latest.json`: machine-readable pass/fail, runtime, verifier output, usage, and trace metadata
-- `bench/results/latest.md`: GitHub-readable summary table
-- `bench/results/traces/<task>`: persisted JSONL traces for each benchmark task
+## Development Tasks
 
-Each task can define its own verifier command. The default command uses the current Python executable:
-
-```bash
-{python} -m pytest -q
-```
-
-That placeholder makes benchmarks more portable across virtual environments and CI.
-
-Reports also include provider, model, token usage, and estimated model cost. Deterministic local providers report zero model tokens; live provider runs include usage returned by the model API.
-
-## Harbor Export
-
-Milestone 10 adds a Harbor-shaped export path:
+`bench/evaluation` contains broader public development tasks without corresponding
+fixture-provider answers. They are useful for debugging live behavior, but repeated
+tuning on them makes them development data rather than held-out evidence.
 
 ```bash
-termagent harbor-export --overwrite
+termagent bench \
+  --tasks-dir bench/evaluation \
+  --provider openai \
+  --repeats 3 \
+  --reasoning-effort high \
+  --max-output-tokens 4096 \
+  --max-cost-usd 0.05 \
+  --max-total-cost-usd 0.45 \
+  --report .termagent/evaluation/live.json \
+  --markdown-report .termagent/evaluation/live.md
 ```
 
-The export includes task metadata, instructions, container setup, workspace files, verifier scripts, and a manifest. The verifier scripts write Harbor reward files under `/logs/verifier/reward.txt`.
+Cost ceilings are checked after provider responses and are not prepaid billing limits.
+A response can exceed the remaining estimate. Raw outputs may include local paths or
+repository content and should be reviewed before publication.
 
-Compare benchmark reports:
+## External Harbor Campaigns
+
+Harbor runs package TermAgent as a custom agent inside the task environment. Campaigns
+use public Terminal-Bench tasks resolved from Harbor's registry. Before live calls:
+
+1. Select tasks using public instructions and environment metadata only.
+2. Save exact task-tree hashes in a committed manifest.
+3. Pin the TermAgent wheel hash, source commit, Harbor version, model, comparator, and
+   all controller limits.
+4. Run oracle and no-op controls against the same task checksums.
+5. Refuse retries and existing job directories unless the protocol says otherwise.
+6. Preserve every failed, errored, and unknown-usage result.
+
+The committed manifests are:
+
+- `bench/campaigns/milestone20.json`
+- `bench/campaigns/milestone23.json`
+
+The names are historical identifiers. Consolidated outcomes are in
+[experiment-log.md](experiment-log.md).
+
+## Campaign Commands
+
+Verify task bytes:
 
 ```bash
-termagent compare-bench bench/results/latest.json --label fixture
+termagent campaign-verify \
+  --manifest bench/campaigns/milestone23.json \
+  --dataset-dir .termagent/milestone23-registry/terminal-bench-2
 ```
 
-## Current Suite
+Verify oracle/no-op controls:
 
-| Task | Bug Shape |
-| --- | --- |
-| `bugfix_calculator` | arithmetic operator repair |
-| `bugfix_checkout_pipeline` | coordinated multi-file pricing repair |
-| `bugfix_clamp_score` | bounds checking |
-| `bugfix_divide` | arithmetic operator repair |
-| `bugfix_email_normalization` | string normalization |
-| `bugfix_slugify` | whitespace and separator normalization |
-| `bugfix_word_count` | character count vs. token count |
+```bash
+termagent campaign-controls \
+  --manifest bench/campaigns/milestone23.json \
+  --jobs-dir .termagent/harbor-jobs
+```
 
-Current runtime regression result: `8/8` tasks pass with the `fixture` provider.
+Render a report from completed jobs:
 
-## Why Start Local
+```bash
+termagent campaign-report \
+  --manifest bench/campaigns/milestone23.json \
+  --jobs-dir .termagent/harbor-jobs \
+  --report .termagent/milestone23-results.md
+```
 
-Local tasks are cheap, deterministic, and fast. They help catch regressions in:
+Run output remains ignored because Harbor trajectories can contain provider responses,
+repository content, and local paths.
 
-- tool execution
-- path sandboxing
-- write behavior
-- shell safety policy
-- agent loop completion
-- trace logging
-- test-first repair behavior
-- report generation
-- trace persistence
-- grouped multi-file patch planning
+## Independent Grading
 
-## Terminal-Bench Direction
+Local tasks declare allowlisted `solution_files`. Grading starts from a pristine copy
+of the broken fixture and overlays only those files from the agent workspace. The
+original fixture must fail and the reconstructed candidate must pass. Empty test suites
+are errors.
 
-Terminal-Bench evaluates AI agents in real terminal environments with end-to-end tasks. Its current Harbor-based workflow runs agents against published datasets and measures resolution rates, cost, tokens, and runtime.
+Harbor uses each external task's independent verifier. A passing syntax or compile
+command selected for agent feedback does not guarantee external reward. This distinction
+explains several retained zero-reward trials.
 
-This project should eventually package `termagent` as a Harbor-compatible custom agent. The local benchmark harness and Harbor export are the stepping stones: they already model isolated tasks, verifier commands, reward mapping, traces, and machine-readable reports.
+## Metrics
 
-## Anti-Cheating Rule
+Reports distinguish:
 
-The deterministic `fixture` provider uses transparent task-specific patterns. Its
-results validate orchestration, grading, tracing, and tool contracts only. Agent
-quality must be measured with live providers and held-out external tasks.
+- grader reward
+- agent completion state
+- exceptions and incomplete usage
+- steps and duration
+- input and output tokens
+- known estimated cost
+- planning, discovery, and transition telemetry
+
+Unknown usage is never converted to zero. Model estimates may differ from provider
+billing.
+
+## Interpretation Rules
+
+- A fixture-provider pass is runtime evidence only.
+- A development-task result is not held-out after it influences implementation.
+- One trial per arm supports failure analysis, not a stable effect estimate.
+- Different tools or context strategies prevent a claim of perfect agent equivalence,
+  even when the underlying model label matches.
+- A small Terminal-Bench subset is not a Terminal-Bench leaderboard score.
+- Improvements must be tested on a newly frozen set rather than rewriting old results.

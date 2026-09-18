@@ -20,4 +20,4 @@ Open a private report if GitHub security advisories are enabled for the reposito
 - Live model output is accepted only as structured tool calls.
 - Observation context is bounded to reduce token waste and accidental data exposure.
 
-See `docs/security-audit.md` for the current audit notes and limitations.
+See `docs/security.md` for the threat model, implemented controls, and limitations.

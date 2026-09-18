@@ -4,139 +4,53 @@
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-A benchmarkable terminal coding agent inspired by tools like Claude Code and Codex. It can inspect a repository, plan changes, use structured tools, preview diffs, obey safety gates, track token/cost usage, and produce reproducible benchmark logs.
+TermAgent is a Python terminal coding agent built around structured tools, explicit
+safety gates, reproducible traces, and benchmark-driven development. It can inspect a
+repository, plan and preview edits, run verifiers, and report token and cost usage.
 
-The offline fixture suite currently passes `8/8`. It exercises the runtime and tool
-contracts with transparent scripted repairs; it is not a model-quality benchmark.
+The project is alpha software. It is useful on trusted local repositories, but it is
+not an operating-system sandbox and it does not claim a public Terminal-Bench score.
 
-Status: alpha. The first-release checklist is in [docs/release-readiness.md](docs/release-readiness.md).
-The project now includes a repeated same-model Harbor comparison, measured
-development ablations, and a frozen three-task Terminal-Bench 2 campaign.
-Structured planning did not improve external pass rate: both TermAgent arms scored
-0/3, while Codex `0.153.4` scored 2/3 with the same model. The failed and errored
-trials are retained, so the project is not presented as outperforming established agents.
-The recorded live calculator run predates the removal of heuristic controller patches;
-it is historical integration evidence, not a current generalization score.
+## What It Does
 
-## Why This Project Exists
-
-Terminal agents are becoming the default interface for AI-assisted software work. The hard part is not a chat loop. The hard part is reliability: knowing what to read, when to edit, how to verify, how to avoid unsafe commands, and how to measure whether the agent is improving.
-
-This project treats the agent as an engineering system:
-
-- structured tools instead of free-form shell guessing
-- repo search and file reads before edits
-- write tools with diff previews
-- approval gates for risky shell commands
-- JSONL command logs for every tool call
-- a local benchmark harness for regression testing
-- provider abstraction for mock, OpenAI-compatible, or future model backends
-
-## Architecture At A Glance
+- repository search plus Python, JavaScript, and TypeScript symbol indexing
+- single-file and grouped patch previews before writes
+- repository-root path confinement
+- shell command classification with approval modes
+- test-first execution and completion checks
+- JSONL traces for tool calls, observations, and final summaries
+- OpenAI-compatible live provider with strict function schemas
+- token, estimated cost, retry, context, and output limits
+- interactive and one-shot CLI modes
+- local regression tasks and Harbor/Terminal-Bench campaign tooling
 
 ```mermaid
 flowchart LR
-    CLI[CLI] --> Agent[Agent loop]
-    Agent --> Provider[Provider]
+    CLI[CLI / interactive app] --> Agent[Agent loop]
+    Agent --> Provider[Fixture or live provider]
     Agent --> Tools[Structured tools]
-    Tools --> Repo[Repo search and code map]
-    Tools --> Writes[Patch planning and writes]
-    Tools --> Shell[Safe shell runner]
-    Agent --> Traces[JSONL traces]
-    Agent --> Bench[Benchmark reports]
-    Bench --> Harbor[Harbor export]
+    Tools --> Repo[Search and code map]
+    Tools --> Patch[Plan and write]
+    Tools --> Shell[Command policy]
+    Agent --> Trace[JSONL trace]
+    Agent --> Eval[Local and Harbor evaluation]
 ```
 
-## Current Features
-
-- `termagent run`: execute a task against a repository
-- `termagent app`: start an interactive terminal agent session
-- `termagent tools`: inspect available structured tools
-- `termagent bench`: run local benchmark tasks and write a report
-- `termagent live-smoke`: run a tiny capped OpenAI provider smoke test
-- `termagent campaign-verify`: verify frozen external task bytes against a manifest
-- `termagent campaign-report`: validate and summarize a completed Harbor campaign
-- `termagent campaign-controls`: verify a frozen campaign's oracle/no-op gate
-- structured task plans with declared output paths and acceptance checks
-- bounded stagnation detection for repeated no-progress discovery
-- evidence-aware inspection budgets that require a model-authored patch plan before
-  further exploration
-- repo search powered by `rg` when available
-- Python, JavaScript, and TypeScript code map for symbols, imports, and references
-- file read/write with path sandboxing
-- shell execution with deny/approval policy
-- git diff preview
-- planned-write safety: the agent previews a patch before `write_file` can execute
-- Python syntax validation before planned patches are approved
-- test-first repair loop that runs the verifier, parses failures, searches likely symbols, patches, reruns tests, and reports the final diff
-- deterministic mock provider for tests and demos
-- isolated fixture provider for deterministic runtime regression tasks
-- OpenAI-compatible provider with strict structured tool-call output and retry handling
-- `termagent.toml` project config
-- token usage and estimated model cost reporting
-- live-mode cost ceilings, prompt profiles, validation recovery, and observation caps
-- hardened shell execution without `shell=True`
-- HTTPS certificate validation through `certifi` for live provider requests
-- network commands blocked by default
-- eight-task local benchmark suite with JSON and Markdown reports
-- Harbor-shaped benchmark export and report comparison tooling
-- optional Harbor 0.22.0 custom agent adapter and a controller-recovery ablation switch
-- planning enabled/disabled controls recorded in local and Harbor benchmark metadata
-- persistent per-task trace artifacts for benchmark debugging
-- JSONL traces for tool calls, observations, and final answers
-
-## Quickstart
+## Install
 
 ```bash
 git clone https://github.com/Rohanasudani/terminal-coding-agent.git
 cd terminal-coding-agent
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e ".[dev]"
-pytest
-termagent tools
+python -m pip install -e ".[dev]"
 termagent doctor
-termagent bench --repo-root .
 ```
 
-These commands use the deterministic fixture provider and make no API calls. See
-[the demo](docs/demo.md) for an isolated interactive run and terminal recording.
-Python 3.11+ is required; Node.js 22+ runs the JavaScript fixtures.
+Python 3.11 or newer is required. Node.js is optional and is used by the JavaScript
+fixture and wheel-installation check.
 
-## Live Model Mode
-
-Create a project config:
-
-```bash
-cp termagent.example.toml termagent.toml
-```
-
-Then set your API key:
-
-```bash
-export OPENAI_API_KEY="your-api-key"
-```
-
-Run against a repository:
-
-```bash
-termagent run \
-  --repo /path/to/repo \
-  --task "Find the failing test, patch the bug, rerun tests, and show the final diff" \
-  --provider openai \
-  --approval-mode auto \
-  --reasoning-effort high \
-  --max-output-tokens 4096 \
-  --max-cost-usd 0.25
-```
-
-Use `fixture` for deterministic runtime checks. Use `openai` when you want a real model
-to choose tools. The fixture provider contains task-specific patterns and is not an
-agent-quality baseline.
-
-By default, live mode uses conservative settings: bounded observation context, a per-response output ceiling, a small model-cost ceiling, no network shell commands, and required patch previews before writes. Reasoning effort is explicit when provided. Add `--allow-network-commands` only for trusted repositories and tasks that genuinely need network access. See [docs/security-audit.md](docs/security-audit.md) for the current safety audit and known limitations.
-
-## Example
+## Run It
 
 Start the interactive app:
 
@@ -152,123 +66,90 @@ termagent> Fix the failing tests and show the final diff
 termagent> :quit
 ```
 
-Run a one-off task:
+Run one task:
 
 ```bash
 termagent run \
   --repo /path/to/repo \
-  --task "Find the failing test, patch the bug, and show the final diff" \
-  --approval-mode auto
+  --task "Find the failing test, patch the bug, rerun tests, and show the diff" \
+  --provider openai \
+  --approval-mode suggest \
+  --reasoning-effort high \
+  --max-output-tokens 4096 \
+  --max-cost-usd 0.25
 ```
 
-Use `--approval-mode suggest` when you want the agent to stop before commands that require approval.
+Live mode reads `OPENAI_API_KEY` from the environment. Raw traces and local config
+belong under `.termagent/` or `termagent.toml`; both are ignored by Git.
+
+## Provider Modes
+
+- `openai` asks a live model to choose structured tool calls.
+- `fixture` uses transparent task-specific patterns for offline runtime regression.
+- `mock` is a stable local test alias.
+
+The fixture suite currently passes `8/8`. That result checks orchestration, grading,
+tracing, and tool contracts. It is not evidence that the agent generalizes to unseen
+repositories.
 
 ## Safety Model
 
-The agent runs inside a repository root and rejects file access outside that root. Shell commands are classified before execution:
+File tools resolve paths inside the configured repository. Writes require matching
+patch-plan hashes. Shell commands run as parsed argument lists rather than through a
+shell. Destructive commands and shell control operators are blocked; network commands
+are disabled unless explicitly enabled. Mutating options such as `sed -i`,
+`find -fprint`, and `git diff --output` cannot use the read-only path.
 
-- safe read-only commands can run
-- commands that modify files require approval mode
-- destructive commands are blocked by default
+Use `approval_mode=suggest` for normal work. `auto` permits non-destructive mutations
+that pass the policy and should only be used in disposable or trusted environments.
 
-This is intentionally conservative. A real terminal agent should make it harder to do dangerous things by accident.
+See [docs/security.md](docs/security.md) for the complete threat model and limitations.
 
-## Benchmarking
+## Evaluation Snapshot
 
-The local benchmark harness copies each task fixture into a temporary workspace,
-runs the agent, then grades allowlisted solution files against pristine fixture
-tests in a separate workspace. A repair only passes if the original fixture fails
-and the submitted solution passes. Reports include trial number, provider, model,
-duration, token usage, estimated cost, independent score, and agent completion status.
+The project keeps failed trials instead of reporting only successful demos.
 
-The live controller can redirect repeated failing commands toward inspection, but
-does not generate patches or write files on the model's behalf. Completion requires
-a zero exit status from the configured verifier after the latest write or shell command.
+| Campaign | TermAgent | Comparator | Notes |
+| --- | ---: | ---: | --- |
+| Same-model development task | 3/3 | Codex 3/3 | Integration evidence only |
+| First frozen Terminal-Bench 2 subset | 0/3 per planning arm | Codex 2/3 | One error per TermAgent arm |
+| Post-recovery frozen subset | 0/3 per planning arm | Codex 3/3 | One setup error per TermAgent arm |
 
-Three additional public development tasks cover pagination, configuration precedence,
-and cache expiration. See [evaluation instructions](docs/evaluation.md). These are
-not a held-out benchmark or a Terminal-Bench result.
+The latest external run identified three concrete gaps: portable installation across
+task images, stronger completion checks, and better conversion of repository evidence
+into correct edits. These are limited one-trial subsets, not leaderboard results.
 
-See [docs/benchmark-report.md](docs/benchmark-report.md) for the latest checked-in baseline.
-See [docs/harbor-terminal-bench.md](docs/harbor-terminal-bench.md) for the Harbor/Terminal-Bench integration path.
-See [docs/live-provider-demo.md](docs/live-provider-demo.md) for the sanitized live-provider smoke-test report.
-See [docs/milestone17-results.md](docs/milestone17-results.md) for the same-model Codex comparison and controller ablation.
-See [docs/milestone18-results.md](docs/milestone18-results.md) for pinned external-task failures and analysis.
-See [docs/milestone19-results.md](docs/milestone19-results.md) for the structured-planning development ablation.
-See [docs/milestone20-results.md](docs/milestone20-results.md) for the frozen Terminal-Bench 2 campaign.
-See [docs/milestone22-results.md](docs/milestone22-results.md) for inspection-to-edit recovery and its local ablation.
-See [docs/milestone23-results.md](docs/milestone23-results.md) for the frozen post-recovery campaign and failure analysis.
-See [docs/project-brief.md](docs/project-brief.md) for the project rationale, design decisions, and evaluation status.
+Methods, versions, task checksums, costs, and failure analysis are in
+[docs/experiment-log.md](docs/experiment-log.md). The exact frozen campaign settings
+remain machine-readable under [`bench/campaigns`](bench/campaigns).
 
-Current local baseline:
+## Development
 
-| Provider | Tasks | Passed | Pass Rate | Model Cost |
-| --- | ---: | ---: | ---: | ---: |
-| fixture (runtime regression only) | 8 | 8 | 100% | $0.000000 |
+```bash
+ruff check .
+pytest -q
+termagent bench --repo-root .
+python -m compileall -q src tests scripts
+python -m pip wheel . --wheel-dir .termagent/release-wheels
+python scripts/check_wheel.py
+```
 
-Matched Harbor development baseline using `openai/gpt-5.6-luna`, three trials each:
-
-| Agent | Passed | Mean agent time | Reported cost |
-| --- | ---: | ---: | ---: |
-| TermAgent | 3/3 | 20.149s | $0.008784 |
-| Codex 0.153.4 | 3/3 | 9.733s | $0.011622 |
-
-This small development task supports an integration and failure-analysis claim, not
-a general performance ranking. See the results document for controls and limitations.
-
-Pinned external results are currently `0/1` for both TermAgent and Codex on
-`html-js-filter`, and `0/1` in both TermAgent recovery arms on
-`payments-pipeline-fix`. These failures are retained rather than excluded.
-
-Frozen Terminal-Bench 2 campaign using `openai/gpt-5.6-luna`, one trial per task:
-
-| Agent arm | Passed | Errors | Known cost |
-| --- | ---: | ---: | ---: |
-| TermAgent planning on | 0/3 | 1 | $0.037058 partial |
-| TermAgent planning off | 0/3 | 1 | $0.046531 partial |
-| Codex 0.153.4 | 2/3 | 0 | $0.057692 |
-
-This small campaign found no planning benefit. It supports a reproducible comparison
-and failure-analysis claim, not a full Terminal-Bench ranking.
-
-Post-recovery campaign on a different frozen Terminal-Bench 2 subset:
-
-| Agent arm | Passed | Errors | Known cost |
-| --- | ---: | ---: | ---: |
-| TermAgent planning on | 0/3 | 1 | $0.040728 partial |
-| TermAgent planning off | 0/3 | 1 | $0.029758 partial |
-| Codex 0.153.4 | 3/3 | 0 | $0.030488 |
-
-The task controls passed, every live arm ran once without retries, and all failures are
-retained. The result identifies wheel portability, premature completion, and verifier
-coverage as the next engineering targets; it does not establish a leaderboard score.
-
-This is the bridge to Terminal-Bench-style evaluation: the agent is designed around reproducible tasks, verifier commands, execution logs, and pass/fail reports from day one.
+The benchmark command uses the fixture provider unless another provider is selected.
+Live benchmark runs should use frozen tasks, explicit budgets, and separate output
+paths under `.termagent/`.
 
 ## Documentation
 
+- [Design](DESIGN.md)
 - [Architecture](docs/architecture.md)
-- [Architecture diagram](docs/architecture-diagram.md)
 - [Benchmarking](docs/benchmarking.md)
-- [Demo commands](docs/demo.md)
-- [Interactive app](docs/interactive-app.md)
-- [Live provider demo](docs/live-provider-demo.md)
-- [Matched benchmark results](docs/milestone17-results.md)
-- [External validation results](docs/milestone18-results.md)
-- [Structured planning results](docs/milestone19-results.md)
-- [Frozen Terminal-Bench 2 results](docs/milestone20-results.md)
-- [Post-campaign reliability recovery](docs/milestone21-reliability.md)
-- [Inspection-to-edit recovery](docs/milestone22-results.md)
-- [Post-recovery external results](docs/milestone23-results.md)
-- [Repository intelligence](docs/repository-intelligence.md)
-- [Requirements traceability](docs/requirements-traceability.md)
-- [Security audit](docs/security-audit.md)
-- [Project rationale](docs/project-brief.md)
+- [Experiment log](docs/experiment-log.md)
+- [Security](docs/security.md)
 
-## Roadmap
+## Current Work
 
-- improve task-image portability and completion verification from Milestone 23 findings
-- sub-agent orchestration experiments
-- tree-sitter-backed repository intelligence
-- richer terminal UI
-- GitHub-ready demo GIF and benchmark report
+- portable Harbor installation for task images without the expected Python toolchain
+- completion review that distinguishes a weak visible check from task completion
+- incremental repository snapshots for large codebases
+- tree-sitter-backed JavaScript and TypeScript indexing
+- broader repeated external evaluation after those changes are frozen

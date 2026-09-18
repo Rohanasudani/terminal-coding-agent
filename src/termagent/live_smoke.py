@@ -38,7 +38,7 @@ def run_live_smoke(
     report_path: Path | None = None,
 ) -> LiveSmokeResult:
     repo_root = repo_root.resolve()
-    report_path = report_path or repo_root / "docs" / "live-provider-demo.md"
+    report_path = report_path or repo_root / ".termagent" / "live-provider-demo.md"
 
     if not os.environ.get("OPENAI_API_KEY"):
         result = LiveSmokeResult(

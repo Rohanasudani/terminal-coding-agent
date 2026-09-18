@@ -351,6 +351,7 @@ class ToolRegistry:
         return completed.returncode == 0 and completed.stdout.strip() == "true"
 
     def _snapshot(self) -> dict[str, str]:
+        # TODO: Replace full-tree snapshots with an incremental index for large repositories.
         files: dict[str, str] = {}
         ignored_dirs = {".git", ".venv", "__pycache__", ".pytest_cache", ".termagent"}
         for path in self.repo.rglob("*"):

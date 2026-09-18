@@ -135,7 +135,9 @@ def build_parser() -> argparse.ArgumentParser:
     live_smoke.add_argument("--repo-root", type=Path, default=Path("."))
     live_smoke.add_argument("--model", default="gpt-5.6-luna")
     live_smoke.add_argument("--max-cost-usd", type=float, default=0.05)
-    live_smoke.add_argument("--report", type=Path, default=Path("docs/live-provider-demo.md"))
+    live_smoke.add_argument(
+        "--report", type=Path, default=Path(".termagent/live-provider-demo.md")
+    )
     live_smoke.add_argument("--json", action="store_true", dest="json_output")
 
     return parser

@@ -32,23 +32,13 @@ REQUIRED_TOOLS = {
 
 REQUIRED_DOCS = [
     "README.md",
+    "DESIGN.md",
     "SECURITY.md",
     "CONTRIBUTING.md",
     "docs/architecture.md",
-    "docs/architecture-diagram.md",
-    "docs/benchmark-report.md",
     "docs/benchmarking.md",
-    "docs/demo.md",
-    "docs/harbor-terminal-bench.md",
-    "docs/interactive-app.md",
-    "docs/live-provider-demo.md",
-    "docs/milestone20-protocol.md",
-    "docs/milestone20-results.md",
-    "docs/project-brief.md",
-    "docs/repository-intelligence.md",
-    "docs/requirements-traceability.md",
-    "docs/roadmap.md",
-    "docs/security-audit.md",
+    "docs/experiment-log.md",
+    "docs/security.md",
 ]
 
 
@@ -72,32 +62,29 @@ def test_required_project_docs_exist():
     assert missing == []
 
 
-def test_requirements_traceability_mentions_boundaries():
+def test_experiment_log_mentions_boundaries():
     repo_root = Path(__file__).parents[1]
-    content = (repo_root / "docs" / "requirements-traceability.md").read_text(encoding="utf-8")
+    content = (repo_root / "docs" / "experiment-log.md").read_text(encoding="utf-8")
 
-    assert "OpenAI live mode is implemented" in content
-    assert "not a public Terminal-Bench leaderboard score" in content
-    assert "not a complete operating-system sandbox" in content
+    assert "not a Terminal-Bench leaderboard score" in content
+    assert "Every failed or errored trial remains in the denominator" in content
 
 
-def test_readme_and_security_audit_reference_latest_milestones():
+def test_readme_and_security_docs_reference_current_boundaries():
     repo_root = Path(__file__).parents[1]
     readme = (repo_root / "README.md").read_text(encoding="utf-8")
-    security = (repo_root / "docs" / "security-audit.md").read_text(encoding="utf-8")
+    security = (repo_root / "docs" / "security.md").read_text(encoding="utf-8")
 
     assert "termagent app" in readme
-    assert "requirements-traceability.md" in readme
-    assert "14. Live-provider smoke readiness" in security
+    assert "experiment-log.md" in readme
+    assert "not an operating-system sandbox" in security
 
 
-def test_public_project_rationale_avoids_resume_coaching_copy():
+def test_design_covers_runtime_decisions():
     repo_root = Path(__file__).parents[1]
-    content = (repo_root / "docs" / "project-brief.md").read_text(encoding="utf-8")
+    content = (repo_root / "DESIGN.md").read_text(encoding="utf-8")
 
-    assert "## Project Motivation" in content
-    assert "## Key Design Decisions" in content
-    assert "## Evaluation Status" in content
-    assert "Recruiter Pitch" not in content
-    assert "Resume Bullets" not in content
-    assert "Interview Talking Points" not in content
+    assert "## Problem" in content
+    assert "## Design Principles" in content
+    assert "## Evaluation Policy" in content
+    assert "## Current Tradeoffs" in content

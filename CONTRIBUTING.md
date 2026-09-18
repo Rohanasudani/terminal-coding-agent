@@ -2,6 +2,9 @@
 
 TermAgent is benchmark-first. Changes should either improve capability, improve safety, improve observability, or make benchmark behavior easier to reproduce.
 
+Read [DESIGN.md](DESIGN.md) for the runtime principles and
+[docs/benchmarking.md](docs/benchmarking.md) before changing evaluation behavior.
+
 ## Local Setup
 
 ```bash
@@ -24,7 +27,7 @@ python -m compileall -q src tests
 
 - Prefer structured tools over free-form shell access.
 - Keep file operations scoped to the configured repository root.
-- Add benchmark coverage for new repair behavior.
+- Add benchmark coverage for new runtime behavior.
 - Keep live-provider changes covered by mocked tests when possible.
 - Do not commit API keys, private traces, or generated benchmark artifacts.
 

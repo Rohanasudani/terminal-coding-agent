@@ -1,143 +1,144 @@
 # Architecture
 
-## Goal
+## System Overview
 
-Terminal Coding Agent is built around one question:
+TermAgent has four runtime boundaries: provider, controller, tools, and evaluation.
+The provider proposes one structured action. The controller validates progress and
+completion. Tools perform repository-scoped operations. Evaluation grades the final
+workspace independently from the agent's own completion state.
 
-> Can a terminal agent inspect, edit, verify, and report on code changes in a way that is measurable?
+```mermaid
+flowchart TD
+    CLI[CLI / interactive app] --> Config[AgentConfig]
+    Config --> Agent[TerminalAgent]
+    Agent --> Provider[Provider]
+    Provider --> Agent
+    Agent --> Planning[Progress ledger]
+    Agent --> Registry[Tool registry]
+    Registry --> Search[Search / code map]
+    Registry --> Files[Plan / write]
+    Registry --> Shell[Command classifier]
+    Registry --> Diff[Git or snapshot diff]
+    Agent --> Trace[JSONL trace]
+    Agent --> Summary[Completion summary]
+    Bench[Benchmark harness] --> Agent
+    Bench --> Grader[Pristine grader]
+    Harbor[Harbor adapter] --> Agent
+```
 
-The first version is intentionally small but structured like a serious agent runtime. It separates the agent loop, model provider, tool registry, safety policy, and benchmark harness so each part can improve independently.
+## Module Map
+
+| Area | Modules | Responsibility |
+| --- | --- | --- |
+| Runtime | `agent.py`, `models.py`, `planning.py` | state transitions, validation, completion |
+| Providers | `provider.py`, `fixture_provider.py`, `pricing.py` | live API boundary, offline fixture behavior, cost |
+| Tools | `tools.py`, `safety.py` | repository operations, command policy, diffs |
+| Intelligence | `code_map.py`, `diagnostics.py`, `observations.py` | symbols, references, failure parsing |
+| Interfaces | `cli.py`, `interactive.py`, `config.py`, `health.py` | commands, app loop, configuration, diagnostics |
+| Evaluation | `bench.py`, `grading.py`, `campaign.py`, `experiments.py` | local grading and frozen campaign reports |
+| Harbor | `harbor.py`, `harbor_agent.py`, `harbor_runner.py` | task export and container execution |
+| Observability | `logging.py`, `live_smoke.py` | traces and sanitized smoke reports |
 
 ## Agent Loop
 
-1. Receive a repository path and natural-language task from one-shot CLI mode or interactive app mode.
-2. Optionally register a structured task plan after initial discovery and before patch planning.
-3. Ask the provider for the next structured tool call.
-4. Reject premature writes, missing deliverables, or bounded repeated discovery.
-5. Execute valid tools through the registry and log calls and results as JSONL.
-6. Feed bounded observations back into the provider.
-7. Stop after verified review, a safety or cost limit, bounded stagnation, or the step budget.
+`TerminalAgent` owns the execution loop and mutable `AgentState`. A step consists of:
 
-The default fixture provider is deterministic so runtime regression tests can run
-without API credits. Its scripted repairs are isolated from the live provider path and
-are not evidence of model quality.
+1. Ask the provider for a `ToolCall`.
+2. Validate tool name and arguments.
+3. Apply plan, evidence, repetition, cost, and completion rules.
+4. Execute through `ToolRegistry`.
+5. Record the call, result, usage, and phase.
+6. Return a bounded observation to the provider.
 
-## Interactive App Mode
+The loop stops on verified completion, cost exhaustion, repeated invalid calls,
+stagnation, provider failure, or the step limit. A final summary distinguishes the
+agent's completion flag from independent grading.
 
-The `termagent app` command wraps the same agent runtime in a small terminal session loop. It accepts repeated natural-language tasks, exposes `:doctor` and `:help`, and keeps the same provider, approval, safety, tracing, and cost controls as one-shot runs.
+## Planning And Progress
 
-## Test-First Repair Loop
+Planning is optional so it can be evaluated as an ablation. `set_task_plan` records a
+goal, expected output paths, and acceptance checks. Planning-enabled required-change
+runs cannot preview a patch until this contract exists.
 
-The Milestone 2 loop starts by running the configured verifier command. When tests fail, the agent parses pytest output for the failing file, assertion, and symbol name. It then searches the repository, reads the likely implementation file, applies a narrow patch, reruns the verifier, and only finishes after producing a final diff.
+`ProgressLedger` records coarse phases and evidence:
 
-This keeps the agent behavior measurable: each improvement should increase benchmark pass rate, reduce unnecessary tool calls, or improve the final trace.
+- discovery calls and their signatures
+- inspected paths and symbols
+- search queries
+- patch plans and writes
+- verifier attempts
+- transition deferrals and stagnation
 
-## Provider Modes
+After a bounded discovery budget, further inspection is rejected until the provider
+registers a plan or submits exact contents through a patch-preview tool. The controller
+never authors those contents.
 
-The provider boundary returns a structured tool call plus usage metadata. Local modes return zero-token usage, while live OpenAI-compatible mode parses usage from the Responses API result and rolls it into the final report.
+## Tool Registry
 
-- `fixture`: transparent task-specific behavior for runtime regression tests
-- `mock`: stable alias for local tests and demos
-- `openai`: live provider that requests strict JSON schema output, validates the selected tool, retries malformed responses, and estimates cost from token usage
+The registry exposes:
 
-The live provider does not execute model text directly. It only accepts a structured `{name, arguments}` tool call, and the agent validates that tool call before handing it to the tool registry.
+- `search`
+- `read_file`
+- `code_map`
+- `find_references`
+- `set_task_plan`
+- `plan_patch` and `plan_patch_set`
+- `write_file` and `write_patch_set`
+- `run_shell`
+- `git_diff`
 
-Live mode adds conservative controls around provider cost and context use. The provider receives only a bounded tail of observations, supports prompt profiles and explicit reasoning effort, caps each response, and stops before tool execution if the estimated model cost exceeds the configured ceiling. Usage returned by malformed structured-output attempts remains part of the run accounting.
+Every file path is resolved against the repository root. Patch planning validates
+Python syntax and returns SHA-256 content identifiers. Writes must match a prior plan.
 
-Harbor runs require an observable repository change before agent completion. An
-initially passing syntax or smoke verifier cannot produce a false success with an
-empty diff. Git repositories fall back to the startup snapshot when `git diff` is
-empty so newly created untracked files remain visible.
-
-## Planned Writes
-
-File edits go through a two-step contract:
-
-1. `plan_patch` previews a single-file diff without modifying the repository.
-2. `plan_patch_set` previews a grouped multi-file diff without modifying the repository.
-3. `write_file` and `write_patch_set` are allowed only when their path/content hashes match a previously reviewed plan.
-
-This catches accidental direct writes from live providers and makes traces easier to audit. Every successful final answer includes changed files, patch plans reviewed, tests run, failed test attempts, and residual risk.
-
-## Task Planning And Progress
-
-Planning-enabled runs use `set_task_plan` to separate task completion from test
-completion. A plan contains the requested outcome, known output paths, and acceptance
-checks. The agent will not accept a patch plan before this contract exists and will
-not finish while a declared output file is missing.
-
-The progress ledger records coarse phases rather than model-authored reasoning. It
-hashes proposed discovery actions, records inspected paths and symbols, and measures
-successful discovery calls. Three identical calls still produce corrective guidance.
-For required-change tasks, exhausting the configurable discovery budget requires the
-provider to register a task plan or submit model-authored contents through
-`plan_patch`/`plan_patch_set`; repeated deferral stops the run. The controller never
-constructs source content. Planning can be disabled for ablation runs.
-
-## Tool Layer
-
-The tool registry exposes a small set of high-leverage operations:
-
-- `search`: find relevant files and symbols
-- `set_task_plan`: register deliverables and acceptance checks
-- `read_file`: inspect source with line numbers
-- `code_map`: inspect Python, JavaScript, and TypeScript symbols and imports
-- `find_references`: find Python, JavaScript, and TypeScript name references for a symbol
-- `plan_patch`: preview a single-file edit
-- `plan_patch_set`: preview coordinated multi-file edits as one grouped diff
-- `write_file`: patch files and return unified diffs
-- `write_patch_set`: apply coordinated multi-file edits after a grouped plan
-- `run_shell`: execute commands under a safety policy
-- `git_diff`: show the final repository diff, with an internal snapshot fallback when
-  Git is unavailable or the task directory is not a Git repository
-
-The agent does not get raw filesystem access. Every path is resolved inside the repository root. For non-git fixture workspaces, `git_diff` falls back to an internal snapshot diff so benchmarks still get a clean before/after report.
+`git_diff` uses Git when available. It falls back to the startup filesystem snapshot
+for non-Git workspaces, missing Git binaries, and untracked-only changes. The fallback
+currently scans eligible text files up to 1 MB each.
 
 ## Repository Intelligence
 
-The repository intelligence layer uses Python's standard library `ast` module for Python files and a conservative JavaScript/TypeScript scanner for common source patterns. It indexes:
+Python indexing uses the standard-library AST and records classes, functions, methods,
+imports, references, and parse errors. JavaScript and TypeScript indexing recognizes
+common declaration, import, and identifier patterns with a conservative scanner.
 
-- classes, functions, async functions, methods, and parent scopes
-- import edges across Python, JavaScript, and TypeScript files
-- name references with line numbers
-- parse errors for Python files that cannot be indexed
+Dependency and build directories such as `.git`, `.venv`, `node_modules`, `dist`, and
+`build` are skipped. The scanner is intentionally incomplete; tree-sitter is the next
+step before claiming broad language coverage.
 
-Patch planning performs a Python syntax check for `.py` files before a plan is accepted. JavaScript and TypeScript indexing is intentionally pragmatic today; tree-sitter remains the next step for deeper syntax-aware edits.
+## Provider Implementations
 
-## Safety Gates
+The live provider sends strict OpenAI function definitions and requires a tool call.
+Responses are parsed into `ProviderOutput`, including token usage, attempt count, and
+usage-completeness state. Retryable transport errors receive bounded backoff. Billing,
+authentication, and malformed-request failures are not retried as transient errors.
 
-Shell commands are classified before execution:
+The fixture provider is intentionally different: it contains transparent patterns for
+the bundled regression tasks. Keeping it in a separate module prevents those patterns
+from being mistaken for live-agent reasoning.
 
-- read-only commands run automatically
-- mutating commands require approval unless the run is explicitly configured with `approval_mode=auto`
-- destructive commands are blocked by default
-- network commands are blocked by default
-- inline interpreter execution and shell control operators are blocked
+## Shell Execution
 
-Commands are executed as parsed argv lists rather than through a shell. This reduces command-injection risk from live provider outputs while keeping normal commands such as `python -m pytest -q` usable.
+Commands are tokenized with `shlex` and executed with `shell=False`. The classifier
+distinguishes read-only, approval-required, destructive, network, inline interpreter,
+and shell-control behavior. Command-specific mutation flags prevent tools such as
+`sed`, `find`, and read-only Git subcommands from writing through the automatic path.
 
-This mirrors the safety model expected from a real terminal coding agent: useful by default, cautious around writes, and hostile to accidental destructive operations.
+This is policy enforcement, not process isolation. Candidate code still runs with the
+current user's operating-system permissions.
 
-## Benchmark Harness
+## Benchmark And Harbor Paths
 
-Local benchmark tasks live under `bench/tasks`. Each task has:
+The local harness copies each fixture into a temporary workspace, verifies that the
+original is broken, runs the agent, then overlays only allowlisted solution files onto
+a pristine copy for grading. Test edits and configuration changes in the agent's
+workspace cannot enter the grader copy.
 
-- a fixture repository
-- a natural-language instruction
-- a verifier command
+The Harbor adapter uploads an exact wheel into a task container, records its SHA-256,
+executes the same runtime, and writes a summary for the external verifier. Frozen
+campaign manifests pin task hashes, models, versions, limits, retries, and comparison
+arms.
 
-The harness copies each fixture into a temporary workspace, runs the agent, executes the verifier, persists per-task traces, and writes JSON plus Markdown reports.
+## Runtime Artifacts
 
-## Harbor Bridge
-
-The Harbor bridge exports local benchmark tasks into a Harbor-shaped directory layout with `task.toml`, `instruction.md`, `environment/Dockerfile`, `tests/test.sh`, and `solution/solve.sh`. The generated verifier script runs the local task verifier and writes `1` or `0` to `/logs/verifier/reward.txt`, matching Harbor's reward-file convention.
-
-The bridge also compares benchmark JSON reports so local fixture runs, live-provider smoke runs, and future Harbor runs can be summarized side by side.
-
-## Next Technical Bets
-
-- tree-sitter-backed multi-language parsing
-- external validation of structured planning
-- sub-agent orchestration experiments
-- Harbor-compatible custom agent packaging
-- small pinned Terminal-Bench subset run
+Local traces, provider credentials, generated wheels, benchmark jobs, and live reports
+belong under `.termagent/` and are ignored. Public reports contain aggregate results and
+sanitized failure analysis rather than raw model trajectories.

@@ -8,7 +8,7 @@ DATASET="$ROOT/.termagent/milestone23-registry/terminal-bench-2"
 JOBS="$ROOT/.termagent/harbor-jobs"
 WHEELS="$ROOT/.termagent/milestone23-wheel"
 MANIFEST="$ROOT/bench/campaigns/milestone23.json"
-REPORT="$ROOT/docs/milestone23-results.md"
+REPORT="$ROOT/.termagent/milestone23-results.md"
 
 ENV_ARGS=()
 if [[ -z "${OPENAI_API_KEY:-}" ]]; then

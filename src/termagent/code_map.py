@@ -147,6 +147,7 @@ def build_python_file_map(path: Path, relative_path: str) -> CodeMap:
 
 
 def build_javascript_file_map(path: Path, relative_path: str) -> CodeMap:
+    # TODO: Move JS/TS indexing to tree-sitter before supporting more syntax variants.
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
     except UnicodeDecodeError:

@@ -48,4 +48,6 @@ def test_live_smoke_does_not_trust_agent_success_flags(tmp_path, monkeypatch):
     result = run_live_smoke(tmp_path)
     assert result.status == "failed"
     assert not result.tests_passed
-    assert "private provider payload" not in (tmp_path / "docs" / "live-provider-demo.md").read_text()
+    assert "private provider payload" not in (
+        tmp_path / ".termagent" / "live-provider-demo.md"
+    ).read_text()
