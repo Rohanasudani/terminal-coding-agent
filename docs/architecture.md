@@ -90,9 +90,11 @@ The registry exposes:
 Every file path is resolved against the repository root. Patch planning validates
 Python syntax and returns SHA-256 content identifiers. Writes must match a prior plan.
 
-`git_diff` uses Git when available. It falls back to the startup filesystem snapshot
-for non-Git workspaces, missing Git binaries, and untracked-only changes. The fallback
-currently scans eligible text files up to 1 MB each.
+`git_diff` combines Git's tracked/staged diff with a startup snapshot of nonignored
+untracked files. For non-Git workspaces it compares eligible text files against the
+startup snapshot. The fallback skips generated directories, common local credential
+files, symlinks, and files over 1 MB. If Git disappears after a Git-backed run starts,
+the tool reports an error rather than claiming a complete diff.
 
 ## Repository Intelligence
 

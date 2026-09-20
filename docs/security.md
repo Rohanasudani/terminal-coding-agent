@@ -70,6 +70,9 @@ not enter the grading copy. Harbor tasks use their own external verifier.
 - Bounded retries for retryable transport failures
 - No retry for billing, authentication, or malformed-request failures
 - JSONL traces and final summaries for later review
+- Snapshot diffs omit symlink targets, generated directories, and common local
+  credential files; Git-backed diffs include nonignored untracked files
+- Git diff disables configured external diff programs and text converters
 
 ## Secrets And Artifacts
 
@@ -95,6 +98,8 @@ is known.
 - Network access is a command-level policy and not a host firewall.
 - Prompt injection in repository text can influence the model even though it cannot
   bypass tool validation directly.
+- Git-tracked secret files can still appear in Git diffs. Snapshot exclusions are a
+  defense against accidental local-file disclosure, not secret scanning.
 - The filesystem snapshot fallback reads eligible files and can be expensive on large
   repositories.
 - JavaScript and TypeScript indexing uses a conservative scanner rather than a complete

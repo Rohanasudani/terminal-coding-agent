@@ -14,6 +14,15 @@ from .models import ApprovalMode, ToolResult
 from .planning import validate_task_plan
 from .safety import classify_command, resolve_inside_root
 
+SNAPSHOT_IGNORED_DIRS = frozenset({
+    ".git", ".venv", ".next", ".termagent", ".pytest_cache",
+    ".mypy_cache", ".ruff_cache", ".tox", "__pycache__",
+    "node_modules", "dist", "build", "coverage", "target",
+})
+SNAPSHOT_PRIVATE_NAMES = frozenset({
+    ".env", ".npmrc", ".pypirc", ".netrc", "id_rsa", "id_ed25519",
+})
+
 
 @dataclass(frozen=True)
 class ToolSpec:
@@ -33,6 +42,7 @@ class ToolRegistry:
         self.repo = repo.resolve()
         self.approval_mode = approval_mode
         self.allow_network = allow_network
+        self._git_repo_at_start = self._is_git_repo()
         self._baseline = self._snapshot()
 
     def specs(self) -> list[ToolSpec]:
@@ -318,21 +328,53 @@ class ToolRegistry:
         if self._is_git_repo():
             return self._git_diff()
 
+        if self._git_repo_at_start:
+            return ToolResult("error", "Git is unavailable; cannot produce a complete final diff")
+
         return ToolResult("ok", self._snapshot_diff(), {"source": "snapshot"})
 
     def _git_diff(self) -> ToolResult:
         completed = subprocess.run(
-            ["git", "diff", "--", "."],
+            ["git", "diff", "--no-ext-diff", "--no-textconv", "HEAD", "--", "."],
             cwd=self.repo,
             text=True,
             capture_output=True,
             timeout=20,
             check=False,
         )
-        output = completed.stdout.strip()
-        if not output:
-            output = self._snapshot_diff()
-        return ToolResult("ok", output[:20_000], {"returncode": completed.returncode})
+        if completed.returncode != 0:
+            head = subprocess.run(
+                ["git", "rev-parse", "--verify", "HEAD"], cwd=self.repo,
+                capture_output=True, timeout=20, check=False,
+            )
+            if head.returncode == 0:
+                return ToolResult("error", "Git could not produce a complete final diff")
+            # An initialized repository may not have a HEAD commit yet.
+            unstaged = subprocess.run(
+                ["git", "diff", "--no-ext-diff", "--no-textconv", "--", "."],
+                cwd=self.repo, text=True,
+                capture_output=True, timeout=20, check=False,
+            )
+            staged = subprocess.run(
+                ["git", "diff", "--no-ext-diff", "--no-textconv", "--cached", "--", "."],
+                cwd=self.repo,
+                text=True, capture_output=True, timeout=20, check=False,
+            )
+            if unstaged.returncode != 0 or staged.returncode != 0:
+                return ToolResult("error", "Git could not produce a complete final diff")
+            tracked_diff = "\n".join(part for part in (staged.stdout.strip(), unstaged.stdout.strip()) if part)
+        else:
+            tracked_diff = completed.stdout.strip()
+
+        untracked_diff = self._snapshot_diff(exclude_paths=self._git_tracked_paths())
+        combined = "\n".join(
+            part for part in (tracked_diff, untracked_diff if untracked_diff != "no diff" else "") if part
+        ) or "no diff"
+        truncated = len(combined) > 20_000
+        return ToolResult(
+            "ok", combined[:19_970] + "\n[diff truncated]" if truncated else combined,
+            {"source": "git+snapshot", "truncated": truncated},
+        )
 
     def _is_git_repo(self) -> bool:
         if shutil.which("git") is None:
@@ -351,38 +393,83 @@ class ToolRegistry:
         return completed.returncode == 0 and completed.stdout.strip() == "true"
 
     def _snapshot(self) -> dict[str, str]:
-        # TODO: Replace full-tree snapshots with an incremental index for large repositories.
+        # TODO: Index non-Git baselines incrementally for very large source trees.
         files: dict[str, str] = {}
-        ignored_dirs = {".git", ".venv", "__pycache__", ".pytest_cache", ".termagent"}
-        for path in self.repo.rglob("*"):
-            if not path.is_file() or ignored_dirs.intersection(path.relative_to(self.repo).parts):
-                continue
-            if path.stat().st_size > 1_000_000:
-                continue
+        if self._is_git_repo():
+            paths = (self.repo / path for path in self._git_untracked_paths())
+        else:
+            paths = self._walk_snapshot_paths()
+        for path in paths:
             try:
-                files[os.fspath(path.relative_to(self.repo))] = path.read_text(encoding="utf-8")
-            except UnicodeDecodeError:
+                relative_path = path.relative_to(self.repo)
+                if self._skip_snapshot_path(relative_path):
+                    continue
+                if path.is_symlink() or not path.is_file() or path.stat().st_size > 1_000_000:
+                    continue
+                files[os.fspath(relative_path)] = path.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
                 continue
         return files
 
-    def _snapshot_diff(self) -> str:
+    @staticmethod
+    def _skip_snapshot_path(path: Path) -> bool:
+        name = path.name.lower()
+        if SNAPSHOT_IGNORED_DIRS.intersection(path.parts[:-1]):
+            return True
+        if name in SNAPSHOT_PRIVATE_NAMES or (
+            name.startswith(".env.")
+            and name not in {".env.example", ".env.sample", ".env.template"}
+        ):
+            return True
+        return path.suffix.lower() in {".pem", ".p12", ".pfx"}
+
+    def _walk_snapshot_paths(self):
+        for root, dirs, files in os.walk(self.repo, followlinks=False):
+            dirs[:] = [
+                name for name in dirs
+                if name not in SNAPSHOT_IGNORED_DIRS and not (Path(root) / name).is_symlink()
+            ]
+            for name in files:
+                yield Path(root) / name
+
+    def _git_untracked_paths(self) -> set[str]:
+        completed = subprocess.run(
+            ["git", "ls-files", "--others", "--exclude-standard", "-z", "--", "."],
+            cwd=self.repo, capture_output=True, timeout=20, check=False,
+        )
+        if completed.returncode != 0:
+            raise OSError("Git could not list untracked files for the snapshot")
+        return {os.fsdecode(path) for path in completed.stdout.split(b"\0") if path}
+
+    def _git_tracked_paths(self) -> set[str]:
+        completed = subprocess.run(
+            ["git", "ls-files", "--cached", "-z", "--", "."],
+            cwd=self.repo, capture_output=True, timeout=20, check=False,
+        )
+        if completed.returncode != 0:
+            raise OSError("Git could not list tracked files for the final diff")
+        return {os.fsdecode(path) for path in completed.stdout.split(b"\0") if path}
+
+    def _snapshot_diff(self, *, exclude_paths: set[str] | None = None) -> str:
         current = self._snapshot()
         chunks: list[str] = []
-        for path in sorted(set(self._baseline) | set(current)):
+        removed = {path for path in self._baseline if not (self.repo / path).exists()}
+        for path in sorted(set(current) | removed):
+            if exclude_paths and path in exclude_paths:
+                continue
             before = self._baseline.get(path, "").splitlines(keepends=True)
             after = current.get(path, "").splitlines(keepends=True)
-            if before == after:
+            if before == after and (path in self._baseline) == (path in current):
                 continue
-            chunks.append(
-                "".join(
-                    difflib.unified_diff(
-                        before,
-                        after,
-                        fromfile=f"a/{path}",
-                        tofile=f"b/{path}",
-                    )
+            diff = "".join(
+                difflib.unified_diff(
+                    before,
+                    after,
+                    fromfile=f"a/{path}",
+                    tofile=f"b/{path}",
                 )
             )
+            chunks.append(diff or f"--- a/{path}\n+++ b/{path}\n")
         return "".join(chunks).strip() or "no diff"
 
     @staticmethod
