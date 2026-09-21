@@ -104,7 +104,8 @@ outcomes and failure analysis are in [docs/experiment-log.md](docs/experiment-lo
 - the command classifier reduces common risk but cannot provide process isolation
 - model cost is estimated from recorded usage and can differ from provider billing
 - a configured verifier may be weaker than an external task grader
-- Harbor installation currently assumes a compatible Python toolchain in the task image
+- Harbor runs require Python 3.11+ in the task image; the adapter does not require pip
+  or venv inside that image
 
 These limitations are tracked as engineering work, not hidden behind successful local
 fixtures.

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import math
 import shlex
@@ -12,6 +11,18 @@ from pathlib import Path, PurePosixPath
 from harbor.agents.base import BaseAgent
 from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
+
+from .harbor_runtime import (
+    PYTHON_CANDIDATES,
+    PythonRuntime,
+    format_probe_failure,
+    load_runtime_bundle,
+    parse_python_probe,
+    python_probe_command,
+    runtime_environment,
+    runtime_metadata,
+    runtime_validation_command,
+)
 
 
 class TermAgentHarbor(BaseAgent):
@@ -36,9 +47,8 @@ class TermAgentHarbor(BaseAgent):
     ):
         super().__init__(*args, **kwargs)
         self.wheel_dir = Path(wheel_dir).resolve()
-        wheels = list(self.wheel_dir.glob("terminal_coding_agent-*.whl"))
-        if len(wheels) != 1:
-            raise ValueError("wheel_dir must contain exactly one built TermAgent wheel and its dependencies")
+        self.runtime_bundle = load_runtime_bundle(self.wheel_dir)
+        self.runtime: PythonRuntime | None = None
         if provider not in {"openai", "fixture", "repair", "mock"}:
             raise ValueError("unsupported provider")
         if provider == "openai" and not self.model_name:
@@ -61,7 +71,7 @@ class TermAgentHarbor(BaseAgent):
             raise ValueError("max_output_tokens must be at least 256")
         if reasoning_effort not in {"minimal", "low", "medium", "high"}:
             raise ValueError("unsupported reasoning effort")
-        self.wheel_hash = hashlib.sha256(wheels[0].read_bytes()).hexdigest()
+        self.wheel_hash = self.runtime_bundle.termagent_sha256
         self.settings = {
             "repo": repo,
             "provider": provider,
@@ -89,31 +99,60 @@ class TermAgentHarbor(BaseAgent):
 
     async def setup(self, environment: BaseEnvironment) -> None:
         await environment.upload_dir(self.wheel_dir, "/opt/termagent-wheels")
-        commands = [
-            "python3 -m venv --system-site-packages /opt/termagent-venv",
-            "/opt/termagent-venv/bin/python -m pip install --no-index --find-links /opt/termagent-wheels terminal-coding-agent",
-        ]
-        for command in commands:
-            result = await environment.exec(command=command, user="root", timeout_sec=120)
+        failures: list[str] = []
+        for candidate in PYTHON_CANDIDATES:
+            result = await environment.exec(
+                command=python_probe_command(candidate), user="root", timeout_sec=20,
+            )
             if result.return_code != 0:
-                raise RuntimeError("TermAgent installation failed; task image needs Python 3.12+ with venv and pip")
+                failures.append(
+                    format_probe_failure(candidate, result.return_code, result.stdout or result.stderr or "")
+                )
+                continue
+            try:
+                self.runtime = parse_python_probe(result.stdout or "")
+                break
+            except ValueError as exc:
+                failures.append(f"{candidate} (invalid probe: {exc})")
+
+        if self.runtime is None:
+            detail = "; ".join(failures)
+            raise RuntimeError(
+                "TermAgent requires Python 3.11+ in the task container; "
+                f"interpreter probes failed: {detail}"
+            )
+
+        validation = await environment.exec(
+            command=runtime_validation_command(self.runtime),
+            user="root",
+            env=runtime_environment(self.runtime_bundle),
+            timeout_sec=30,
+        )
+        if validation.return_code != 0:
+            detail = " ".join((validation.stdout or validation.stderr or "no output").split())[:300]
+            raise RuntimeError(
+                "TermAgent wheel bundle could not be imported in the task container: " + detail
+            )
 
     async def run(self, instruction: str, environment: BaseEnvironment, context: AgentContext) -> None:
+        if self.runtime is None:
+            raise RuntimeError("TermAgent Harbor setup must complete before run")
         logs = self.environment_logs_dir
         settings = {**self.settings, "task": instruction, "log_dir": str(logs / "traces")}
         with tempfile.TemporaryDirectory(prefix="termagent-harbor-config-") as temp:
             config = Path(temp) / "config.json"
             config.write_text(json.dumps(settings))
             await environment.upload_file(config, str(logs / "config.json"))
-        env = {}
+        extra_env = {}
         if self.settings["provider"] == "openai":
             key = self._get_env("OPENAI_API_KEY")
             if not key:
                 raise ValueError("OPENAI_API_KEY is required for live Harbor trials")
-            env["OPENAI_API_KEY"] = key
+            extra_env["OPENAI_API_KEY"] = key
+        env = runtime_environment(self.runtime_bundle, extra_env)
         result = await environment.exec(
             command=shlex.join([
-                "/opt/termagent-venv/bin/python", "-m", "termagent.harbor_runner",
+                self.runtime.executable, "-m", "termagent.harbor_runner",
                 "--config", str(logs / "config.json"),
             ]),
             cwd=self.settings["repo"], env=env,
@@ -140,6 +179,7 @@ class TermAgentHarbor(BaseAgent):
             "tests_passed": state["tests_passed"],
             "steps": state["steps"],
             "wheel_sha256": self.wheel_hash,
+            **runtime_metadata(self.runtime_bundle, self.runtime),
             "cost_is_estimate": True,
             "controller_recovery": self.settings["controller_recovery"],
             "prompt_profile": self.settings["prompt_profile"],

@@ -134,10 +134,12 @@ original is broken, runs the agent, then overlays only allowlisted solution file
 a pristine copy for grading. Test edits and configuration changes in the agent's
 workspace cannot enter the grader copy.
 
-The Harbor adapter uploads an exact wheel into a task container, records its SHA-256,
-executes the same runtime, and writes a summary for the external verifier. Frozen
-campaign manifests pin task hashes, models, versions, limits, retries, and comparison
-arms.
+The Harbor adapter uploads a pure-Python wheel bundle, probes the task image for Python
+3.11+, and imports the wheels directly through `PYTHONPATH`; it does not install with
+pip or create a virtual environment in the task image. Reports record both the
+TermAgent wheel hash and aggregate bundle hash. The adapter then executes the same
+runtime and writes a summary for the external verifier. Frozen campaign manifests pin
+task hashes, models, versions, limits, retries, and comparison arms.
 
 ## Runtime Artifacts
 

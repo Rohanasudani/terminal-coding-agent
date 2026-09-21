@@ -174,7 +174,8 @@ The unsuccessful campaigns drove concrete runtime work:
 - evidence and discovery limits before patch planning
 - separate fixture and live provider implementations
 - stricter command mutation classification
+- a pure-Python Harbor wheel runtime that no longer depends on task-image pip or venv
 
 The next meaningful quality campaign should use a newly frozen public task set, a
-compatible prebuilt wheel, stronger task-aware verification, and more than one trial
-per arm. The historical zero-reward runs should remain available as the baseline.
+compatible Python 3.11+ task image, stronger task-aware verification, and more than one
+trial per arm. The historical zero-reward runs should remain available as the baseline.

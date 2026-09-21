@@ -98,6 +98,22 @@ termagent campaign-report \
 Run output remains ignored because Harbor trajectories can contain provider responses,
 repository content, and local paths.
 
+## Harbor Runtime Compatibility
+
+Build the exact pure-Python wheel bundle and verify that it imports without installing
+packages into the task environment:
+
+```bash
+python -m pip wheel . --wheel-dir .termagent/release-wheels
+python scripts/check_harbor_runtime.py
+```
+
+The Harbor adapter probes `python3.13`, `python3.12`, `python3.11`, and `python3` in
+that order, requires Python 3.11 or newer, and validates `termagent` plus `certifi`
+before starting a trial. It records the selected interpreter, wheel names, TermAgent
+wheel hash, and aggregate bundle hash. Images without Python 3.11+ fail during setup
+with the bounded probe diagnostics and do not become model-quality failures.
+
 ## Independent Grading
 
 Local tasks declare allowlisted `solution_files`. Grading starts from a pristine copy

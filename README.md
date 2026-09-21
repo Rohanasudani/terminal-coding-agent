@@ -132,6 +132,7 @@ termagent bench --repo-root .
 python -m compileall -q src tests scripts
 python -m pip wheel . --wheel-dir .termagent/release-wheels
 python scripts/check_wheel.py
+python scripts/check_harbor_runtime.py
 ```
 
 The benchmark command uses the fixture provider unless another provider is selected.
@@ -148,7 +149,7 @@ paths under `.termagent/`.
 
 ## Current Work
 
-- portable Harbor installation for task images without the expected Python toolchain
+- explicit compatibility reporting for task images without Python 3.11+
 - completion review that distinguishes a weak visible check from task completion
 - incremental repository snapshots for large codebases
 - tree-sitter-backed JavaScript and TypeScript indexing

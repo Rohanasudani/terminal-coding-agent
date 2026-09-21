@@ -43,10 +43,11 @@ jobs:
       - name: Compile
         run: python -m compileall -q src tests
 
-      - name: Build and test isolated wheel installation
+      - name: Build and test wheel runtimes
         run: |
           python -m pip wheel . --wheel-dir .termagent/release-wheels
           python scripts/check_wheel.py
+          python scripts/check_harbor_runtime.py
 
       - name: Safety smoke scan
         run: |

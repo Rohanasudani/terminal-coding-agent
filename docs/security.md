@@ -73,6 +73,8 @@ not enter the grading copy. Harbor tasks use their own external verifier.
 - Snapshot diffs omit symlink targets, generated directories, and common local
   credential files; Git-backed diffs include nonignored untracked files
 - Git diff disables configured external diff programs and text converters
+- Harbor accepts only regular pure-Python wheel artifacts, requires the declared
+  `certifi` dependency, and records an aggregate runtime-bundle hash
 
 ## Secrets And Artifacts
 
