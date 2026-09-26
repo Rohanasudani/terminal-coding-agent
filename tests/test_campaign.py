@@ -67,6 +67,7 @@ def write_trial(
     checksum: str,
     reward: float | None,
     planning: bool | None = None,
+    strict_completion: bool | None = None,
     exception: bool = False,
 ) -> None:
     job.mkdir(parents=True)
@@ -76,7 +77,14 @@ def write_trial(
     )
     trial = job / "trial"
     trial.mkdir()
-    metadata = {} if planning is None else {"task_planning": planning}
+    metadata = {}
+    kwargs = {}
+    if planning is not None:
+        metadata["task_planning"] = planning
+        kwargs["task_planning"] = planning
+    if strict_completion is not None:
+        metadata["strict_completion"] = strict_completion
+        kwargs["strict_completion"] = strict_completion
     (trial / "result.json").write_text(
         json.dumps(
             {
@@ -95,7 +103,7 @@ def write_trial(
                 },
                 "verifier_result": {"rewards": {"reward": reward}},
                 "exception_info": {"type": "RuntimeError"} if exception else None,
-                "config": {"agent": {"kwargs": {"task_planning": planning}}},
+                "config": {"agent": {"kwargs": kwargs}},
                 "started_at": "2026-01-01T00:00:00+00:00",
                 "finished_at": "2026-01-01T00:00:02+00:00",
             }
@@ -215,6 +223,69 @@ def test_render_campaign_report_preserves_termagent_exception_arm(tmp_path: Path
     report = render_campaign_report(manifest, jobs)
 
     assert "| `termagent-planning-on` | 0/1 | 1 | $0.000000 (partial) |" in report
+
+
+def test_render_campaign_report_supports_manifest_selectors_and_repeated_trials(tmp_path: Path):
+    jobs = tmp_path / "jobs"
+    controls = jobs / "v1-controls"
+    for agent, reward in (("oracle", 1.0), ("nop", 0.0)):
+        trial = controls / f"sample-{agent}"
+        trial.mkdir(parents=True)
+        (trial / "result.json").write_text(
+            json.dumps(
+                {
+                    "task_name": "terminal-bench/sample",
+                    "task_checksum": "task-hash",
+                    "agent_info": {"name": agent},
+                    "verifier_result": {"rewards": {"reward": reward}},
+                    "exception_info": None,
+                }
+            ),
+            encoding="utf-8",
+        )
+    for attempt, reward in ((1, 1.0), (2, 0.0)):
+        write_trial(
+            jobs / f"v1-sample-termagent-{attempt}",
+            agent="termagent",
+            checksum="task-hash",
+            reward=reward,
+            planning=True,
+            strict_completion=True,
+        )
+        write_trial(
+            jobs / f"v1-sample-codex-{attempt}",
+            agent="codex",
+            checksum="task-hash",
+            reward=1.0,
+        )
+    manifest = tmp_path / "campaign.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "model": {"provider": "openai", "name": "model-a"},
+                "job_prefix": "v1",
+                "harbor": {"version": "0.22.0"},
+                "termagent": {"wheel_sha256": "wheel-hash"},
+                "trials_per_task": 2,
+                "tasks": [{"name": "sample"}],
+                "arms": [
+                    {
+                        "name": "termagent-strict",
+                        "agent": "termagent",
+                        "selectors": {"task_planning": True, "strict_completion": True},
+                    },
+                    {"name": "codex-baseline", "agent": "codex", "version": "1.0"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    report = render_campaign_report(manifest, jobs)
+
+    assert "| `termagent-strict` | 1/2 | 0 | $0.020000 |" in report
+    assert "| `codex-baseline` | 2/2 | 0 | $0.020000 |" in report
+    assert "| `sample` | `termagent-strict` | 2 | 0 |" in report
 
 
 def test_verify_campaign_controls_accepts_exact_oracle_nop_gate(tmp_path: Path):

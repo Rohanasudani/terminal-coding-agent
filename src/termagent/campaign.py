@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -49,7 +50,7 @@ def task_tree_sha256(task_dir: Path) -> str:
 def verify_campaign(manifest_path: Path, dataset_dir: Path) -> list[VerifiedCampaignTask]:
     """Verify selected task bytes against a committed campaign manifest."""
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    if manifest.get("schema_version") != 1:
+    if manifest.get("schema_version") not in {1, 2}:
         raise ValueError("unsupported campaign manifest schema")
 
     tasks = manifest.get("tasks")
@@ -101,10 +102,14 @@ def verify_campaign_controls(
 
 
 def render_campaign_report(manifest_path: Path, jobs_dir: Path) -> str:
-    """Validate and summarize one-trial Harbor jobs from a frozen campaign."""
+    """Validate and summarize Harbor jobs from a frozen campaign."""
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     expected_model = manifest["model"]
-    expected_arms = {entry["name"] for entry in manifest["arms"]}
+    arms = manifest["arms"]
+    expected_arms = {entry["name"] for entry in arms}
+    trials_per_task = manifest["trials_per_task"]
+    if not isinstance(trials_per_task, int) or trials_per_task < 1:
+        raise ValueError("trials_per_task must be a positive integer")
     job_prefix = manifest["job_prefix"]
     controls, checksums = _load_controls(jobs_dir / f"{job_prefix}-controls")
     expected_tasks = {entry["name"] for entry in manifest["tasks"]}
@@ -117,9 +122,7 @@ def render_campaign_report(manifest_path: Path, jobs_dir: Path) -> str:
         task_trials = []
         for job_dir in sorted(jobs_dir.glob(f"{job_prefix}-{name}-*")):
             trial = _load_single_trial(job_dir)
-            arm = _campaign_arm(trial)
-            if arm in {entry["arm"] for entry in task_trials}:
-                raise ValueError(f"{name}: duplicate {arm} trial")
+            arm = _campaign_arm(trial, manifest)
             info = trial["agent_info"]
             model = info.get("model_info") or {}
             if model.get("provider") != expected_model["provider"] or model.get("name") != expected_model["name"]:
@@ -127,9 +130,13 @@ def render_campaign_report(manifest_path: Path, jobs_dir: Path) -> str:
             _validate_agent_version(info, arm, manifest)
             if trial.get("task_checksum") != checksums.get(name):
                 raise ValueError(f"{name}: live and control task checksums differ")
-            task_trials.append({"arm": arm, "trial": trial})
-        if {entry["arm"] for entry in task_trials} != expected_arms:
-            raise ValueError(f"{name}: campaign arms are incomplete")
+            task_trials.append({"arm": arm, "trial": trial, "job": job_dir.name})
+        counts = Counter(entry["arm"] for entry in task_trials)
+        expected_counts = {arm: trials_per_task for arm in expected_arms}
+        if counts != expected_counts:
+            raise ValueError(
+                f"{name}: expected {trials_per_task} trial(s) for each arm; got {dict(counts)}"
+            )
         trials.extend(task_trials)
 
     report_title = manifest.get("report_title", "Frozen Terminal-Bench Campaign Results")
@@ -139,7 +146,7 @@ def render_campaign_report(manifest_path: Path, jobs_dir: Path) -> str:
         f"- Harbor: `{manifest['harbor']['version']}`",
         f"- Model: `{expected_model['provider']}/{expected_model['name']}`",
         f"- TermAgent wheel: `{manifest['termagent']['wheel_sha256']}`",
-        f"- Codex: `{next(arm['version'] for arm in manifest['arms'] if arm['agent'] == 'codex')}`",
+        f"- Agents: `{_agent_versions(manifest)}`",
         f"- Trials per task and arm: `{manifest['trials_per_task']}`", "",
         "## Control Results", "",
         "| Task | Oracle | No-op | Harbor Task Checksum |",
@@ -153,17 +160,23 @@ def render_campaign_report(manifest_path: Path, jobs_dir: Path) -> str:
     lines.extend([
         "", "All oracle trials passed and all no-op trials failed without exceptions.", "",
         "## Live Results", "",
-        "| Task | Arm | Reward | Error | Input Tokens | Output Tokens | Cost | Duration | Discovery | Transitions |",
-        "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+        "| Task | Arm | Trial | Reward | Error | Input Tokens | Output Tokens | Cost | Duration | Discovery | Transitions |",
+        "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ])
-    for entry in sorted(trials, key=lambda item: (item["trial"]["task_name"], item["arm"])):
+    attempts: Counter[tuple[str, str]] = Counter()
+    for entry in sorted(
+        trials, key=lambda item: (item["trial"]["task_name"], item["arm"], item["job"]),
+    ):
         trial = entry["trial"]
+        attempt_key = (trial["task_name"], entry["arm"])
+        attempts[attempt_key] += 1
         result = trial.get("agent_result") or {}
         reward = ((trial.get("verifier_result") or {}).get("rewards") or {}).get("reward")
         duration = _duration_seconds(trial)
         metadata = result.get("metadata") or {}
         lines.append(
             f"| `{trial['task_name'].split('/')[-1]}` | `{entry['arm']}` | "
+            f"{attempts[attempt_key]} | "
             f"{_number(reward, 0)} | {'yes' if trial.get('exception_info') else 'no'} | "
             f"{_number(result.get('n_input_tokens'), 0)} | {_number(result.get('n_output_tokens'), 0)} | "
             f"{_money(result.get('cost_usd'))} | {_number(duration, 1)}s | "
@@ -221,30 +234,56 @@ def _load_single_trial(job_dir: Path) -> dict[str, object]:
     return json.loads(trials[0].read_text(encoding="utf-8"))
 
 
-def _campaign_arm(trial: dict[str, object]) -> str:
+def _campaign_arm(trial: dict[str, object], manifest: dict[str, object]) -> str:
     info = trial["agent_info"]
-    if info["name"] == "codex":
-        return "codex-baseline"
-    if info["name"] != "termagent":
-        raise ValueError(f"unexpected campaign agent: {info['name']}")
     result = trial.get("agent_result") or {}
     metadata = result.get("metadata") or {}
-    planning = metadata.get("task_planning")
-    if not isinstance(planning, bool):
-        config = trial["config"]["agent"]["kwargs"]
-        planning = config.get("task_planning")
-    if not isinstance(planning, bool):
-        raise TypeError("TermAgent trial does not identify its planning arm")
-    return f"termagent-planning-{'on' if planning else 'off'}"
+    config = trial.get("config") or {}
+    agent_config = config.get("agent") or {}
+    kwargs = agent_config.get("kwargs") or {}
+    matches = []
+    for arm in manifest["arms"]:
+        if arm.get("agent") != info.get("name"):
+            continue
+        selectors = dict(arm.get("selectors") or {})
+        if "task_planning" in arm:
+            selectors.setdefault("task_planning", arm["task_planning"])
+        elif manifest.get("schema_version", 1) == 1 and arm["name"] in {
+            "termagent-planning-on",
+            "termagent-planning-off",
+        }:
+            selectors["task_planning"] = arm["name"].endswith("-on")
+        if all(metadata.get(key, kwargs.get(key)) == value for key, value in selectors.items()):
+            matches.append(arm["name"])
+    if len(matches) != 1:
+        raise ValueError(
+            f"campaign trial must match exactly one arm; agent={info.get('name')!r}, "
+            f"matches={matches}"
+        )
+    return matches[0]
 
 
 def _validate_agent_version(info: dict[str, object], arm: str, manifest: dict[str, object]) -> None:
-    if arm == "codex-baseline":
-        expected = next(entry["version"] for entry in manifest["arms"] if entry["agent"] == "codex")
-    else:
+    arm_config = next(entry for entry in manifest["arms"] if entry["name"] == arm)
+    if arm_config["agent"] == "termagent":
         expected = f"wheel-sha256:{manifest['termagent']['wheel_sha256']}"
+    else:
+        expected = arm_config.get("version")
+        if not isinstance(expected, str) or not expected:
+            raise ValueError(f"{arm}: non-TermAgent arms must pin a version")
     if info.get("version") != expected:
         raise ValueError(f"{arm}: agent version does not match the frozen campaign")
+
+
+def _agent_versions(manifest: dict[str, object]) -> str:
+    versions = []
+    for arm in manifest["arms"]:
+        if arm["agent"] == "termagent":
+            version = f"wheel-sha256:{manifest['termagent']['wheel_sha256']}"
+        else:
+            version = arm["version"]
+        versions.append(f"{arm['name']}={version}")
+    return ", ".join(versions)
 
 
 def _duration_seconds(trial: dict[str, object]) -> float | None:
