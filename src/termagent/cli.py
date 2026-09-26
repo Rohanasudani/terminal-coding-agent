@@ -53,6 +53,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--allow-network-commands", action="store_true")
     run.add_argument("--require-changes", action="store_true")
     run.add_argument("--task-planning", action=argparse.BooleanOptionalAction, default=None)
+    run.add_argument("--strict-completion", action=argparse.BooleanOptionalAction, default=None)
     run.add_argument("--max-stagnation-events", type=int)
     run.add_argument("--max-discovery-actions", type=int)
 
@@ -72,6 +73,7 @@ def build_parser() -> argparse.ArgumentParser:
     bench.add_argument("--max-output-tokens", type=int, default=4096)
     bench.add_argument("--reasoning-effort", choices=["minimal", "low", "medium", "high"])
     bench.add_argument("--task-planning", action=argparse.BooleanOptionalAction, default=False)
+    bench.add_argument("--strict-completion", action=argparse.BooleanOptionalAction, default=False)
     bench.add_argument("--max-discovery-actions", type=int, default=6)
 
     harbor_export = subparsers.add_parser("harbor-export", help="Export local tasks to a Harbor-shaped dataset")
@@ -129,6 +131,7 @@ def build_parser() -> argparse.ArgumentParser:
     app.add_argument("--max-output-tokens", type=int, default=4096)
     app.add_argument("--reasoning-effort", choices=["minimal", "low", "medium", "high"])
     app.add_argument("--task-planning", action=argparse.BooleanOptionalAction, default=True)
+    app.add_argument("--strict-completion", action=argparse.BooleanOptionalAction, default=False)
     app.add_argument("--max-discovery-actions", type=int, default=6)
 
     live_smoke = subparsers.add_parser("live-smoke", help="Run a tiny capped OpenAI provider smoke test")
@@ -182,6 +185,7 @@ def main(argv: list[str] | None = None) -> int:
                 "allow_network_commands": True if args.allow_network_commands else None,
                 "require_changes": True if args.require_changes else None,
                 "task_planning": args.task_planning,
+                "strict_completion": args.strict_completion,
                 "max_stagnation_events": args.max_stagnation_events,
                 "max_discovery_actions": args.max_discovery_actions,
             }.items()
@@ -205,6 +209,7 @@ def main(argv: list[str] | None = None) -> int:
                 max_cost_usd=args.max_cost_usd, max_total_cost_usd=args.max_total_cost_usd,
                 max_output_tokens=args.max_output_tokens, reasoning_effort=args.reasoning_effort,
                 task_planning=args.task_planning,
+                strict_completion=args.strict_completion,
                 max_discovery_actions=args.max_discovery_actions,
             )
         except (OSError, ValueError, RuntimeError) as exc:
@@ -311,6 +316,7 @@ def main(argv: list[str] | None = None) -> int:
                 max_output_tokens=args.max_output_tokens,
                 reasoning_effort=args.reasoning_effort,
                 task_planning=args.task_planning,
+                strict_completion=args.strict_completion,
                 max_discovery_actions=args.max_discovery_actions,
             )
         )

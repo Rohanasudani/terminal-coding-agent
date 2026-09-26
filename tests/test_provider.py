@@ -50,6 +50,7 @@ def test_openai_function_tools_are_strict():
 
     assert {tool["name"] for tool in tools} == {
         "set_task_plan",
+        "submit_completion_review",
         "search",
         "read_file",
         "code_map",

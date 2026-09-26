@@ -47,6 +47,25 @@ Cost ceilings are checked after provider responses and are not prepaid billing l
 A response can exceed the remaining estimate. Raw outputs may include local paths or
 repository content and should be reviewed before publication.
 
+## Strict Completion Evidence
+
+Use strict completion for live development tasks and external campaigns:
+
+```bash
+termagent bench \
+  --tasks-dir bench/evaluation \
+  --provider openai \
+  --task-planning \
+  --strict-completion
+```
+
+After the configured verifier passes, the model must inspect the final diff and submit
+evidence for every declared acceptance check. The controller requires declared output
+paths to appear in that diff. Common compile, type-check, lint, and syntax commands are
+classified as smoke checks; strict completion also requires a recognized test runner or
+a successful command that executes a declared output. This evidence controls the agent's
+completion state. It does not replace the independent benchmark grader.
+
 ## External Harbor Campaigns
 
 Harbor runs package TermAgent as a custom agent inside the task environment. Campaigns
@@ -136,6 +155,7 @@ Reports distinguish:
 - input and output tokens
 - known estimated cost
 - planning, discovery, and transition telemetry
+- strict completion review, verifier strength, diff paths, and completion blockers
 
 Unknown usage is never converted to zero. Model estimates may differ from provider
 billing.

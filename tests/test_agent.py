@@ -69,6 +69,18 @@ def test_agent_rejects_invalid_provider_tool_call(tmp_path: Path, monkeypatch):
     assert "invalid tool calls repeatedly" in state.final_answer
 
 
+def test_strict_completion_requires_task_planning(tmp_path: Path):
+    with pytest.raises(ValueError, match="requires task_planning"):
+        TerminalAgent(
+            AgentConfig(
+                repo=tmp_path,
+                task="fix tests",
+                task_planning=False,
+                strict_completion=True,
+            )
+        )
+
+
 def test_agent_rejects_unplanned_write(tmp_path: Path, monkeypatch):
     class DirectWriteProvider:
         def next_action(self, task: str, observations: list[str]) -> ProviderOutput:
@@ -478,6 +490,122 @@ def test_verification_after_write_allows_completion(tmp_path, monkeypatch):
     ], [ToolResult("ok", "changed"), ToolResult("ok", "", {"returncode": 0}), ToolResult("ok", "diff")])
     agent.planned_writes.add(("module.py", sha256_text(patch["content"])))
     assert agent.run().completed
+
+
+def strict_completion_agent(tmp_path, monkeypatch, verifier, extra_calls=(), extra_results=()):
+    content = "value = 2\n"
+    (tmp_path / "module.py").write_text("value = 1\n", encoding="utf-8")
+    criterion = "module behavior is verified"
+    review = {
+        "acceptance_evidence": [
+            {"criterion": criterion, "evidence": "The final command exercised module.py."}
+        ],
+        "residual_risks": ["Only the declared scenario was checked."],
+        "ready": True,
+    }
+    calls = [
+        ToolCall(
+            "set_task_plan",
+            {
+                "summary": "Update module behavior",
+                "expected_paths": ["module.py"],
+                "acceptance_checks": [criterion],
+            },
+        ),
+        ToolCall("plan_patch", {"path": "module.py", "content": content}),
+        ToolCall("write_file", {"path": "module.py", "content": content}),
+        *extra_calls,
+        ToolCall("run_shell", {"command": verifier}),
+        ToolCall("git_diff", {}),
+        ToolCall("submit_completion_review", review),
+    ]
+    results = [
+        ToolResult(
+            "ok",
+            "plan",
+            {
+                "summary": "Update module behavior",
+                "expected_paths": ["module.py"],
+                "acceptance_checks": [criterion],
+            },
+        ),
+        ToolResult(
+            "ok",
+            "planned",
+            {"relative_path": "module.py", "content_sha256": agent_module.sha256_text(content)},
+        ),
+        ToolResult(
+            "ok",
+            "written",
+            {"relative_path": "module.py", "content_sha256": agent_module.sha256_text(content)},
+        ),
+        *extra_results,
+        ToolResult("ok", "passed", {"returncode": 0}),
+        ToolResult("ok", "--- a/module.py\n+++ b/module.py\n"),
+        ToolResult("ok", "reviewed", review),
+    ]
+    actions = iter(calls)
+
+    class StrictProvider:
+        def next_action(self, task, observations):
+            return ProviderOutput(next(actions))
+
+    monkeypatch.setattr(agent_module, "build_provider", lambda *args, **kwargs: StrictProvider())
+    agent = TerminalAgent(
+        AgentConfig(
+            repo=tmp_path,
+            task="Update module.py",
+            provider="openai",
+            test_command=verifier,
+            task_planning=True,
+            require_changes=True,
+            strict_completion=True,
+            max_steps=len(calls),
+        )
+    )
+    outcomes = iter(results)
+    monkeypatch.setattr(agent.tools, "call", lambda *args: next(outcomes))
+    return agent
+
+
+def test_strict_completion_accepts_behavioral_verifier_and_review(tmp_path, monkeypatch):
+    agent = strict_completion_agent(tmp_path, monkeypatch, "node --test")
+
+    state = agent.run()
+
+    assert state.completed
+    assert state.completion_reviewed
+    assert state.completion_evidence_passed
+    assert state.verifier_strength == "behavioral"
+    assert state.diff_paths == ["module.py"]
+
+
+def test_strict_completion_rejects_smoke_only_verifier(tmp_path, monkeypatch):
+    agent = strict_completion_agent(tmp_path, monkeypatch, "python -m compileall -q module.py")
+
+    state = agent.run()
+
+    assert not state.completed
+    assert not state.completion_evidence_passed
+    assert state.verifier_strength == "smoke"
+    assert any("only a smoke check" in blocker for blocker in state.completion_blockers)
+
+
+def test_strict_completion_accepts_targeted_execution_after_smoke_check(tmp_path, monkeypatch):
+    targeted = ToolCall("run_shell", {"command": "python module.py"})
+    agent = strict_completion_agent(
+        tmp_path,
+        monkeypatch,
+        "python -m compileall -q module.py",
+        extra_calls=(targeted,),
+        extra_results=(ToolResult("ok", "sample passed", {"returncode": 0}),),
+    )
+
+    state = agent.run()
+
+    assert state.completed
+    assert state.completion_checks == ["python module.py"]
+    assert state.verifier_strength == "smoke"
 
 
 @pytest.mark.parametrize("enabled,second_tool", [(True, "code_map"), (False, "run_shell")])

@@ -10,6 +10,7 @@ from pathlib import Path
 from shlex import split
 
 from .code_map import build_code_map, format_code_map, format_references, validate_python_source
+from .completion import validate_completion_review
 from .models import ApprovalMode, ToolResult
 from .planning import validate_task_plan
 from .safety import classify_command, resolve_inside_root
@@ -54,6 +55,15 @@ class ToolRegistry:
                     "summary": "string",
                     "expected_paths": ["string"],
                     "acceptance_checks": ["string"],
+                },
+            ),
+            ToolSpec(
+                "submit_completion_review",
+                "Review each acceptance check against observed evidence before finishing.",
+                {
+                    "acceptance_evidence": [{"criterion": "string", "evidence": "string"}],
+                    "residual_risks": ["string"],
+                    "ready": "boolean",
                 },
             ),
             ToolSpec(
@@ -112,6 +122,12 @@ class ToolRegistry:
                     arguments.get("expected_paths"),
                     arguments.get("acceptance_checks"),
                 )
+            if name == "submit_completion_review":
+                return self.submit_completion_review(
+                    arguments.get("acceptance_evidence"),
+                    arguments.get("residual_risks"),
+                    arguments.get("ready"),
+                )
             if name == "search":
                 return self.search(str(arguments.get("query", "")), arguments.get("glob"))
             if name == "read_file":
@@ -164,6 +180,24 @@ class ToolRegistry:
         lines.append("Expected paths: " + (", ".join(plan.expected_paths) or "not known yet"))
         lines.append("Acceptance checks: " + "; ".join(plan.acceptance_checks))
         return ToolResult("ok", "\n".join(lines), metadata)
+
+    def submit_completion_review(
+        self,
+        acceptance_evidence: object,
+        residual_risks: object,
+        ready: object,
+    ) -> ToolResult:
+        review = validate_completion_review(acceptance_evidence, residual_risks, ready)
+        metadata = {
+            "acceptance_evidence": [
+                {"criterion": item.criterion, "evidence": item.evidence}
+                for item in review.acceptance_evidence
+            ],
+            "residual_risks": list(review.residual_risks),
+            "ready": review.ready,
+        }
+        status = "ready" if review.ready else "not ready"
+        return ToolResult("ok", f"Completion review recorded: {status}.", metadata)
 
     def search(self, query: str, glob: object | None = None) -> ToolResult:
         if not query:

@@ -4,6 +4,13 @@ import json
 import shlex
 import sys
 
+from .completion import (
+    CompletionAssessment,
+    CompletionReview,
+    assess_completion,
+    is_targeted_check,
+    validate_completion_review,
+)
 from .diagnostics import parse_pytest_failure
 from .logging import TraceLogger
 from .models import AgentConfig, AgentState, TokenUsage, ToolCall
@@ -21,6 +28,8 @@ class TerminalAgent:
             raise ValueError("max_stagnation_events must be at least 1")
         if config.max_discovery_actions < 1:
             raise ValueError("max_discovery_actions must be at least 1")
+        if config.strict_completion and not config.task_planning:
+            raise ValueError("strict_completion requires task_planning")
         self.config = config
         self.tools = ToolRegistry(
             config.repo,
@@ -44,6 +53,8 @@ class TerminalAgent:
         self.tool_names = {spec.name for spec in self.tools.specs()}
         self.planned_writes: set[tuple[str, str]] = set()
         self.progress = ProgressLedger(enabled=config.task_planning)
+        self.latest_diff: str | None = None
+        self.completion_review: CompletionReview | None = None
 
     def run(self) -> AgentState:
         state = AgentState()
@@ -66,6 +77,7 @@ class TerminalAgent:
                 "reasoning_effort": self.config.reasoning_effort,
                 "require_changes": self.config.require_changes,
                 "task_planning": self.config.task_planning,
+                "strict_completion": self.config.strict_completion,
                 "max_stagnation_events": self.config.max_stagnation_events,
                 "max_discovery_actions": self.config.max_discovery_actions,
             },
@@ -234,6 +246,14 @@ class TerminalAgent:
             # Commands and writes may change files, even when they fail partway through.
             if call.name in {"write_file", "write_patch_set", "run_shell"}:
                 state.tests_passed = False
+                state.completion_evidence_passed = False
+                state.completion_blockers = []
+                state.diff_paths = []
+                state.completion_reviewed = False
+                self.latest_diff = None
+                self.completion_review = None
+            if call.name in {"write_file", "write_patch_set"}:
+                state.completion_checks = []
             result = self.tools.call(call.name, call.arguments)
             self.logger.write(
                 "tool_result",
@@ -258,6 +278,31 @@ class TerminalAgent:
                     state.task_plan_summary = self.progress.plan.summary
                     state.expected_paths = list(self.progress.plan.expected_paths)
                     state.acceptance_checks = list(self.progress.plan.acceptance_checks)
+            if call.name == "submit_completion_review" and result.status == "ok":
+                self.completion_review = validate_completion_review(
+                    result.metadata.get("acceptance_evidence"),
+                    result.metadata.get("residual_risks"),
+                    result.metadata.get("ready"),
+                )
+                state.completion_reviewed = True
+                assessment = self._assess_completion(state)
+                self._record_completion_assessment(state, assessment)
+                if assessment.passed and self.latest_diff is not None:
+                    state.completed = True
+                    self.progress.mark_progress("complete")
+                    state.phase = self.progress.phase
+                    state.final_answer = self._format_final_answer(state, self.latest_diff)
+                    break
+                guidance = "Completion evidence is not sufficient: " + "; ".join(
+                    assessment.blockers
+                )
+                observations[-1] += "\n\ncontroller_guidance: completion_blocked\n" + guidance
+                self.logger.write(
+                    "completion_blocked",
+                    {"step": step, "blockers": list(assessment.blockers)},
+                )
+                self.progress.mark_progress("review")
+                continue
             if call.name == "plan_patch" and result.status == "ok":
                 relative_path = result.metadata.get("relative_path")
                 content_hash = result.metadata.get("content_sha256")
@@ -319,6 +364,17 @@ class TerminalAgent:
                 else:
                     self.progress.mark_progress("review")
 
+            if call.name == "run_shell" and result.status == "ok":
+                command = call.arguments.get("command")
+                expected_paths = self.progress.plan.expected_paths if self.progress.plan else ()
+                if (
+                    isinstance(command, str)
+                    and result.metadata.get("returncode") == 0
+                    and is_targeted_check(command, expected_paths)
+                    and command not in state.completion_checks
+                ):
+                    state.completion_checks.append(command)
+
             if call.name == "git_diff" and result.status == "ok":
                 if self.config.task_planning and self.progress.plan is None:
                     observations[-1] += (
@@ -347,7 +403,19 @@ class TerminalAgent:
                         {"step": step, "summary": "task requires a change but the diff is empty"},
                     )
                     continue
-                state.completed = state.tests_passed
+                self.latest_diff = result.output
+                assessment = self._assess_completion(state)
+                self._record_completion_assessment(state, assessment)
+                if self.config.strict_completion:
+                    observations[-1] += (
+                        "\n\ncontroller_guidance: completion_review_required\n"
+                        "Inspect the final diff against every declared acceptance check, then call "
+                        "submit_completion_review. Cite concrete verifier, execution, file, or diff "
+                        "evidence and disclose residual risks."
+                    )
+                    self.progress.mark_progress("review")
+                    continue
+                state.completed = assessment.passed
                 self.progress.mark_progress("complete" if state.completed else "review")
                 state.phase = self.progress.phase
                 state.final_answer = self._format_final_answer(state, result.output)
@@ -364,6 +432,9 @@ class TerminalAgent:
             "phase": state.phase, "stagnation_events": state.stagnation_events,
             "discovery_actions": state.discovery_actions,
             "transition_events": state.transition_events,
+            "completion_evidence_passed": state.completion_evidence_passed,
+            "completion_blockers": state.completion_blockers,
+            "verifier_strength": state.verifier_strength,
         })
         return state
 
@@ -401,6 +472,13 @@ class TerminalAgent:
             f"Discovery actions: {state.discovery_actions}; patch-transition deferrals: "
             f"{state.transition_events}."
         )
+        lines.append(
+            "Completion evidence: "
+            + ("passed" if state.completion_evidence_passed else "not established")
+            + f"; verifier strength: {state.verifier_strength}."
+        )
+        if state.completion_blockers:
+            lines.append("Completion blockers: " + "; ".join(state.completion_blockers) + ".")
         if state.input_tokens or state.output_tokens:
             lines.append(
                 f"Tokens: {state.input_tokens} input, {state.output_tokens} output; "
@@ -425,6 +503,7 @@ class TerminalAgent:
             return "arguments must be a JSON object"
         required_args = {
             "set_task_plan": {"summary", "expected_paths", "acceptance_checks"},
+            "submit_completion_review": {"acceptance_evidence", "residual_risks", "ready"},
             "search": {"query"},
             "read_file": {"path"},
             "code_map": set(),
@@ -441,6 +520,7 @@ class TerminalAgent:
             return f"missing required argument(s): {', '.join(missing)}"
         allowed_args = {
             "set_task_plan": {"summary", "expected_paths", "acceptance_checks"},
+            "submit_completion_review": {"acceptance_evidence", "residual_risks", "ready"},
             "search": {"query", "glob"},
             "read_file": {"path", "start", "limit"},
             "code_map": {"query", "limit"},
@@ -457,6 +537,10 @@ class TerminalAgent:
             return f"unexpected argument(s): {', '.join(unexpected)}"
         if call.name == "set_task_plan" and self.progress.plan is not None:
             return "task plan is already registered; continue with the existing plan"
+        if call.name == "submit_completion_review" and self.latest_diff is None:
+            return "git_diff is required immediately before submit_completion_review"
+        if call.name == "submit_completion_review" and self.progress.plan is None:
+            return "set_task_plan is required before submit_completion_review"
         if (
             call.name == "set_task_plan"
             and self.config.task_planning
@@ -625,6 +709,30 @@ class TerminalAgent:
                 state.changed_files.append(relative_path)
             if isinstance(relative_path, str) and isinstance(content_hash, str):
                 self.planned_writes.discard((relative_path, content_hash))
+
+    def _assess_completion(self, state: AgentState) -> CompletionAssessment:
+        plan = self.progress.plan
+        return assess_completion(
+            diff=self.latest_diff or "",
+            verifier_passed=state.tests_passed,
+            verifier_command=self.test_command,
+            require_changes=self.config.require_changes,
+            expected_paths=plan.expected_paths if plan else (),
+            acceptance_checks=plan.acceptance_checks if plan else (),
+            strict=self.config.strict_completion,
+            review=self.completion_review,
+            completion_checks=tuple(state.completion_checks),
+        )
+
+    @staticmethod
+    def _record_completion_assessment(
+        state: AgentState,
+        assessment: CompletionAssessment,
+    ) -> None:
+        state.completion_evidence_passed = assessment.passed
+        state.completion_blockers = list(assessment.blockers)
+        state.diff_paths = list(assessment.changed_paths)
+        state.verifier_strength = assessment.verifier_strength
 
 
 def summarize_subsystems(paths: list[str]) -> str:

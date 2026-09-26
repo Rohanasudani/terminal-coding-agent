@@ -37,6 +37,10 @@ class BenchResult:
     task_planning: bool = False
     discovery_actions: int = 0
     transition_events: int = 0
+    strict_completion: bool = False
+    completion_evidence_passed: bool = False
+    verifier_strength: str = "custom"
+    completion_check_count: int = 0
 
 
 def run_benchmark(
@@ -52,6 +56,7 @@ def run_benchmark(
     max_output_tokens: int = 4_096,
     reasoning_effort: ReasoningEffort | None = None,
     task_planning: bool = False,
+    strict_completion: bool = False,
     max_discovery_actions: int = 6,
 ) -> list[BenchResult]:
     if repeats < 1:
@@ -99,6 +104,7 @@ def run_benchmark(
                 max_output_tokens=max_output_tokens,
                 reasoning_effort=reasoning_effort,
                 task_planning=task_planning,
+                strict_completion=strict_completion,
                 require_changes=True,
                 max_discovery_actions=max_discovery_actions,
             )
@@ -129,6 +135,10 @@ def run_benchmark(
                     task_planning=task_planning,
                     discovery_actions=state.discovery_actions,
                     transition_events=state.transition_events,
+                    strict_completion=strict_completion,
+                    completion_evidence_passed=state.completion_evidence_passed,
+                    verifier_strength=state.verifier_strength,
+                    completion_check_count=len(state.completion_checks),
                 )
             )
             write_report(results, traces_root / "partial.json")
@@ -163,15 +173,17 @@ def write_markdown_report(results: list[BenchResult], path: Path) -> None:
         f"- Pass rate: {pass_rate:.1%}",
         f"- Estimated model cost: ${total_cost:.6f}",
         "",
-        "| Task | Trial | Category | Language | Result | Steps | Planning | Discovery | Transitions | Duration | Provider | Cost |",
-        "| --- | ---: | --- | --- | --- | ---: | --- | ---: | ---: | ---: | --- | ---: |",
+        "| Task | Trial | Category | Language | Result | Evidence | Verifier | Checks | Steps | Planning | Discovery | Transitions | Duration | Provider | Cost |",
+        "| --- | ---: | --- | --- | --- | --- | --- | ---: | ---: | --- | ---: | ---: | ---: | --- | ---: |",
     ]
     for result in results:
         status = "pass" if result.passed else "fail"
         lines.append(
             f"| {result.task} | {result.trial} | {result.category} | {result.language} | {status} | "
-            f"{result.steps} | {'on' if result.task_planning else 'off'} | "
-            f"{result.discovery_actions} | {result.transition_events} | "
+            f"{'pass' if result.completion_evidence_passed else 'not established'} | "
+            f"{result.verifier_strength} | {result.completion_check_count} | {result.steps} | "
+            f"{'on' if result.task_planning else 'off'} | {result.discovery_actions} | "
+            f"{result.transition_events} | "
             f"{result.duration_seconds:.3f}s | {result.provider} | "
             f"${result.estimated_cost_usd:.6f} |"
         )

@@ -38,6 +38,25 @@ def test_plan_patch_previews_without_writing(tmp_path: Path):
     assert "content_sha256" in result.metadata
 
 
+def test_completion_review_is_structured_and_bounded(tmp_path: Path):
+    tools = ToolRegistry(tmp_path, "auto")
+
+    result = tools.call(
+        "submit_completion_review",
+        {
+            "acceptance_evidence": [
+                {"criterion": "tests pass", "evidence": "pytest exited with status zero"}
+            ],
+            "residual_risks": ["integration environment was not exercised"],
+            "ready": True,
+        },
+    )
+
+    assert result.status == "ok"
+    assert result.metadata["ready"] is True
+    assert result.metadata["acceptance_evidence"][0]["criterion"] == "tests pass"
+
+
 def test_plan_patch_rejects_invalid_python(tmp_path: Path):
     tools = ToolRegistry(tmp_path, "auto")
 

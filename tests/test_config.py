@@ -27,6 +27,7 @@ def test_apply_config_file_overrides_agent_defaults(tmp_path: Path):
         allow_network_commands = true
         require_changes = true
         task_planning = true
+        strict_completion = true
         max_stagnation_events = 3
         max_discovery_actions = 5
         log_dir = ".termagent/custom"
@@ -52,6 +53,7 @@ def test_apply_config_file_overrides_agent_defaults(tmp_path: Path):
     assert config.allow_network_commands is True
     assert config.require_changes is True
     assert config.task_planning is True
+    assert config.strict_completion is True
     assert config.max_stagnation_events == 3
     assert config.max_discovery_actions == 5
     assert config.log_dir == Path(".termagent/custom")

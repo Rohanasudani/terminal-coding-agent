@@ -30,7 +30,7 @@ flowchart TD
 
 | Area | Modules | Responsibility |
 | --- | --- | --- |
-| Runtime | `agent.py`, `models.py`, `planning.py` | state transitions, validation, completion |
+| Runtime | `agent.py`, `models.py`, `planning.py`, `completion.py` | state transitions, validation, completion evidence |
 | Providers | `provider.py`, `fixture_provider.py`, `pricing.py` | live API boundary, offline fixture behavior, cost |
 | Tools | `tools.py`, `safety.py` | repository operations, command policy, diffs |
 | Intelligence | `code_map.py`, `diagnostics.py`, `observations.py` | symbols, references, failure parsing |
@@ -73,6 +73,12 @@ After a bounded discovery budget, further inspection is rejected until the provi
 registers a plan or submits exact contents through a patch-preview tool. The controller
 never authors those contents.
 
+Strict completion adds a second contract after `git_diff`. The provider calls
+`submit_completion_review` with evidence for each acceptance check and any residual
+risks. `completion.py` independently checks verifier state, diff paths, declared output
+coverage, and verifier strength. A known smoke verifier needs a passing behavioral test
+or targeted execution recorded after the latest file write.
+
 ## Tool Registry
 
 The registry exposes:
@@ -82,6 +88,7 @@ The registry exposes:
 - `code_map`
 - `find_references`
 - `set_task_plan`
+- `submit_completion_review`
 - `plan_patch` and `plan_patch_set`
 - `write_file` and `write_patch_set`
 - `run_shell`
@@ -139,7 +146,7 @@ The Harbor adapter uploads a pure-Python wheel bundle, probes the task image for
 pip or create a virtual environment in the task image. Reports record both the
 TermAgent wheel hash and aggregate bundle hash. The adapter then executes the same
 runtime and writes a summary for the external verifier. Frozen campaign manifests pin
-task hashes, models, versions, limits, retries, and comparison arms.
+task hashes, models, versions, limits, retries, completion policy, and comparison arms.
 
 ## Runtime Artifacts
 

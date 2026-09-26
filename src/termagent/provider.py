@@ -212,6 +212,8 @@ def provider_system_prompt(
         "For coordinated multi-file edits, call plan_patch_set with all files in the group. Only call "
         "write_file or write_patch_set after reviewing the matching plan diff. After writing files, "
         "rerun the configured tests. Use git_diff only when the work is done or you are blocked. "
+        "When strict completion asks for a review, call submit_completion_review with one evidence "
+        "entry for every declared acceptance check. Do not claim behavioral evidence from a syntax-only check. "
         "Return only the structured tool call."
     )
     profiles = {
@@ -253,6 +255,7 @@ def tool_call_response_format() -> dict[str, object]:
                     "type": "string",
                     "enum": [
                         "set_task_plan",
+                        "submit_completion_review",
                         "search",
                         "read_file",
                         "code_map",
@@ -272,6 +275,9 @@ def tool_call_response_format() -> dict[str, object]:
                         "summary",
                         "expected_paths",
                         "acceptance_checks",
+                        "acceptance_evidence",
+                        "residual_risks",
+                        "ready",
                         "query",
                         "glob",
                         "path",
@@ -293,6 +299,23 @@ def tool_call_response_format() -> dict[str, object]:
                             "type": ["array", "null"],
                             "items": {"type": "string"},
                         },
+                        "acceptance_evidence": {
+                            "type": ["array", "null"],
+                            "items": {
+                                "type": "object",
+                                "additionalProperties": False,
+                                "required": ["criterion", "evidence"],
+                                "properties": {
+                                    "criterion": {"type": "string"},
+                                    "evidence": {"type": "string"},
+                                },
+                            },
+                        },
+                        "residual_risks": {
+                            "type": ["array", "null"],
+                            "items": {"type": "string"},
+                        },
+                        "ready": {"type": ["boolean", "null"]},
                         "query": {"type": ["string", "null"]},
                         "glob": {"type": ["string", "null"]},
                         "path": {"type": ["string", "null"]},
@@ -330,6 +353,26 @@ def openai_tool_definitions() -> list[dict[str, object]]:
                 "summary": {"type": "string"},
                 "expected_paths": {"type": "array", "items": {"type": "string"}},
                 "acceptance_checks": {"type": "array", "items": {"type": "string"}},
+            },
+        ),
+        openai_tool(
+            "submit_completion_review",
+            "Review every declared acceptance check against observed evidence after inspecting the final diff.",
+            {
+                "acceptance_evidence": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "required": ["criterion", "evidence"],
+                        "properties": {
+                            "criterion": {"type": "string"},
+                            "evidence": {"type": "string"},
+                        },
+                    },
+                },
+                "residual_risks": {"type": "array", "items": {"type": "string"}},
+                "ready": {"type": "boolean"},
             },
         ),
         openai_tool(

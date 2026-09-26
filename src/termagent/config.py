@@ -43,6 +43,7 @@ def apply_config_file(config: AgentConfig, path: Path) -> AgentConfig:
         "allow_network_commands",
         "require_changes",
         "task_planning",
+        "strict_completion",
         "max_stagnation_events",
         "max_discovery_actions",
         "log_dir",
@@ -84,6 +85,8 @@ def apply_config_file(config: AgentConfig, path: Path) -> AgentConfig:
         updates["require_changes"] = bool(data["require_changes"])
     if "task_planning" in data:
         updates["task_planning"] = bool(data["task_planning"])
+    if "strict_completion" in data:
+        updates["strict_completion"] = bool(data["strict_completion"])
     if "max_stagnation_events" in data:
         updates["max_stagnation_events"] = int(data["max_stagnation_events"])
     if "max_discovery_actions" in data:

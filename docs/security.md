@@ -107,6 +107,8 @@ is known.
 - JavaScript and TypeScript indexing uses a conservative scanner rather than a complete
   parser.
 - The configured verifier can be weaker than the independent grader.
+- Strict completion detects known smoke-only verifiers, but model-authored review evidence
+  is not a security boundary or a substitute for hidden tests.
 - Cost estimates may differ from provider billing.
 
 For untrusted code, run TermAgent in a disposable container or VM with a read-only base

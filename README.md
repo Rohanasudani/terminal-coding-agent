@@ -17,7 +17,7 @@ not an operating-system sandbox and it does not claim a public Terminal-Bench sc
 - single-file and grouped patch previews before writes
 - repository-root path confinement
 - shell command classification with approval modes
-- test-first execution and completion checks
+- test-first execution and structured completion-evidence review
 - JSONL traces for tool calls, observations, and final summaries
 - OpenAI-compatible live provider with strict function schemas
 - token, estimated cost, retry, context, and output limits
@@ -79,6 +79,10 @@ termagent run \
   --max-cost-usd 0.25
 ```
 
+For benchmark-style runs, add `--strict-completion`. Strict mode requires task planning,
+a final-diff review covering every declared acceptance check, and behavioral or targeted
+execution evidence when the configured verifier is only a syntax or lint smoke check.
+
 Live mode reads `OPENAI_API_KEY` from the environment. Raw traces and local config
 belong under `.termagent/` or `termagent.toml`; both are ignored by Git.
 
@@ -117,7 +121,8 @@ The project keeps failed trials instead of reporting only successful demos.
 
 The latest external run identified three concrete gaps: portable installation across
 task images, stronger completion checks, and better conversion of repository evidence
-into correct edits. These are limited one-trial subsets, not leaderboard results.
+into correct edits. The first two now have implementation changes awaiting a new held-out
+campaign. These are limited one-trial subsets, not leaderboard results.
 
 Methods, versions, task checksums, costs, and failure analysis are in
 [docs/experiment-log.md](docs/experiment-log.md). The exact frozen campaign settings
@@ -149,8 +154,7 @@ paths under `.termagent/`.
 
 ## Current Work
 
-- explicit compatibility reporting for task images without Python 3.11+
-- completion review that distinguishes a weak visible check from task completion
 - incremental repository snapshots for large codebases
 - tree-sitter-backed JavaScript and TypeScript indexing
-- broader repeated external evaluation after those changes are frozen
+- a newly frozen diagnostic campaign using the portable runtime and strict completion
+- broader repeated external evaluation after diagnostic failures are addressed

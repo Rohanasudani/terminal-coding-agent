@@ -60,6 +60,7 @@ def test_agent_config_for_task_maps_interactive_settings(tmp_path: Path):
             max_output_tokens=2048,
             reasoning_effort="high",
             allow_network_commands=True,
+            strict_completion=True,
         ),
         "repair bug",
     )
@@ -74,6 +75,7 @@ def test_agent_config_for_task_maps_interactive_settings(tmp_path: Path):
     assert config.reasoning_effort == "high"
     assert config.allow_network_commands is True
     assert config.task_planning is True
+    assert config.strict_completion is True
     assert config.max_discovery_actions == 6
 
 

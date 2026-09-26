@@ -123,6 +123,7 @@ def test_prompt_is_uploaded_as_data_and_credentials_are_not_in_config(tmp_path, 
     assert uploaded["controller_recovery"] is False
     assert uploaded["require_changes"] is True
     assert uploaded["task_planning"] is True
+    assert uploaded["strict_completion"] is True
     assert uploaded["max_stagnation_events"] == 2
     assert uploaded["max_discovery_actions"] == 6
     assert "test-only-secret" not in json.dumps(uploaded)
@@ -138,6 +139,8 @@ def test_prompt_is_uploaded_as_data_and_credentials_are_not_in_config(tmp_path, 
     assert context.metadata["usage_is_complete"] is True
     assert context.metadata["require_changes"] is True
     assert context.metadata["task_planning"] is True
+    assert context.metadata["strict_completion"] is True
+    assert context.metadata["completion_evidence_passed"] is None
     assert context.metadata["max_stagnation_events"] == 2
     assert context.metadata["max_discovery_actions"] == 6
     assert context.metadata["search_queries"] == []

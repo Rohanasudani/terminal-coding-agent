@@ -48,6 +48,15 @@ The runtime tracks verifier exit status after the latest mutation. Success words
 model output do not mark a task complete, and a previous passing check is invalidated by
 later writes or shell commands.
 
+### Completion requires evidence
+
+Strict runs separate a passing command from a completion claim. The provider must inspect
+the final diff and submit one evidence entry for every declared acceptance check. The
+controller verifies that declared outputs appear in the diff. Known syntax, lint, and
+compile-only commands require an additional behavioral test or targeted execution of a
+declared output. The review remains model-authored and is recorded as evidence, not
+treated as an independent grader.
+
 ### Bounded recovery
 
 Repeated discovery and verifier calls consume explicit budgets. Planning-enabled runs
@@ -69,9 +78,10 @@ claims come only from provider-backed runs with frozen tasks and independent gra
 4. Validate the call against planning, safety, and progress state.
 5. Execute the tool and append a bounded observation to the trace.
 6. Update cost, token, verifier, patch, and progress metadata.
-7. Repeat until verified completion or a safety, cost, stagnation, transport, or step
+7. In strict mode, review the final diff and acceptance evidence.
+8. Repeat until verified completion or a safety, cost, stagnation, transport, or step
    limit stops the run.
-8. Produce a summary with changed files, checks run, residual risk, and final diff.
+9. Produce a summary with changed files, checks run, residual risk, and final diff.
 
 ## Provider Boundary
 
@@ -104,6 +114,8 @@ outcomes and failure analysis are in [docs/experiment-log.md](docs/experiment-lo
 - the command classifier reduces common risk but cannot provide process isolation
 - model cost is estimated from recorded usage and can differ from provider billing
 - a configured verifier may be weaker than an external task grader
+- strict completion recognizes common smoke checks but cannot prove arbitrary custom
+  commands are behaviorally sufficient
 - Harbor runs require Python 3.11+ in the task image; the adapter does not require pip
   or venv inside that image
 

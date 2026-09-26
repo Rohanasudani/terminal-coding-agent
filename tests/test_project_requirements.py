@@ -18,6 +18,7 @@ REQUIRED_COMMANDS = {
 
 REQUIRED_TOOLS = {
     "set_task_plan",
+    "submit_completion_review",
     "search",
     "read_file",
     "code_map",

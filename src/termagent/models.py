@@ -63,6 +63,7 @@ class AgentConfig:
     controller_recovery: bool = True
     require_changes: bool = False
     task_planning: bool = False
+    strict_completion: bool = False
     max_stagnation_events: int = 2
     max_discovery_actions: int = 6
 
@@ -86,6 +87,12 @@ class AgentState:
     task_plan_summary: str | None = None
     expected_paths: list[str] = field(default_factory=list)
     acceptance_checks: list[str] = field(default_factory=list)
+    completion_reviewed: bool = False
+    completion_evidence_passed: bool = False
+    completion_blockers: list[str] = field(default_factory=list)
+    completion_checks: list[str] = field(default_factory=list)
+    diff_paths: list[str] = field(default_factory=list)
+    verifier_strength: str = "custom"
     phase: str = "discover"
     stagnation_events: int = 0
     discovery_actions: int = 0

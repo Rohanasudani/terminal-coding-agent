@@ -41,6 +41,7 @@ class TermAgentHarbor(BaseAgent):
         reasoning_effort: str = "high",
         require_changes: bool = True,
         task_planning: bool = True,
+        strict_completion: bool | None = None,
         max_stagnation_events: int = 2,
         max_discovery_actions: int = 6,
         **kwargs,
@@ -57,6 +58,11 @@ class TermAgentHarbor(BaseAgent):
             raise ValueError("this adapter currently supports OpenAI model IDs only")
         if not all(isinstance(value, bool) for value in (controller_recovery, require_changes, task_planning)):
             raise TypeError("controller_recovery, require_changes, and task_planning must be booleans")
+        if strict_completion is not None and not isinstance(strict_completion, bool):
+            raise TypeError("strict_completion must be a boolean when provided")
+        resolved_strict_completion = task_planning if strict_completion is None else strict_completion
+        if resolved_strict_completion and not task_planning:
+            raise ValueError("strict completion requires task planning")
         if not PurePosixPath(repo).is_absolute() or not test_command.strip():
             raise ValueError("an absolute container repo and a visible verifier command are required")
         if max_steps < 1 or not math.isfinite(max_cost_usd) or max_cost_usd <= 0:
@@ -85,6 +91,7 @@ class TermAgentHarbor(BaseAgent):
             "reasoning_effort": reasoning_effort,
             "require_changes": require_changes,
             "task_planning": task_planning,
+            "strict_completion": resolved_strict_completion,
             "max_stagnation_events": max_stagnation_events,
             "max_discovery_actions": max_discovery_actions,
             "approval_mode": "auto",
@@ -188,6 +195,13 @@ class TermAgentHarbor(BaseAgent):
             "usage_is_complete": state["usage_is_complete"],
             "require_changes": self.settings["require_changes"],
             "task_planning": self.settings["task_planning"],
+            "strict_completion": self.settings["strict_completion"],
+            "completion_reviewed": state.get("completion_reviewed"),
+            "completion_evidence_passed": state.get("completion_evidence_passed"),
+            "completion_blockers": state.get("completion_blockers", []),
+            "completion_checks": state.get("completion_checks", []),
+            "diff_paths": state.get("diff_paths", []),
+            "verifier_strength": state.get("verifier_strength"),
             "phase": state.get("phase"),
             "stagnation_events": state.get("stagnation_events"),
             "max_stagnation_events": self.settings["max_stagnation_events"],
