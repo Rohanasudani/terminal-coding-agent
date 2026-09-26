@@ -5,6 +5,7 @@ import json
 from dataclasses import replace
 from pathlib import Path
 
+from . import __version__
 from .agent import TerminalAgent
 from .bench import run_benchmark, write_markdown_report, write_report
 from .campaign import render_campaign_report, verify_campaign, verify_campaign_controls
@@ -30,6 +31,7 @@ from .tools import ToolRegistry
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="termagent", description="Benchmarkable terminal coding agent")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     run = subparsers.add_parser("run", help="Run the agent against a repository task")

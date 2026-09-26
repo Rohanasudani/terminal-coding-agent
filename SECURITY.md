@@ -2,9 +2,9 @@
 
 TermAgent is a local developer tool. It is designed to reduce risk from agent-generated actions, but it is not a complete OS sandbox.
 
-## Supported Version
+## Supported Versions
 
-The `main` branch is the active development version.
+Security fixes are applied to the latest `1.x` release and the `main` branch.
 
 ## Reporting Security Issues
 

@@ -8,8 +8,8 @@ TermAgent is a Python terminal coding agent built around structured tools, expli
 safety gates, reproducible traces, and benchmark-driven development. It can inspect a
 repository, plan and preview edits, run verifiers, and report token and cost usage.
 
-The project is alpha software. It is useful on trusted local repositories, but it is
-not an operating-system sandbox and it does not claim a public Terminal-Bench score.
+TermAgent 1.0 is a beta release for trusted local repositories. It is not an
+operating-system sandbox and it does not claim a public Terminal-Bench score.
 
 ## What It Does
 
@@ -45,6 +45,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev]"
 termagent doctor
+termagent --version
 ```
 
 Python 3.11 or newer is required. Node.js is optional and is used by the JavaScript

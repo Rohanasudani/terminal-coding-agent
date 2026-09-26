@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "terminal-coding-agent"
-version = "0.1.0"
+version = "1.0.0"
 description = "A benchmarkable terminal coding agent with structured tools, safety gates, and command logging."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -13,7 +13,7 @@ authors = [{ name = "Rohan Asudani" }]
 dependencies = ["certifi>=2024.8.30"]
 keywords = ["ai-agent", "coding-agent", "benchmark", "terminal", "llm", "evals"]
 classifiers = [
-  "Development Status :: 3 - Alpha",
+  "Development Status :: 4 - Beta",
   "Environment :: Console",
   "Intended Audience :: Developers",
   "License :: OSI Approved :: MIT License",

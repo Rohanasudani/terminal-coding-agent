@@ -1,5 +1,9 @@
+import tomllib
 from pathlib import Path
 
+import pytest
+
+from termagent import __version__
 from termagent.cli import build_parser
 from termagent.tools import ToolRegistry
 
@@ -37,6 +41,7 @@ REQUIRED_DOCS = [
     "DESIGN.md",
     "SECURITY.md",
     "CONTRIBUTING.md",
+    "CHANGELOG.md",
     "docs/architecture.md",
     "docs/benchmarking.md",
     "docs/experiment-log.md",
@@ -49,6 +54,18 @@ def test_public_cli_exposes_required_commands():
     subparsers_action = next(action for action in parser._actions if action.dest == "command")
 
     assert REQUIRED_COMMANDS.issubset(subparsers_action.choices)
+
+
+def test_cli_and_package_metadata_expose_the_same_version(capsys):
+    repo_root = Path(__file__).parents[1]
+    metadata = tomllib.loads((repo_root / "pyproject.toml").read_text(encoding="utf-8"))
+
+    with pytest.raises(SystemExit) as exit_info:
+        build_parser().parse_args(["--version"])
+
+    assert exit_info.value.code == 0
+    assert capsys.readouterr().out.strip() == f"termagent {__version__}"
+    assert metadata["project"]["version"] == __version__
 
 
 def test_tool_registry_exposes_project_requirements(tmp_path: Path):
