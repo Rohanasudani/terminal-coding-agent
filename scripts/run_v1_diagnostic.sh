@@ -11,6 +11,19 @@ MANIFEST="$ROOT/bench/campaigns/v1-diagnostic.json"
 REPORT="$ROOT/.termagent/v1-diagnostic-results.md"
 SOURCE_COMMIT="489f4064e717486459e028b9bdbc1ef24c986071"
 WHEEL_SHA256="79c3413bfe8b91cf58a3954ce9524668750c6d8a0caae77689cfeb36047f7546"
+ARM="termagent"
+
+if [[ $# -gt 0 ]]; then
+  if [[ $# -ne 2 || "$1" != "--arm" ]]; then
+    echo "Usage: $0 [--arm termagent|codex|all]" >&2
+    exit 2
+  fi
+  ARM=$2
+fi
+if [[ "$ARM" != "termagent" && "$ARM" != "codex" && "$ARM" != "all" ]]; then
+  echo "Unsupported campaign arm: $ARM" >&2
+  exit 2
+fi
 
 ENV_ARGS=()
 if [[ -z "${OPENAI_API_KEY:-}" ]]; then
@@ -68,8 +81,12 @@ run_task() {
   local task=$1
   local repo=$2
   local verifier=$3
-  run_termagent "$task" "$repo" "$verifier"
-  run_codex "$task"
+  if [[ "$ARM" == "termagent" || "$ARM" == "all" ]]; then
+    run_termagent "$task" "$repo" "$verifier"
+  fi
+  if [[ "$ARM" == "codex" || "$ARM" == "all" ]]; then
+    run_codex "$task"
+  fi
 }
 
 run_task fix-git /app/personal-site "git log --oneline --all -5"
@@ -78,5 +95,9 @@ run_task modernize-scientific-stack /app "python /app/analyze_climate_modern.py"
 run_task query-optimize /app "sqlite3 /app/oewn.sqlite .read /app/sol.sql"
 run_task sanitize-git-repo /app/dclm "git status --short"
 
-"$TERMAGENT" campaign-report --manifest "$MANIFEST" --jobs-dir "$JOBS" --report "$REPORT"
-echo "V1 diagnostic campaign complete: $REPORT"
+if [[ "$ARM" == "all" ]]; then
+  "$TERMAGENT" campaign-report --manifest "$MANIFEST" --jobs-dir "$JOBS" --report "$REPORT"
+  echo "V1 diagnostic campaign complete: $REPORT"
+else
+  echo "V1 diagnostic $ARM arm complete. Run the other arm before rendering the report."
+fi

@@ -94,8 +94,18 @@ not the final repeated campaign. Its runner refuses to overwrite a completed tri
 
 ```bash
 harbor run --config bench/campaigns/v1-diagnostic-controls.json --yes
-./scripts/run_v1_diagnostic.sh
+./scripts/run_v1_diagnostic.sh --arm termagent
+./scripts/run_v1_diagnostic.sh --arm codex
+termagent campaign-report \
+  --manifest bench/campaigns/v1-diagnostic.json \
+  --jobs-dir .termagent/harbor-jobs \
+  --report .termagent/v1-diagnostic-results.md
 ```
+
+The runner defaults to the TermAgent arm. The Codex comparator does not expose a hard
+per-trial billing ceiling through Harbor, so it must be selected explicitly and run
+only under an external provider budget. A partial arm is retained but is not rendered
+as a complete campaign report.
 
 ## Campaign Commands
 
