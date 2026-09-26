@@ -248,6 +248,13 @@ optimization, Git security recovery, and parsing. The failures remain in the
 denominator and identify harder work in spatial/file interpretation, constrained
 scheduling, cross-language model conversion, and language implementation.
 
+The retained outputs make those failures more specific. The G-code trial wrote an
+incorrect decoded value. The scheduler repeatedly violated the final-diff-before-review
+ordering contract. The native model trial tried inline interpreter execution, which the
+safety policy blocks, instead of writing and running a reviewable script. The Scheme
+trial ended after repeated responses without a structured tool call. These are v1
+limitations; none was patched or rerun against this held-out set.
+
 This table is a partial campaign until the frozen same-model Codex arm is run. One
 trial per task supports a broad engineering checkpoint, not a stable leaderboard score
 or a claim that TermAgent matches another agent.
