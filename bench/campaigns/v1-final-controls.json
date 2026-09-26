@@ -1,0 +1,19 @@
+{
+  "job_name": "v1final-controls",
+  "jobs_dir": ".termagent/harbor-jobs",
+  "n_concurrent_trials": 1,
+  "agents": [
+    {"name": "oracle"},
+    {"name": "nop"}
+  ],
+  "tasks": [
+    {"path": ".termagent/v1-final-registry/terminal-bench-2/build-cython-ext"},
+    {"path": ".termagent/v1-final-registry/terminal-bench-2/custom-memory-heap-crash"},
+    {"path": ".termagent/v1-final-registry/terminal-bench-2/distribution-search"},
+    {"path": ".termagent/v1-final-registry/terminal-bench-2/git-leak-recovery"},
+    {"path": ".termagent/v1-final-registry/terminal-bench-2/llm-inference-batching-scheduler"},
+    {"path": ".termagent/v1-final-registry/terminal-bench-2/pytorch-model-cli"},
+    {"path": ".termagent/v1-final-registry/terminal-bench-2/regex-log"},
+    {"path": ".termagent/v1-final-registry/terminal-bench-2/schemelike-metacircular-eval"}
+  ]
+}
