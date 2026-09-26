@@ -1,0 +1,115 @@
+{
+  "schema_version": 2,
+  "campaign": "v1-final-r2-terminal-bench-2",
+  "report_title": "V1 Final Revision 2: Held-Out Terminal-Bench 2 Results",
+  "job_prefix": "v1finalr2",
+  "frozen_at": "2026-09-26",
+  "dataset": {
+    "name": "terminal-bench/terminal-bench-2",
+    "requested_ref": "latest",
+    "task_count_at_freeze": 89,
+    "selection_policy": "Selected from public instructions, task metadata, and container manifests only; excludes every task used in development, fixture benchmarks, or prior frozen campaigns. The one-shot set spans package builds, C++ debugging, numerical work, Git recovery, scheduling, native inference, parsing, and language implementation.",
+    "evaluation_design": "One trial per task and arm prioritizes breadth under a bounded student-project budget. Results are diagnostic evidence, not a stable leaderboard estimate.",
+    "revision_note": "Revision 1 was rejected before paid trials because the official build-cython-ext oracle scored zero. Revision 2 replaces only that task with gcode-to-text and must pass a fresh oracle/no-op gate."
+  },
+  "tasks": [
+    {
+      "name": "gcode-to-text",
+      "category": "file-analysis",
+      "content_sha256": "1cf9d58d97328e8f6501f800f92394b34b10279980357d34e83ba68d5aa3d675",
+      "repo": "/app",
+      "visible_verifier": "test -s /app/out.txt"
+    },
+    {
+      "name": "custom-memory-heap-crash",
+      "category": "cpp-memory-debugging",
+      "content_sha256": "1148f7ca1d71714e6069e0576cbabd7dffd923aaf5bca9c574aa9636dad1e265",
+      "repo": "/app",
+      "visible_verifier": "valgrind --error-exitcode=1 --leak-check=full /app/release"
+    },
+    {
+      "name": "distribution-search",
+      "category": "numerical-optimization",
+      "content_sha256": "d1029a9865eb8d57c45d7988f6e1b5862d978e83c41051d983cff120f134d54e",
+      "repo": "/app",
+      "visible_verifier": "test -s /app/dist.npy"
+    },
+    {
+      "name": "git-leak-recovery",
+      "category": "git-security-recovery",
+      "content_sha256": "2a1ff359def6f1df274271266cedc04960e1007dd21c6420ed37f2127104927c",
+      "repo": "/app",
+      "visible_verifier": "test -s /app/secret.txt"
+    },
+    {
+      "name": "llm-inference-batching-scheduler",
+      "category": "inference-scheduling",
+      "content_sha256": "11f2bdb764e8e3efa9bd61cde6fc8c4aa18f49481b595ef707570a0502588863",
+      "repo": "/app",
+      "visible_verifier": "test -s /app/task_file/output_data/plan_b1.jsonl"
+    },
+    {
+      "name": "pytorch-model-cli",
+      "category": "native-model-inference",
+      "content_sha256": "f908b7e158a9dae7e48b68049dbec7a740a4afd6953244e150bb36b4f5a54e63",
+      "repo": "/app",
+      "visible_verifier": "/app/cli_tool /app/weights.json /app/image.png"
+    },
+    {
+      "name": "regex-log",
+      "category": "data-parsing",
+      "content_sha256": "27ec2d689e2527abfa3943a67f292fd26237e3cee93ce716bb7ca838346a3a63",
+      "repo": "/app",
+      "visible_verifier": "test -s /app/regex.txt"
+    },
+    {
+      "name": "schemelike-metacircular-eval",
+      "category": "language-implementation",
+      "content_sha256": "edb73cf79523262b710af5acad9720ed55950ddcdbcfad7979d07e89a9cceeb9",
+      "repo": "/app",
+      "visible_verifier": "test -s /app/eval.scm"
+    }
+  ],
+  "trials_per_task": 1,
+  "harbor": {
+    "version": "0.22.0",
+    "concurrency": 1,
+    "retries": 0
+  },
+  "model": {
+    "provider": "openai",
+    "name": "gpt-5.6-luna"
+  },
+  "termagent": {
+    "source_commit": "edc6f548a863e66dcaff85838f08305777c58f71",
+    "wheel_sha256": "5c52bee27586d21ea0422c68aefcd8e3c240038127286b85264a2de406d99136",
+    "runtime_bundle_sha256": "8cb4059071745f0ed287334c9b1717ca2d9f4908d3e61c1746e0c83278da71eb",
+    "max_steps": 50,
+    "max_cost_usd_per_trial": 0.1,
+    "max_output_tokens_per_response": 4096,
+    "reasoning_effort": "high",
+    "prompt_profile": "benchmark",
+    "controller_recovery": true,
+    "task_planning": true,
+    "strict_completion": true,
+    "bootstrap_python": true,
+    "max_stagnation_events": 2,
+    "max_discovery_actions": 8
+  },
+  "arms": [
+    {
+      "name": "termagent-strict",
+      "agent": "termagent",
+      "selectors": {
+        "task_planning": true,
+        "strict_completion": true
+      }
+    },
+    {
+      "name": "codex-baseline",
+      "agent": "codex",
+      "version": "0.153.4"
+    }
+  ],
+  "controls": ["oracle", "nop"]
+}
