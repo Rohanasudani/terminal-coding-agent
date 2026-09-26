@@ -126,8 +126,11 @@ termagent campaign-report \
 ```
 
 The TermAgent arm has a $0.10 model-cost ceiling per trial and no retries. The Codex arm
-uses each task's timeout but Harbor's adapter has no hard dollar ceiling, so it requires
-an explicit external budget decision before execution.
+uses each task's timeout but Harbor's adapter has no hard per-trial dollar ceiling, so it
+requires an explicit external budget decision before execution. The runner checks known
+Codex usage between trials, stops at $1.00 by default, stops immediately after unknown
+usage, and resumes by skipping validated completed jobs. Set a different staged limit
+explicitly with `--codex-max-known-cost-usd`; one in-flight trial can still overshoot it.
 
 ## Campaign Commands
 
