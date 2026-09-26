@@ -35,7 +35,7 @@ class ProgressLedger:
     _cycle_no_new_evidence: int = field(default=0, init=False)
     _evidence_signatures: set[str] = field(default_factory=set, init=False)
 
-    discovery_tools = frozenset({"search", "read_file", "code_map", "find_references"})
+    discovery_tools = frozenset({"search", "list_files", "read_file", "code_map", "find_references"})
 
     def record_proposal(self, call: ToolCall) -> bool:
         """Return true when an inspection proposal repeats without intervening progress."""

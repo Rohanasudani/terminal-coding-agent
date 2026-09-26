@@ -149,9 +149,11 @@ python scripts/check_harbor_runtime.py
 
 The Harbor adapter probes `python3.13`, `python3.12`, `python3.11`, and `python3` in
 that order, requires Python 3.11 or newer, and validates `termagent` plus `certifi`
-before starting a trial. It records the selected interpreter, wheel names, TermAgent
-wheel hash, and aggregate bundle hash. Images without Python 3.11+ fail during setup
-with the bounded probe diagnostics and do not become model-quality failures.
+before starting a trial. When no compatible interpreter exists, the adapter can use a
+supported system package manager to install Python and then re-probe. It records the
+selected interpreter, bootstrap state, wheel names, TermAgent wheel hash, and aggregate
+bundle hash. Images where both probing and bounded bootstrap fail remain setup errors
+and do not become model-quality failures.
 
 ## Independent Grading
 

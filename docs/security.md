@@ -34,6 +34,11 @@ File paths are resolved against the configured repository root. Absolute paths a
 parent traversal that escape the root are rejected. Search and code-map operations skip
 dependency, build, trace, and version-control directories.
 
+Ignored-file search is opt-in and intended for tasks such as repository credential
+remediation. Even in that mode, local credential filenames such as `.env`, `.npmrc`,
+private key names, and certificate-key containers remain excluded from search and file
+listing output.
+
 ### Command boundary
 
 Commands are tokenized with `shlex` and executed with `shell=False`. Shell control
@@ -73,8 +78,10 @@ not enter the grading copy. Harbor tasks use their own external verifier.
 - Snapshot diffs omit symlink targets, generated directories, and common local
   credential files; Git-backed diffs include nonignored untracked files
 - Git diff disables configured external diff programs and text converters
+- Git diff anchors tracked changes to the run's starting commit
 - Harbor accepts only regular pure-Python wheel artifacts, requires the declared
-  `certifi` dependency, and records an aggregate runtime-bundle hash
+  `certifi` dependency, records an aggregate runtime-bundle hash, and records whether
+  Python had to be bootstrapped in the task image
 
 ## Secrets And Artifacts
 
@@ -102,6 +109,9 @@ is known.
   bypass tool validation directly.
 - Git-tracked secret files can still appear in Git diffs. Snapshot exclusions are a
   defense against accidental local-file disclosure, not secret scanning.
+- Explicit ignored-file search can expose repository content to the configured model;
+  local credential filenames remain excluded, but task repositories should still be
+  reviewed before live-provider use.
 - The filesystem snapshot fallback reads eligible files and can be expensive on large
   repositories.
 - JavaScript and TypeScript indexing uses a conservative scanner rather than a complete

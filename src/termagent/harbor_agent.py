@@ -18,6 +18,7 @@ from .harbor_runtime import (
     format_probe_failure,
     load_runtime_bundle,
     parse_python_probe,
+    python_bootstrap_command,
     python_probe_command,
     runtime_environment,
     runtime_metadata,
@@ -42,6 +43,7 @@ class TermAgentHarbor(BaseAgent):
         require_changes: bool = True,
         task_planning: bool = True,
         strict_completion: bool | None = None,
+        bootstrap_python: bool = True,
         max_stagnation_events: int = 2,
         max_discovery_actions: int = 6,
         **kwargs,
@@ -60,6 +62,8 @@ class TermAgentHarbor(BaseAgent):
             raise TypeError("controller_recovery, require_changes, and task_planning must be booleans")
         if strict_completion is not None and not isinstance(strict_completion, bool):
             raise TypeError("strict_completion must be a boolean when provided")
+        if not isinstance(bootstrap_python, bool):
+            raise TypeError("bootstrap_python must be a boolean")
         resolved_strict_completion = task_planning if strict_completion is None else strict_completion
         if resolved_strict_completion and not task_planning:
             raise ValueError("strict completion requires task planning")
@@ -78,6 +82,8 @@ class TermAgentHarbor(BaseAgent):
         if reasoning_effort not in {"minimal", "low", "medium", "high"}:
             raise ValueError("unsupported reasoning effort")
         self.wheel_hash = self.runtime_bundle.termagent_sha256
+        self.bootstrap_python = bootstrap_python
+        self.runtime_bootstrapped = False
         self.settings = {
             "repo": repo,
             "provider": provider,
@@ -106,21 +112,19 @@ class TermAgentHarbor(BaseAgent):
 
     async def setup(self, environment: BaseEnvironment) -> None:
         await environment.upload_dir(self.wheel_dir, "/opt/termagent-wheels")
-        failures: list[str] = []
-        for candidate in PYTHON_CANDIDATES:
-            result = await environment.exec(
-                command=python_probe_command(candidate), user="root", timeout_sec=20,
+        failures = await self._probe_python(environment)
+        if self.runtime is None and self.bootstrap_python:
+            bootstrap = await environment.exec(
+                command=python_bootstrap_command(), user="root", timeout_sec=300,
             )
-            if result.return_code != 0:
+            if bootstrap.return_code == 0:
+                self.runtime_bootstrapped = True
+                failures.extend(await self._probe_python(environment))
+            else:
+                detail = " ".join((bootstrap.stdout or bootstrap.stderr or "no output").split())[:300]
                 failures.append(
-                    format_probe_failure(candidate, result.return_code, result.stdout or result.stderr or "")
+                    f"Python bootstrap failed with exit {bootstrap.return_code}: {detail}"
                 )
-                continue
-            try:
-                self.runtime = parse_python_probe(result.stdout or "")
-                break
-            except ValueError as exc:
-                failures.append(f"{candidate} (invalid probe: {exc})")
 
         if self.runtime is None:
             detail = "; ".join(failures)
@@ -140,6 +144,24 @@ class TermAgentHarbor(BaseAgent):
             raise RuntimeError(
                 "TermAgent wheel bundle could not be imported in the task container: " + detail
             )
+
+    async def _probe_python(self, environment: BaseEnvironment) -> list[str]:
+        failures: list[str] = []
+        for candidate in PYTHON_CANDIDATES:
+            result = await environment.exec(
+                command=python_probe_command(candidate), user="root", timeout_sec=20,
+            )
+            if result.return_code != 0:
+                failures.append(
+                    format_probe_failure(candidate, result.return_code, result.stdout or result.stderr or "")
+                )
+                continue
+            try:
+                self.runtime = parse_python_probe(result.stdout or "")
+                break
+            except ValueError as exc:
+                failures.append(f"{candidate} (invalid probe: {exc})")
+        return failures
 
     async def run(self, instruction: str, environment: BaseEnvironment, context: AgentContext) -> None:
         if self.runtime is None:
@@ -196,6 +218,8 @@ class TermAgentHarbor(BaseAgent):
             "require_changes": self.settings["require_changes"],
             "task_planning": self.settings["task_planning"],
             "strict_completion": self.settings["strict_completion"],
+            "bootstrap_python": self.bootstrap_python,
+            "runtime_bootstrapped": self.runtime_bootstrapped,
             "completion_reviewed": state.get("completion_reviewed"),
             "completion_evidence_passed": state.get("completion_evidence_passed"),
             "completion_blockers": state.get("completion_blockers", []),

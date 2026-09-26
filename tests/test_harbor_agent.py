@@ -54,7 +54,7 @@ def test_adapter_install_uses_uploaded_wheels_offline(tmp_path):
 
 
 def test_setup_reports_all_missing_python_candidates(tmp_path):
-    agent = make_agent(tmp_path, provider="fixture")
+    agent = make_agent(tmp_path, provider="fixture", bootstrap_python=False)
     environment = AsyncMock()
     environment.exec.return_value = ExecResult(return_code=127, stderr="command not found")
 
@@ -66,6 +66,30 @@ def test_setup_reports_all_missing_python_candidates(tmp_path):
     assert "python3.12" in str(error.value)
     assert "python3.11" in str(error.value)
     assert "python3" in str(error.value)
+
+
+def test_setup_bootstraps_python_then_reprobes(tmp_path):
+    agent = make_agent(tmp_path, provider="fixture", bootstrap_python=True)
+    environment = AsyncMock()
+    missing = ExecResult(return_code=127, stderr="command not found")
+    environment.exec.side_effect = [
+        missing,
+        missing,
+        missing,
+        missing,
+        ExecResult(return_code=0, stdout="installed python3\n"),
+        ExecResult(
+            return_code=0,
+            stdout='{"executable":"/usr/bin/python3","version":[3,12,3]}\n',
+        ),
+        ExecResult(return_code=0, stdout="termagent-runtime-ok\n"),
+    ]
+
+    asyncio.run(agent.setup(environment))
+
+    assert agent.runtime == PythonRuntime("/usr/bin/python3", (3, 12, 3))
+    assert agent.runtime_bootstrapped is True
+    assert "apt-get" in environment.exec.await_args_list[4].kwargs["command"]
 
 
 def test_setup_reports_runtime_bundle_import_failure(tmp_path):

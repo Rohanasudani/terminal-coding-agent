@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import shlex
 from dataclasses import dataclass
 from pathlib import Path
@@ -168,9 +169,16 @@ def assess_completion(
         elif not review.ready:
             blockers.append("the completion review did not mark the task ready")
         else:
-            reviewed = [item.criterion for item in review.acceptance_evidence]
+            reviewed = [
+                _resolve_criterion(item.criterion, acceptance_checks)
+                for item in review.acceptance_evidence
+            ]
             missing_evidence = [check for check in acceptance_checks if check not in reviewed]
-            unexpected_evidence = [criterion for criterion in reviewed if criterion not in acceptance_checks]
+            unexpected_evidence = [
+                item.criterion
+                for item, criterion in zip(review.acceptance_evidence, reviewed, strict=True)
+                if criterion is None
+            ]
             if missing_evidence:
                 blockers.append(
                     "acceptance checks lack review evidence: " + ", ".join(missing_evidence)
@@ -192,3 +200,13 @@ def assess_completion(
         changed_paths=changed_paths,
         verifier_strength=strength,
     )
+
+
+def _resolve_criterion(value: str, acceptance_checks: tuple[str, ...]) -> str | None:
+    if value in acceptance_checks:
+        return value
+    match = re.fullmatch(r"C([1-9][0-9]*)", value.strip(), flags=re.IGNORECASE)
+    if match is None:
+        return None
+    index = int(match.group(1)) - 1
+    return acceptance_checks[index] if index < len(acceptance_checks) else None

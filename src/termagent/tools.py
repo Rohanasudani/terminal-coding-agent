@@ -44,6 +44,7 @@ class ToolRegistry:
         self.approval_mode = approval_mode
         self.allow_network = allow_network
         self._git_repo_at_start = self._is_git_repo()
+        self._baseline_head = self._git_head() if self._git_repo_at_start else None
         self._baseline = self._snapshot()
 
     def specs(self) -> list[ToolSpec]:
@@ -68,8 +69,22 @@ class ToolRegistry:
             ),
             ToolSpec(
                 "search",
-                "Search repository text with ripgrep when available.",
-                {"query": "string", "glob": "optional string"},
+                "Search repository text with consistent extended regular expressions.",
+                {
+                    "query": "string",
+                    "glob": "optional string",
+                    "include_ignored": "optional boolean",
+                },
+            ),
+            ToolSpec(
+                "list_files",
+                "List repository files without following symbolic links.",
+                {
+                    "path": "optional string",
+                    "glob": "optional string",
+                    "limit": "optional int",
+                    "include_ignored": "optional boolean",
+                },
             ),
             ToolSpec(
                 "read_file",
@@ -129,7 +144,18 @@ class ToolRegistry:
                     arguments.get("ready"),
                 )
             if name == "search":
-                return self.search(str(arguments.get("query", "")), arguments.get("glob"))
+                return self.search(
+                    str(arguments.get("query", "")),
+                    arguments.get("glob"),
+                    arguments.get("include_ignored", False),
+                )
+            if name == "list_files":
+                return self.list_files(
+                    arguments.get("path", "."),
+                    arguments.get("glob"),
+                    arguments.get("limit", 200),
+                    arguments.get("include_ignored", False),
+                )
             if name == "read_file":
                 return self.read_file(
                     str(arguments.get("path", "")),
@@ -178,7 +204,12 @@ class ToolRegistry:
         }
         lines = [f"Goal: {plan.summary}"]
         lines.append("Expected paths: " + (", ".join(plan.expected_paths) or "not known yet"))
-        lines.append("Acceptance checks: " + "; ".join(plan.acceptance_checks))
+        lines.append(
+            "Acceptance checks: "
+            + "; ".join(
+                f"C{index}: {check}" for index, check in enumerate(plan.acceptance_checks, start=1)
+            )
+        )
         return ToolResult("ok", "\n".join(lines), metadata)
 
     def submit_completion_review(
@@ -199,17 +230,46 @@ class ToolRegistry:
         status = "ready" if review.ready else "not ready"
         return ToolResult("ok", f"Completion review recorded: {status}.", metadata)
 
-    def search(self, query: str, glob: object | None = None) -> ToolResult:
+    def search(
+        self,
+        query: str,
+        glob: object | None = None,
+        include_ignored: object = False,
+    ) -> ToolResult:
         if not query:
             return ToolResult("error", "query is required")
+        if not isinstance(include_ignored, bool):
+            raise TypeError("include_ignored must be a boolean")
 
         if shutil.which("rg"):
             command = ["rg", "-n", "--hidden", "--glob", "!.git"]
+            command.extend(self._private_exclusion_globs())
+            if include_ignored:
+                command.append("--no-ignore")
             if glob:
                 command.extend(["--glob", str(glob)])
-            command.append(query)
+            command.extend(["--", query])
+        elif self._is_git_repo() and not include_ignored:
+            command = ["git", "grep", "-n", "-E", "-e", query, "--"]
+            command.extend([
+                str(glob) if glob else ".",
+                ":(exclude)**/.env", ":(exclude)**/.env.*",
+                ":(exclude)**/.npmrc", ":(exclude)**/.pypirc",
+                ":(exclude)**/.netrc", ":(exclude)**/id_rsa",
+                ":(exclude)**/id_ed25519", ":(exclude)**/*.pem",
+                ":(exclude)**/*.p12", ":(exclude)**/*.pfx",
+            ])
         else:
-            command = ["grep", "-RIn", query, "."]
+            command = [
+                "grep", "-REIn", "--exclude-dir=.git",
+                "--exclude=.env", "--exclude=.env.*", "--exclude=.npmrc",
+                "--exclude=.pypirc", "--exclude=.netrc", "--exclude=id_rsa",
+                "--exclude=id_ed25519", "--exclude=*.pem", "--exclude=*.p12",
+                "--exclude=*.pfx",
+            ]
+            if glob:
+                command.append(f"--include={glob}")
+            command.extend(["-e", query, "--", "."])
 
         completed = subprocess.run(
             command,
@@ -219,8 +279,58 @@ class ToolRegistry:
             timeout=20,
             check=False,
         )
-        output = completed.stdout.strip() or completed.stderr.strip() or "no matches"
-        return ToolResult("ok", output[:12_000], {"returncode": completed.returncode})
+        raw_output = completed.stdout.strip() or completed.stderr.strip() or "no matches"
+        truncated = len(raw_output) > 12_000
+        output = raw_output[:11_970] + "\n[search output truncated]" if truncated else raw_output
+        return ToolResult(
+            "ok",
+            output,
+            {
+                "returncode": completed.returncode,
+                "match_lines": len(completed.stdout.splitlines()),
+                "truncated": truncated,
+                "include_ignored": include_ignored,
+            },
+        )
+
+    def list_files(
+        self,
+        path: object = ".",
+        glob: object | None = None,
+        limit: object = 200,
+        include_ignored: object = False,
+    ) -> ToolResult:
+        if not isinstance(path, str) or not path:
+            raise TypeError("path must be a non-empty string")
+        if glob is not None and not isinstance(glob, str):
+            raise TypeError("glob must be a string when provided")
+        if not isinstance(limit, int) or isinstance(limit, bool):
+            raise TypeError("limit must be an integer")
+        if not isinstance(include_ignored, bool):
+            raise TypeError("include_ignored must be a boolean")
+        target = resolve_inside_root(self.repo, path)
+        if not target.exists():
+            return ToolResult("error", f"path not found: {path}")
+
+        candidates = self._listed_paths(target, include_ignored=include_ignored)
+        if glob:
+            candidates = [candidate for candidate in candidates if candidate.match(glob)]
+        bounded_limit = max(1, min(limit, 1_000))
+        truncated = len(candidates) > bounded_limit
+        selected = candidates[:bounded_limit]
+        output = "\n".join(candidate.as_posix() for candidate in selected) or "no files"
+        if truncated:
+            output += "\n[file list truncated]"
+        return ToolResult(
+            "ok",
+            output,
+            {
+                "count": len(candidates),
+                "returned": len(selected),
+                "truncated": truncated,
+                "include_ignored": include_ignored,
+            },
+        )
 
     def read_file(self, path: str, start: int = 1, limit: int = 200) -> ToolResult:
         target = resolve_inside_root(self.repo, path)
@@ -367,9 +477,14 @@ class ToolRegistry:
 
         return ToolResult("ok", self._snapshot_diff(), {"source": "snapshot"})
 
+    def has_changes(self) -> bool:
+        result = self.git_diff()
+        return result.status == "ok" and result.output.strip() not in {"", "no diff"}
+
     def _git_diff(self) -> ToolResult:
+        baseline = self._baseline_head or "HEAD"
         completed = subprocess.run(
-            ["git", "diff", "--no-ext-diff", "--no-textconv", "HEAD", "--", "."],
+            ["git", "diff", "--no-ext-diff", "--no-textconv", baseline, "--", "."],
             cwd=self.repo,
             text=True,
             capture_output=True,
@@ -407,7 +522,12 @@ class ToolRegistry:
         truncated = len(combined) > 20_000
         return ToolResult(
             "ok", combined[:19_970] + "\n[diff truncated]" if truncated else combined,
-            {"source": "git+snapshot", "truncated": truncated},
+            {
+                "source": "git+snapshot",
+                "truncated": truncated,
+                "baseline_head": self._baseline_head,
+                "current_head": self._git_head(),
+            },
         )
 
     def _is_git_repo(self) -> bool:
@@ -425,6 +545,65 @@ class ToolRegistry:
         except OSError:
             return False
         return completed.returncode == 0 and completed.stdout.strip() == "true"
+
+    def _git_head(self) -> str | None:
+        completed = subprocess.run(
+            ["git", "rev-parse", "--verify", "HEAD"],
+            cwd=self.repo,
+            text=True,
+            capture_output=True,
+            timeout=5,
+            check=False,
+        )
+        value = completed.stdout.strip()
+        return value if completed.returncode == 0 and len(value) == 40 else None
+
+    def _listed_paths(self, target: Path, *, include_ignored: bool) -> list[Path]:
+        if target.is_file():
+            relative = target.relative_to(self.repo)
+            return [] if self._skip_snapshot_path(relative) else [relative]
+
+        if self._is_git_repo() and not include_ignored:
+            completed = subprocess.run(
+                ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z", "--", "."],
+                cwd=self.repo,
+                capture_output=True,
+                timeout=20,
+                check=False,
+            )
+            if completed.returncode != 0:
+                raise OSError("Git could not list repository files")
+            prefix = target.relative_to(self.repo)
+            paths = [Path(os.fsdecode(item)) for item in completed.stdout.split(b"\0") if item]
+            return sorted(
+                candidate
+                for candidate in paths
+                if (prefix == Path(".") or candidate == prefix or prefix in candidate.parents)
+                and not self._skip_snapshot_path(candidate)
+            )
+
+        paths = []
+        for root, dirs, files in os.walk(target, followlinks=False):
+            dirs[:] = [
+                name for name in dirs
+                if name not in SNAPSHOT_IGNORED_DIRS and not (Path(root) / name).is_symlink()
+            ]
+            for name in files:
+                candidate = Path(root) / name
+                relative = candidate.relative_to(self.repo)
+                if candidate.is_symlink() or self._skip_snapshot_path(relative):
+                    continue
+                paths.append(relative)
+        return sorted(paths)
+
+    @staticmethod
+    def _private_exclusion_globs() -> list[str]:
+        return [
+            "--glob", "!.env", "--glob", "!.env.*", "--glob", "!.npmrc",
+            "--glob", "!.pypirc", "--glob", "!.netrc", "--glob", "!id_rsa",
+            "--glob", "!id_ed25519", "--glob", "!*.pem", "--glob", "!*.p12",
+            "--glob", "!*.pfx",
+        ]
 
     def _snapshot(self) -> dict[str, str]:
         # TODO: Index non-Git baselines incrementally for very large source trees.

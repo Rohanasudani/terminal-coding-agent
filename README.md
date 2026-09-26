@@ -13,7 +13,7 @@ not an operating-system sandbox and it does not claim a public Terminal-Bench sc
 
 ## What It Does
 
-- repository search plus Python, JavaScript, and TypeScript symbol indexing
+- bounded file listing, regex search, and Python/JavaScript/TypeScript symbol indexing
 - single-file and grouped patch previews before writes
 - repository-root path confinement
 - shell command classification with approval modes
@@ -118,11 +118,13 @@ The project keeps failed trials instead of reporting only successful demos.
 | Same-model development task | 3/3 | Codex 3/3 | Integration evidence only |
 | First frozen Terminal-Bench 2 subset | 0/3 per planning arm | Codex 2/3 | One error per TermAgent arm |
 | Post-recovery frozen subset | 0/3 per planning arm | Codex 3/3 | One setup error per TermAgent arm |
+| V1 held-out diagnostic, partial | 1/5 | pending | TermAgent arm only; one setup error |
 
-The latest external run identified three concrete gaps: portable installation across
-task images, stronger completion checks, and better conversion of repository evidence
-into correct edits. The first two now have implementation changes awaiting a new held-out
-campaign. These are limited one-trial subsets, not leaderboard results.
+The v1 diagnostic TermAgent arm cost $0.063600 in known model usage. It exposed premature
+completion after a baseline verifier pass, inconsistent regex behavior without `rg`,
+insufficient support for exhaustive data tasks, and a task image without Python. Those
+findings now have regression-tested implementation changes. The comparator arm is still
+pending, so this is not a completed comparison or a leaderboard result.
 
 Methods, versions, task checksums, costs, and failure analysis are in
 [docs/experiment-log.md](docs/experiment-log.md). The exact frozen campaign settings
@@ -157,4 +159,4 @@ paths under `.termagent/`.
 - incremental repository snapshots for large codebases
 - tree-sitter-backed JavaScript and TypeScript indexing
 - a newly frozen diagnostic campaign using the portable runtime and strict completion
-- broader repeated external evaluation after diagnostic failures are addressed
+- a same-model comparator run and newly frozen post-improvement campaign

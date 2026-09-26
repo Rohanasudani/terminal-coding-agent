@@ -20,6 +20,7 @@ REQUIRED_TOOLS = {
     "set_task_plan",
     "submit_completion_review",
     "search",
+    "list_files",
     "read_file",
     "code_map",
     "find_references",

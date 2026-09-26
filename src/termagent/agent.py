@@ -55,6 +55,7 @@ class TerminalAgent:
         self.progress = ProgressLedger(enabled=config.task_planning)
         self.latest_diff: str | None = None
         self.completion_review: CompletionReview | None = None
+        self.change_observed = False
 
     def run(self) -> AgentState:
         state = AgentState()
@@ -329,11 +330,15 @@ class TerminalAgent:
                 content_hash = result.metadata.get("content_sha256")
                 if isinstance(relative_path, str) and isinstance(content_hash, str):
                     self.planned_writes.discard((relative_path, content_hash))
+                if result.output != "file unchanged":
+                    self.change_observed = True
                 self.progress.reset_discovery_cycle()
                 self.progress.mark_progress("verify")
             if call.name == "write_patch_set" and result.status == "ok":
                 last_failed_test_command = None
                 self._record_grouped_write(state, result.metadata)
+                if result.output != "files unchanged":
+                    self.change_observed = True
                 self.progress.reset_discovery_cycle()
                 self.progress.mark_progress("verify")
 
@@ -341,9 +346,22 @@ class TerminalAgent:
                 command = call.arguments.get("command", "")
                 state.test_runs.append(command)
                 passed = result.status == "ok" and result.metadata.get("returncode") == 0
-                state.tests_passed = passed
+                baseline_pass = passed and self.config.require_changes and not self.change_observed
+                state.tests_passed = passed and not baseline_pass
                 last_failed_test_command = None if passed else command
-                if not passed:
+                if baseline_pass:
+                    observations[-1] += (
+                        "\n\ncontroller_guidance: baseline_verifier_pass\n"
+                        "The verifier passes, but no change from the run baseline is visible. Treat this "
+                        "as environment evidence, inspect the requested task state, and do not begin "
+                        "completion review yet."
+                    )
+                    self.logger.write(
+                        "baseline_verifier_pass",
+                        {"step": step, "command": command},
+                    )
+                    self.progress.mark_progress("discover")
+                elif not passed:
                     state.failed_test_runs += 1
                     observations[-1] += (
                         "\n\ncontroller_guidance: next_action\n"
@@ -363,6 +381,15 @@ class TerminalAgent:
                     self.progress.reset_discovery_cycle()
                 else:
                     self.progress.mark_progress("review")
+
+            if (
+                call.name == "run_shell"
+                and result.status == "ok"
+                and not self._is_verifier(call.arguments.get("command"))
+                and result.metadata.get("returncode") == 0
+                and self.tools.has_changes()
+            ):
+                self.change_observed = True
 
             if call.name == "run_shell" and result.status == "ok":
                 command = call.arguments.get("command")
@@ -505,6 +532,7 @@ class TerminalAgent:
             "set_task_plan": {"summary", "expected_paths", "acceptance_checks"},
             "submit_completion_review": {"acceptance_evidence", "residual_risks", "ready"},
             "search": {"query"},
+            "list_files": set(),
             "read_file": {"path"},
             "code_map": set(),
             "find_references": {"symbol"},
@@ -521,7 +549,8 @@ class TerminalAgent:
         allowed_args = {
             "set_task_plan": {"summary", "expected_paths", "acceptance_checks"},
             "submit_completion_review": {"acceptance_evidence", "residual_risks", "ready"},
-            "search": {"query", "glob"},
+            "search": {"query", "glob", "include_ignored"},
+            "list_files": {"path", "glob", "limit", "include_ignored"},
             "read_file": {"path", "start", "limit"},
             "code_map": {"query", "limit"},
             "find_references": {"symbol", "limit"},

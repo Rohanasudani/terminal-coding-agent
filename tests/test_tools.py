@@ -82,6 +82,82 @@ def test_code_map_and_references_tools(tmp_path: Path):
     assert "module.py:4" in references.output
 
 
+def test_search_fallback_uses_extended_regular_expressions(tmp_path: Path, monkeypatch):
+    (tmp_path / "config.yaml").write_text(
+        "AWS_ACCESS_KEY_ID=example\nHUGGINGFACE_TOKEN=example\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("termagent.tools.shutil.which", lambda command: None)
+    tools = ToolRegistry(tmp_path, "auto")
+
+    result = tools.call(
+        "search",
+        {"query": "AWS_ACCESS_KEY_ID|HUGGINGFACE_TOKEN", "include_ignored": True},
+    )
+
+    assert result.status == "ok"
+    assert "AWS_ACCESS_KEY_ID" in result.output
+    assert "HUGGINGFACE_TOKEN" in result.output
+    assert result.metadata["match_lines"] == 2
+
+
+def test_search_reports_truncation(tmp_path: Path):
+    (tmp_path / "large.txt").write_text("match value\n" * 2_000, encoding="utf-8")
+    tools = ToolRegistry(tmp_path, "auto")
+
+    result = tools.call("search", {"query": "match", "include_ignored": False})
+
+    assert result.status == "ok"
+    assert result.metadata["truncated"] is True
+    assert result.output.endswith("[search output truncated]")
+
+
+def test_search_treats_dash_prefixed_pattern_as_data(tmp_path: Path):
+    (tmp_path / "notes.txt").write_text("--token-marker\n", encoding="utf-8")
+    tools = ToolRegistry(tmp_path, "auto")
+
+    result = tools.call(
+        "search",
+        {"query": "--token-marker", "include_ignored": False},
+    )
+
+    assert result.status == "ok"
+    assert "--token-marker" in result.output
+
+
+def test_git_search_excludes_tracked_private_credential_files(tmp_path: Path):
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    (tmp_path / ".env").write_text("MARKER=private-value\n", encoding="utf-8")
+    (tmp_path / "source.txt").write_text("MARKER=public-example\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-f", ".env", "source.txt"], cwd=tmp_path, check=True)
+    tools = ToolRegistry(tmp_path, "auto")
+
+    result = tools.call("search", {"query": "MARKER", "include_ignored": False})
+
+    assert result.status == "ok"
+    assert "public-example" in result.output
+    assert "private-value" not in result.output
+
+
+def test_list_files_can_include_ignored_content_but_not_private_files(tmp_path: Path):
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    (tmp_path / ".gitignore").write_text("ignored/\n.env\n", encoding="utf-8")
+    (tmp_path / "tracked.py").write_text("value = 1\n", encoding="utf-8")
+    (tmp_path / "ignored").mkdir()
+    (tmp_path / "ignored" / "input.log").write_text("data\n", encoding="utf-8")
+    (tmp_path / ".env").write_text("API_KEY=private\n", encoding="utf-8")
+    subprocess.run(["git", "add", "tracked.py", ".gitignore"], cwd=tmp_path, check=True)
+    tools = ToolRegistry(tmp_path, "auto")
+
+    normal = tools.call("list_files", {"include_ignored": False})
+    expanded = tools.call("list_files", {"include_ignored": True})
+
+    assert "tracked.py" in normal.output
+    assert "ignored/input.log" not in normal.output
+    assert "ignored/input.log" in expanded.output
+    assert ".env" not in expanded.output.splitlines()
+
+
 def test_patch_set_previews_and_writes_grouped_diff(tmp_path: Path):
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -368,3 +444,26 @@ def test_git_diff_does_not_execute_repository_external_diff(tmp_path: Path):
     assert result.status == "ok"
     assert "+value = 2" in result.output
     assert not marker.exists()
+
+
+def test_git_diff_includes_commits_created_after_run_start(tmp_path: Path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    target = repo / "site.md"
+    target.write_text("before\n", encoding="utf-8")
+    subprocess.run(["git", "add", "site.md"], cwd=repo, check=True)
+    commit = ["git", "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit"]
+    subprocess.run([*commit, "-qm", "base"], cwd=repo, check=True)
+    tools = ToolRegistry(repo, "auto")
+
+    target.write_text("after\n", encoding="utf-8")
+    subprocess.run(["git", "add", "site.md"], cwd=repo, check=True)
+    subprocess.run([*commit, "-qm", "recovered work"], cwd=repo, check=True)
+    result = tools.call("git_diff", {})
+
+    assert result.status == "ok"
+    assert "-before" in result.output
+    assert "+after" in result.output
+    assert result.metadata["baseline_head"] != result.metadata["current_head"]
+    assert tools.has_changes() is True

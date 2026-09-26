@@ -180,3 +180,35 @@ The unsuccessful campaigns drove concrete runtime work:
 The next meaningful quality campaign should use a newly frozen public task set, a
 compatible Python 3.11+ task image, the strict completion policy, and more than one trial
 per arm. The historical zero-reward runs should remain available as the baseline.
+
+## V1 Held-Out Diagnostic, TermAgent Arm
+
+Five tasks were selected from public instructions and metadata without inspecting their
+grader implementations. All had oracle reward 1, no-op reward 0, and no control
+exceptions. The exact manifest is `bench/campaigns/v1-diagnostic.json`. This table is a
+partial campaign: the same-model Codex arm has not run, so no comparative conclusion is
+available.
+
+| Task | Reward | Error | Input tokens | Output tokens | Known cost | Duration |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `fix-git` | 0 | no | 22,256 | 2,436 | $0.007374 | 71.6 s |
+| `log-summary-date-ranges` | 0 | no | 89,343 | 18,018 | $0.039494 | 225.5 s |
+| `modernize-scientific-stack` | 1 | no | 29,945 | 3,172 | $0.009795 | 73.1 s |
+| `query-optimize` | unknown | yes | unknown | unknown | unknown | 13.8 s |
+| `sanitize-git-repo` | 0 | no | 14,223 | 3,410 | $0.006937 | 70.5 s |
+| **Aggregate** | **1/5** | **1** | **155,767** | **27,036** | **$0.063600 partial** | **454.5 s** |
+
+The run exposed four distinct problems. A verifier that passed before any change pushed
+the Git-recovery task toward completion too early. The no-`rg` search fallback treated
+alternation as literal text, so credential discovery returned false negatives. The log
+task inferred exhaustive counts from truncated evidence instead of executing a program
+over every input. The SQL image lacked Python 3.11+, causing setup to fail before a model
+call. The scientific modernization task passed its independent grader.
+
+The resulting changes are general runtime work rather than fixture answers: baseline
+passes no longer satisfy required-change completion, Git diffs anchor to the starting
+commit, fallback search uses extended regular expressions, ignored-file search and file
+listing are explicit bounded tools, search truncation is reported, completion checks use
+stable criterion IDs, and Harbor can bootstrap Python through a supported package
+manager. These changes require a newly frozen post-improvement set; the `1/5` result
+remains unchanged.

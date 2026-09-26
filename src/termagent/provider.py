@@ -197,9 +197,9 @@ def provider_system_prompt(
     base = (
         "You are TermAgent, a terminal coding agent. Choose exactly one tool call. "
         "Start by gathering evidence with the configured verifier command, code_map, "
-        "find_references, search, or read_file. "
+        "find_references, search, list_files, or read_file. "
         "Prefer code_map for Python, JavaScript, and TypeScript symbol discovery and find_references before broad edits. "
-        "Do not use run_shell for file discovery; use search, code_map, find_references, or read_file instead. "
+        "Do not use run_shell for file discovery; use search, list_files, code_map, find_references, or read_file instead. "
         "When running tests, call run_shell with exactly the configured verifier command. "
         "After a verifier failure, do not call run_shell again until after a write_file or write_patch_set succeeds. "
         "run_shell accepts one argv-style command only: no &&, ||, semicolons, pipes, command substitution, "
@@ -209,11 +209,17 @@ def provider_system_prompt(
         "If the task explicitly requires creating a missing file, an empty code map is sufficient "
         "evidence to plan that new file; use a repository-relative path. A configured verifier may "
         "be only a syntax or smoke check and may pass before the requested work is complete. "
+        "A passing verifier before any repository change is baseline evidence only. For version-control "
+        "recovery, inspect branches, logs, and reflogs before changing history. For exhaustive data or "
+        "aggregation tasks, never infer totals from truncated search output; create and execute a "
+        "deterministic program over all inputs. Use include_ignored only when the task explicitly requires "
+        "inspection of ignored repository content, such as credential remediation. "
         "For coordinated multi-file edits, call plan_patch_set with all files in the group. Only call "
         "write_file or write_patch_set after reviewing the matching plan diff. After writing files, "
         "rerun the configured tests. Use git_diff only when the work is done or you are blocked. "
         "When strict completion asks for a review, call submit_completion_review with one evidence "
-        "entry for every declared acceptance check. Do not claim behavioral evidence from a syntax-only check. "
+        "entry for every declared acceptance check using its C1, C2, ... identifier. Do not claim behavioral "
+        "evidence from a syntax-only check. "
         "Return only the structured tool call."
     )
     profiles = {
@@ -257,6 +263,7 @@ def tool_call_response_format() -> dict[str, object]:
                         "set_task_plan",
                         "submit_completion_review",
                         "search",
+                        "list_files",
                         "read_file",
                         "code_map",
                         "find_references",
@@ -280,6 +287,7 @@ def tool_call_response_format() -> dict[str, object]:
                         "ready",
                         "query",
                         "glob",
+                        "include_ignored",
                         "path",
                         "start",
                         "limit",
@@ -318,6 +326,7 @@ def tool_call_response_format() -> dict[str, object]:
                         "ready": {"type": ["boolean", "null"]},
                         "query": {"type": ["string", "null"]},
                         "glob": {"type": ["string", "null"]},
+                        "include_ignored": {"type": ["boolean", "null"]},
                         "path": {"type": ["string", "null"]},
                         "start": {"type": ["integer", "null"]},
                         "limit": {"type": ["integer", "null"]},
@@ -377,10 +386,21 @@ def openai_tool_definitions() -> list[dict[str, object]]:
         ),
         openai_tool(
             "search",
-            "Search repository text with ripgrep when available.",
+            "Search repository text with consistent extended regular expressions.",
             {
                 "query": {"type": "string"},
                 "glob": {"type": ["string", "null"]},
+                "include_ignored": {"type": "boolean"},
+            },
+        ),
+        openai_tool(
+            "list_files",
+            "List repository files without following symbolic links.",
+            {
+                "path": {"type": ["string", "null"]},
+                "glob": {"type": ["string", "null"]},
+                "limit": {"type": ["integer", "null"]},
+                "include_ignored": {"type": "boolean"},
             },
         ),
         openai_tool(

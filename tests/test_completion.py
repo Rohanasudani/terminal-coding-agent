@@ -107,3 +107,28 @@ def test_targeted_execution_can_strengthen_a_smoke_verifier():
     )
 
     assert assessment.passed
+
+
+def test_strict_completion_accepts_stable_criterion_ids():
+    checks = ("report is generated", "tests pass")
+    review = validate_completion_review(
+        [
+            {"criterion": "C1", "evidence": "the report appears in the diff"},
+            {"criterion": "c2", "evidence": "pytest exited zero"},
+        ],
+        [],
+        True,
+    )
+
+    assessment = assess_completion(
+        diff="--- a/report.csv\n+++ b/report.csv\n",
+        verifier_passed=True,
+        verifier_command="pytest -q",
+        require_changes=True,
+        expected_paths=("report.csv",),
+        acceptance_checks=checks,
+        strict=True,
+        review=review,
+    )
+
+    assert assessment.passed

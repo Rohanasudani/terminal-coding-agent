@@ -149,6 +149,42 @@ def test_agent_guides_provider_after_failed_verifier(tmp_path: Path, monkeypatch
     assert any("Do not rerun the same test command" in observation for observation in provider.seen_observations)
 
 
+def test_passing_verifier_without_changes_is_baseline_evidence(tmp_path: Path, monkeypatch):
+    marker = tmp_path / "marker.txt"
+    marker.write_text("ready\n", encoding="utf-8")
+
+    class BaselineProvider:
+        def __init__(self) -> None:
+            self.seen_observations: list[str] = []
+
+        def next_action(self, task: str, observations: list[str]) -> ProviderOutput:
+            self.seen_observations = list(observations)
+            if not observations:
+                return ProviderOutput(ToolCall("run_shell", {"command": "test -f marker.txt"}))
+            return ProviderOutput(ToolCall("read_file", {"path": "marker.txt"}))
+
+    provider = BaselineProvider()
+    monkeypatch.setattr(agent_module, "build_provider", lambda *args, **kwargs: provider)
+
+    state = TerminalAgent(
+        AgentConfig(
+            repo=tmp_path,
+            task="Change the repository",
+            provider="openai",
+            approval_mode="auto",
+            test_command="test -f marker.txt",
+            require_changes=True,
+            max_steps=2,
+        )
+    ).run()
+
+    assert state.tests_passed is False
+    assert state.completed is False
+    assert any(
+        "baseline_verifier_pass" in observation for observation in provider.seen_observations
+    )
+
+
 def test_controller_diagnoses_bad_path_without_inventing_a_patch(tmp_path: Path, monkeypatch):
     source = Path(__file__).parent / "fixtures" / "sample_repo"
     repo = tmp_path / "repo"

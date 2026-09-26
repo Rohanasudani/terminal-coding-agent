@@ -46,12 +46,14 @@ This makes accidental or stale writes visible in the trace.
 
 The runtime tracks verifier exit status after the latest mutation. Success words in
 model output do not mark a task complete, and a previous passing check is invalidated by
-later writes or shell commands.
+later writes or shell commands. When a required-change task's verifier already passes at
+startup, the controller records baseline evidence but does not enter completion review.
 
 ### Completion requires evidence
 
 Strict runs separate a passing command from a completion claim. The provider must inspect
-the final diff and submit one evidence entry for every declared acceptance check. The
+the final diff and submit one evidence entry for every declared acceptance check using
+stable `C1`, `C2`, and subsequent identifiers. The
 controller verifies that declared outputs appear in the diff. Known syntax, lint, and
 compile-only commands require an additional behavioral test or targeted execution of a
 declared output. The review remains model-authored and is recorded as evidence, not
@@ -116,8 +118,8 @@ outcomes and failure analysis are in [docs/experiment-log.md](docs/experiment-lo
 - a configured verifier may be weaker than an external task grader
 - strict completion recognizes common smoke checks but cannot prove arbitrary custom
   commands are behaviorally sufficient
-- Harbor runs require Python 3.11+ in the task image; the adapter does not require pip
-  or venv inside that image
+- Harbor runs require Python 3.11+; the adapter probes the image, can bootstrap Python
+  through a supported package manager, and does not require pip or venv for TermAgent
 
 These limitations are tracked as engineering work, not hidden behind successful local
 fixtures.

@@ -74,7 +74,7 @@ registers a plan or submits exact contents through a patch-preview tool. The con
 never authors those contents.
 
 Strict completion adds a second contract after `git_diff`. The provider calls
-`submit_completion_review` with evidence for each acceptance check and any residual
+`submit_completion_review` with evidence keyed by each check's stable criterion ID and any residual
 risks. `completion.py` independently checks verifier state, diff paths, declared output
 coverage, and verifier strength. A known smoke verifier needs a passing behavioral test
 or targeted execution recorded after the latest file write.
@@ -84,6 +84,7 @@ or targeted execution recorded after the latest file write.
 The registry exposes:
 
 - `search`
+- `list_files`
 - `read_file`
 - `code_map`
 - `find_references`
@@ -97,8 +98,10 @@ The registry exposes:
 Every file path is resolved against the repository root. Patch planning validates
 Python syntax and returns SHA-256 content identifiers. Writes must match a prior plan.
 
-`git_diff` combines Git's tracked/staged diff with a startup snapshot of nonignored
-untracked files. For non-Git workspaces it compares eligible text files against the
+`git_diff` compares tracked files against the run's starting commit, so commits and branch
+operations created during a run remain visible even when the final working tree is clean.
+It combines that result with a startup snapshot of nonignored untracked files. For
+non-Git workspaces it compares eligible text files against the
 startup snapshot. The fallback skips generated directories, common local credential
 files, symlinks, and files over 1 MB. If Git disappears after a Git-backed run starts,
 the tool reports an error rather than claiming a complete diff.
@@ -141,9 +144,10 @@ original is broken, runs the agent, then overlays only allowlisted solution file
 a pristine copy for grading. Test edits and configuration changes in the agent's
 workspace cannot enter the grader copy.
 
-The Harbor adapter uploads a pure-Python wheel bundle, probes the task image for Python
-3.11+, and imports the wheels directly through `PYTHONPATH`; it does not install with
-pip or create a virtual environment in the task image. Reports record both the
+The Harbor adapter uploads a pure-Python wheel bundle and probes the task image for Python
+3.11+. If needed, it can bootstrap Python through `apt`, `apk`, or `dnf`, then re-probes
+and records that setup action. It imports TermAgent directly through `PYTHONPATH`; it
+does not install the wheel with pip or create a virtual environment. Reports record both the
 TermAgent wheel hash and aggregate bundle hash. The adapter then executes the same
 runtime and writes a summary for the external verifier. Frozen campaign manifests pin
 task hashes, models, versions, limits, retries, completion policy, and comparison arms.

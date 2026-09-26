@@ -96,6 +96,18 @@ def python_probe_command(candidate: str) -> str:
     return shlex.join([candidate, "-c", script])
 
 
+def python_bootstrap_command() -> str:
+    return (
+        "set -eu; "
+        "if command -v apt-get >/dev/null 2>&1; then "
+        "export DEBIAN_FRONTEND=noninteractive; apt-get update -qq; "
+        "apt-get install -y -qq python3; "
+        "elif command -v apk >/dev/null 2>&1; then apk add --no-cache python3; "
+        "elif command -v dnf >/dev/null 2>&1; then dnf install -y python3; "
+        "else echo 'no supported package manager for Python bootstrap' >&2; exit 127; fi"
+    )
+
+
 def parse_python_probe(output: str) -> PythonRuntime:
     for line in reversed(output.splitlines()):
         try:
