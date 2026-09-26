@@ -84,6 +84,8 @@ The committed manifests are:
 - `bench/campaigns/milestone20.json`
 - `bench/campaigns/milestone23.json`
 - `bench/campaigns/v1-diagnostic.json`
+- `bench/campaigns/v1-final.json` (rejected after its oracle gate failed)
+- `bench/campaigns/v1-final-r2.json`
 
 The names are historical identifiers. Consolidated outcomes are in
 [experiment-log.md](experiment-log.md).
@@ -106,6 +108,26 @@ The runner defaults to the TermAgent arm. The Codex comparator does not expose a
 per-trial billing ceiling through Harbor, so it must be selected explicitly and run
 only under an external provider budget. A partial arm is retained but is not rendered
 as a complete campaign report.
+
+The v1 final revision-2 campaign uses eight new tasks selected from public instructions,
+task metadata, and container manifests before grader inspection. Revision 1 was frozen
+and then rejected because one official oracle scored zero. Revision 2 replaces only that
+task and passed all eight oracle/no-op pairs. Its runner also defaults to the capped
+TermAgent arm:
+
+```bash
+harbor run --config bench/campaigns/v1-final-r2-controls.json --yes
+./scripts/run_v1_final_r2.sh --arm termagent
+./scripts/run_v1_final_r2.sh --arm codex
+termagent campaign-report \
+  --manifest bench/campaigns/v1-final-r2.json \
+  --jobs-dir .termagent/harbor-jobs \
+  --report .termagent/v1-final-r2-results.md
+```
+
+The TermAgent arm has a $0.10 model-cost ceiling per trial and no retries. The Codex arm
+uses each task's timeout but Harbor's adapter has no hard dollar ceiling, so it requires
+an explicit external budget decision before execution.
 
 ## Campaign Commands
 

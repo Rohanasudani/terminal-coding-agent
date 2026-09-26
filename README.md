@@ -119,12 +119,20 @@ The project keeps failed trials instead of reporting only successful demos.
 | First frozen Terminal-Bench 2 subset | 0/3 per planning arm | Codex 2/3 | One error per TermAgent arm |
 | Post-recovery frozen subset | 0/3 per planning arm | Codex 3/3 | One setup error per TermAgent arm |
 | V1 held-out diagnostic, partial | 1/5 | pending | TermAgent arm only; one setup error |
+| V1 final revision 2, partial | 4/8 | pending | TermAgent arm only; zero setup errors |
 
 The v1 diagnostic TermAgent arm cost $0.063600 in known model usage. It exposed premature
 completion after a baseline verifier pass, inconsistent regex behavior without `rg`,
 insufficient support for exhaustive data tasks, and a task image without Python. Those
 findings now have regression-tested implementation changes. The comparator arm is still
 pending, so this is not a completed comparison or a leaderboard result.
+
+On a newly frozen eight-task set after those changes, TermAgent passed `4/8` independent
+graders with zero exceptions. The passing tasks covered C++ memory debugging, numerical
+optimization, Git history sanitization, and regex parsing. The arm used 391,639 input
+tokens, 68,954 output tokens, and $0.161075 in recorded model usage. The same-model
+Codex arm is pending, so the result is evidence of broader task execution, not a claim
+of parity or superiority.
 
 Methods, versions, task checksums, costs, and failure analysis are in
 [docs/experiment-log.md](docs/experiment-log.md). The exact frozen campaign settings
@@ -158,5 +166,5 @@ paths under `.termagent/`.
 
 - incremental repository snapshots for large codebases
 - tree-sitter-backed JavaScript and TypeScript indexing
-- a newly frozen diagnostic campaign using the portable runtime and strict completion
-- a same-model comparator run and newly frozen post-improvement campaign
+- the frozen v1 revision-2 Codex comparator arm
+- repeated trials on a future campaign to estimate score variance

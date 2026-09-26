@@ -212,3 +212,42 @@ listing are explicit bounded tools, search truncation is reported, completion ch
 stable criterion IDs, and Harbor can bootstrap Python through a supported package
 manager. These changes require a newly frozen post-improvement set; the `1/5` result
 remains unchanged.
+
+## V1 Final Campaign, Revision 2
+
+The first final-campaign freeze was rejected before paid trials. Its official
+`build-cython-ext` oracle scored zero while the no-op scored zero, so that task could
+not distinguish agent quality from benchmark failure. The frozen manifest remains at
+`bench/campaigns/v1-final.json`. Revision 2 replaced only that task with
+`gcode-to-text`, selected from public task material, and reran the complete control
+matrix. All eight revision-2 oracles scored 1, all eight no-op controls scored 0, and
+none raised an exception.
+
+The revision-2 TermAgent arm used Harbor 0.22.0, `openai/gpt-5.6-luna`, source commit
+`edc6f548a863e66dcaff85838f08305777c58f71`, TermAgent wheel
+`5c52bee27586d21ea0422c68aefcd8e3c240038127286b85264a2de406d99136`,
+strict completion, no retries, 50 steps, and a $0.10 estimated-cost ceiling per trial.
+Tasks were selected from public instructions, metadata, and container manifests before
+grader inspection. The exact manifest is `bench/campaigns/v1-final-r2.json`.
+
+| Task | Reward | Error | Input tokens | Output tokens | Known cost | Duration |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `gcode-to-text` | 0 | no | 103,988 | 6,921 | $0.029105 | 133.8 s |
+| `custom-memory-heap-crash` | 1 | no | 56,792 | 7,834 | $0.020759 | 158.0 s |
+| `distribution-search` | 1 | no | 54,051 | 12,300 | $0.025571 | 192.6 s |
+| `git-leak-recovery` | 1 | no | 36,120 | 9,946 | $0.019159 | 204.6 s |
+| `llm-inference-batching-scheduler` | 0 | no | 67,438 | 6,707 | $0.021536 | 130.3 s |
+| `pytorch-model-cli` | 0 | no | 9,055 | 1,748 | $0.003909 | 177.5 s |
+| `regex-log` | 1 | no | 25,188 | 5,530 | $0.011673 | 165.6 s |
+| `schemelike-metacircular-eval` | 0 | no | 39,007 | 17,968 | $0.029363 | 289.1 s |
+| **Aggregate** | **4/8** | **0** | **391,639** | **68,954** | **$0.161075** | **1,451.5 s** |
+
+Python bootstrap was exercised successfully on `git-leak-recovery` and `regex-log`.
+The passes establish independent evidence across C++ memory debugging, numerical
+optimization, Git security recovery, and parsing. The failures remain in the
+denominator and identify harder work in spatial/file interpretation, constrained
+scheduling, cross-language model conversion, and language implementation.
+
+This table is a partial campaign until the frozen same-model Codex arm is run. One
+trial per task supports a broad engineering checkpoint, not a stable leaderboard score
+or a claim that TermAgent matches another agent.
