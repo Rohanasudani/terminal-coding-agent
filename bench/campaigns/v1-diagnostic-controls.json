@@ -1,0 +1,16 @@
+{
+  "job_name": "v1diag-controls",
+  "jobs_dir": ".termagent/harbor-jobs",
+  "n_concurrent_trials": 1,
+  "agents": [
+    {"name": "oracle"},
+    {"name": "nop"}
+  ],
+  "tasks": [
+    {"path": ".termagent/v1-diagnostic-registry/terminal-bench-2/fix-git"},
+    {"path": ".termagent/v1-diagnostic-registry/terminal-bench-2/log-summary-date-ranges"},
+    {"path": ".termagent/v1-diagnostic-registry/terminal-bench-2/modernize-scientific-stack"},
+    {"path": ".termagent/v1-diagnostic-registry/terminal-bench-2/query-optimize"},
+    {"path": ".termagent/v1-diagnostic-registry/terminal-bench-2/sanitize-git-repo"}
+  ]
+}

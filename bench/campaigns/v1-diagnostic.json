@@ -1,0 +1,91 @@
+{
+  "schema_version": 2,
+  "campaign": "v1-diagnostic-terminal-bench-2",
+  "report_title": "V1 Diagnostic: Held-Out Terminal-Bench 2 Results",
+  "job_prefix": "v1diag",
+  "frozen_at": "2026-09-25",
+  "dataset": {
+    "name": "terminal-bench/terminal-bench-2",
+    "requested_ref": "latest",
+    "task_count_at_freeze": 89,
+    "selection_policy": "Selected from public instructions and task metadata only; excludes every task used in earlier development or frozen campaigns."
+  },
+  "tasks": [
+    {
+      "name": "fix-git",
+      "category": "version-control-recovery",
+      "content_sha256": "17699d9c1496fec6e164db2aa9066b39b8ff7b92072e0ee99af27a3c403a6675",
+      "repo": "/app/personal-site",
+      "visible_verifier": "git log --oneline --all -5"
+    },
+    {
+      "name": "log-summary-date-ranges",
+      "category": "data-processing",
+      "content_sha256": "772884db04b1f52071fb07b44bc609e56883362b82a0db5717d85965ee2770cf",
+      "repo": "/app",
+      "visible_verifier": "test -s /app/summary.csv"
+    },
+    {
+      "name": "modernize-scientific-stack",
+      "category": "legacy-modernization",
+      "content_sha256": "44170fa776acdce1097f965e353224f307f7c2a5bb2295a06a7aec0cb1eb4cb4",
+      "repo": "/app",
+      "visible_verifier": "python /app/analyze_climate_modern.py"
+    },
+    {
+      "name": "query-optimize",
+      "category": "sql-optimization",
+      "content_sha256": "f5b91f17dbcc2c81aac7667722cbeb54e8e25c79b5466dcf475cfbf49ed3fa61",
+      "repo": "/app",
+      "visible_verifier": "sqlite3 /app/oewn.sqlite .read /app/sol.sql"
+    },
+    {
+      "name": "sanitize-git-repo",
+      "category": "credential-remediation",
+      "content_sha256": "a6326e5d4cf9591398db31a71dd1ed2dc68d6a1bedcbdfeb29c674a9a61596da",
+      "repo": "/app/dclm",
+      "visible_verifier": "git status --short"
+    }
+  ],
+  "trials_per_task": 1,
+  "harbor": {
+    "version": "0.22.0",
+    "concurrency": 1,
+    "retries": 0
+  },
+  "model": {
+    "provider": "openai",
+    "name": "gpt-5.6-luna"
+  },
+  "termagent": {
+    "source_commit": "489f4064e717486459e028b9bdbc1ef24c986071",
+    "wheel_sha256": "79c3413bfe8b91cf58a3954ce9524668750c6d8a0caae77689cfeb36047f7546",
+    "runtime_bundle_sha256": "d56b9cad6d33868099deb576d07d4e2e814359ff12996a2efeab25344082b0b4",
+    "max_steps": 40,
+    "max_cost_usd_per_trial": 0.08,
+    "max_output_tokens_per_response": 4096,
+    "reasoning_effort": "high",
+    "prompt_profile": "benchmark",
+    "controller_recovery": true,
+    "task_planning": true,
+    "strict_completion": true,
+    "max_stagnation_events": 2,
+    "max_discovery_actions": 6
+  },
+  "arms": [
+    {
+      "name": "termagent-strict",
+      "agent": "termagent",
+      "selectors": {
+        "task_planning": true,
+        "strict_completion": true
+      }
+    },
+    {
+      "name": "codex-baseline",
+      "agent": "codex",
+      "version": "0.153.4"
+    }
+  ],
+  "controls": ["oracle", "nop"]
+}

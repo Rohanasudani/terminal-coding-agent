@@ -83,9 +83,19 @@ The committed manifests are:
 
 - `bench/campaigns/milestone20.json`
 - `bench/campaigns/milestone23.json`
+- `bench/campaigns/v1-diagnostic.json`
 
 The names are historical identifiers. Consolidated outcomes are in
 [experiment-log.md](experiment-log.md).
+
+The v1 diagnostic campaign is a five-task held-out run with one strict TermAgent trial
+and one same-model Codex trial per task. It is intentionally a failure-analysis pass,
+not the final repeated campaign. Its runner refuses to overwrite a completed trial:
+
+```bash
+harbor run --config bench/campaigns/v1-diagnostic-controls.json --yes
+./scripts/run_v1_diagnostic.sh
+```
 
 ## Campaign Commands
 
