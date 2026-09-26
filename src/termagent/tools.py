@@ -279,7 +279,8 @@ class ToolRegistry:
             timeout=20,
             check=False,
         )
-        raw_output = completed.stdout.strip() or completed.stderr.strip() or "no matches"
+        filtered_stdout = self._filter_private_search_output(completed.stdout)
+        raw_output = filtered_stdout.strip() or completed.stderr.strip() or "no matches"
         truncated = len(raw_output) > 12_000
         output = raw_output[:11_970] + "\n[search output truncated]" if truncated else raw_output
         return ToolResult(
@@ -287,11 +288,21 @@ class ToolRegistry:
             output,
             {
                 "returncode": completed.returncode,
-                "match_lines": len(completed.stdout.splitlines()),
+                "match_lines": len(filtered_stdout.splitlines()),
                 "truncated": truncated,
                 "include_ignored": include_ignored,
             },
         )
+
+    @classmethod
+    def _filter_private_search_output(cls, output: str) -> str:
+        lines = []
+        for line in output.splitlines():
+            relative_path = line.split(":", 1)[0]
+            if cls._skip_snapshot_path(Path(relative_path)):
+                continue
+            lines.append(line)
+        return "\n".join(lines)
 
     def list_files(
         self,

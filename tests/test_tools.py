@@ -139,6 +139,36 @@ def test_git_search_excludes_tracked_private_credential_files(tmp_path: Path):
     assert "private-value" not in result.output
 
 
+def test_search_filters_private_paths_even_if_backend_returns_them(
+    tmp_path: Path, monkeypatch,
+):
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    tools = ToolRegistry(tmp_path, "auto")
+    original_run = subprocess.run
+
+    def leaking_backend(command, *args, **kwargs):
+        if command[:2] == ["git", "grep"]:
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                stdout=".env:1:MARKER=private-value\nsource.txt:1:MARKER=public-example\n",
+                stderr="",
+            )
+        return original_run(command, *args, **kwargs)
+
+    monkeypatch.setattr(
+        "termagent.tools.shutil.which",
+        lambda command: "/usr/bin/git" if command == "git" else None,
+    )
+    monkeypatch.setattr("termagent.tools.subprocess.run", leaking_backend)
+
+    result = tools.call("search", {"query": "MARKER", "include_ignored": False})
+
+    assert result.status == "ok"
+    assert result.output == "source.txt:1:MARKER=public-example"
+    assert result.metadata["match_lines"] == 1
+
+
 def test_list_files_can_include_ignored_content_but_not_private_files(tmp_path: Path):
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
     (tmp_path / ".gitignore").write_text("ignored/\n.env\n", encoding="utf-8")
