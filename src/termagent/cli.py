@@ -121,7 +121,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     app = subparsers.add_parser("app", help="Start interactive terminal agent mode")
     app.add_argument("--repo", type=Path, default=Path("."))
-    app.add_argument("--provider", choices=["mock", "fixture", "openai"], default="fixture")
+    app.add_argument("--provider", choices=["mock", "fixture", "openai"], default="openai")
     app.add_argument("--model", default="gpt-5.6-luna")
     app.add_argument("--approval-mode", choices=["never", "suggest", "auto"], default="suggest")
     app.add_argument("--max-steps", type=int, default=12)
@@ -163,6 +163,7 @@ def main(argv: list[str] | None = None) -> int:
                 repo=args.repo,
                 task=args.task,
                 log_dir=Path(".termagent/traces"),
+                provider="openai",
                 task_planning=True,
             ),
             config_path,

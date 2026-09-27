@@ -56,6 +56,12 @@ def test_public_cli_exposes_required_commands():
     assert REQUIRED_COMMANDS.issubset(subparsers_action.choices)
 
 
+def test_interactive_cli_defaults_to_live_provider():
+    args = build_parser().parse_args(["app"])
+
+    assert args.provider == "openai"
+
+
 def test_cli_and_package_metadata_expose_the_same_version(capsys):
     repo_root = Path(__file__).parents[1]
     metadata = tomllib.loads((repo_root / "pyproject.toml").read_text(encoding="utf-8"))

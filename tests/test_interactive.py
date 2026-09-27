@@ -28,6 +28,7 @@ def test_interactive_app_runs_tasks_until_quit(tmp_path: Path):
 
     assert status == 0
     assert configs[0].task == "fix tests"
+    assert configs[0].provider == "openai"
     assert configs[0].approval_mode == "auto"
     assert "done" in outputs
     assert outputs[-1] == "Session closed."

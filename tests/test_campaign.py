@@ -114,7 +114,7 @@ def write_trial(
 
 def test_render_campaign_report_requires_and_summarizes_all_arms(tmp_path: Path):
     jobs = tmp_path / "jobs"
-    controls = jobs / "milestone20-controls"
+    controls = jobs / "planning-ablation-controls"
     for agent, reward in (("oracle", 1.0), ("nop", 0.0)):
         trial = controls / f"sample-{agent}"
         trial.mkdir(parents=True)
@@ -131,15 +131,15 @@ def test_render_campaign_report_requires_and_summarizes_all_arms(tmp_path: Path)
             encoding="utf-8",
         )
     write_trial(
-        jobs / "milestone20-sample-planning-on",
+        jobs / "planning-ablation-sample-planning-on",
         agent="termagent", checksum="task-hash", reward=0.0, planning=True,
     )
     write_trial(
-        jobs / "milestone20-sample-planning-off",
+        jobs / "planning-ablation-sample-planning-off",
         agent="termagent", checksum="task-hash", reward=1.0, planning=False,
     )
     write_trial(
-        jobs / "milestone20-sample-codex",
+        jobs / "planning-ablation-sample-codex",
         agent="codex", checksum="task-hash", reward=1.0,
     )
     manifest = tmp_path / "campaign.json"
@@ -147,7 +147,7 @@ def test_render_campaign_report_requires_and_summarizes_all_arms(tmp_path: Path)
         json.dumps(
             {
                 "model": {"provider": "openai", "name": "model-a"},
-                "job_prefix": "milestone20",
+                "job_prefix": "planning-ablation",
                 "harbor": {"version": "0.22.0"},
                 "termagent": {"wheel_sha256": "wheel-hash"},
                 "trials_per_task": 1,
@@ -172,7 +172,7 @@ def test_render_campaign_report_requires_and_summarizes_all_arms(tmp_path: Path)
 
 def test_render_campaign_report_preserves_termagent_exception_arm(tmp_path: Path):
     jobs = tmp_path / "jobs"
-    controls = jobs / "milestone20-controls"
+    controls = jobs / "planning-ablation-controls"
     for agent, reward in (("oracle", 1.0), ("nop", 0.0)):
         trial = controls / f"sample-{agent}"
         trial.mkdir(parents=True)
@@ -189,15 +189,15 @@ def test_render_campaign_report_preserves_termagent_exception_arm(tmp_path: Path
             encoding="utf-8",
         )
     write_trial(
-        jobs / "milestone20-sample-planning-on",
+        jobs / "planning-ablation-sample-planning-on",
         agent="termagent", checksum="task-hash", reward=None, planning=True, exception=True,
     )
     write_trial(
-        jobs / "milestone20-sample-planning-off",
+        jobs / "planning-ablation-sample-planning-off",
         agent="termagent", checksum="task-hash", reward=0.0, planning=False,
     )
     write_trial(
-        jobs / "milestone20-sample-codex",
+        jobs / "planning-ablation-sample-codex",
         agent="codex", checksum="task-hash", reward=1.0,
     )
     manifest = tmp_path / "campaign.json"
@@ -205,7 +205,7 @@ def test_render_campaign_report_preserves_termagent_exception_arm(tmp_path: Path
         json.dumps(
             {
                 "model": {"provider": "openai", "name": "model-a"},
-                "job_prefix": "milestone20",
+                "job_prefix": "planning-ablation",
                 "harbor": {"version": "0.22.0"},
                 "termagent": {"wheel_sha256": "wheel-hash"},
                 "trials_per_task": 1,
@@ -290,7 +290,7 @@ def test_render_campaign_report_supports_manifest_selectors_and_repeated_trials(
 
 def test_verify_campaign_controls_accepts_exact_oracle_nop_gate(tmp_path: Path):
     jobs = tmp_path / "jobs"
-    controls = jobs / "milestone23-controls"
+    controls = jobs / "discovery-transition-controls"
     for agent, reward in (("oracle", 1.0), ("nop", 0.0)):
         trial = controls / f"sample-{agent}"
         trial.mkdir(parents=True)
@@ -308,7 +308,7 @@ def test_verify_campaign_controls_accepts_exact_oracle_nop_gate(tmp_path: Path):
         )
     manifest = tmp_path / "campaign.json"
     manifest.write_text(
-        json.dumps({"job_prefix": "milestone23", "tasks": [{"name": "sample"}]}),
+        json.dumps({"job_prefix": "discovery-transition", "tasks": [{"name": "sample"}]}),
         encoding="utf-8",
     )
 

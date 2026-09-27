@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "campaign": "milestone-23-terminal-bench-2",
-  "report_title": "Milestone 23: Post-Recovery Terminal-Bench 2 Results",
-  "job_prefix": "milestone23",
+  "campaign": "discovery-transition-terminal-bench-2",
+  "report_title": "Discovery Transition Terminal-Bench 2 Results",
+  "job_prefix": "discovery-transition",
   "frozen_at": "2026-09-16",
   "dataset": {
     "name": "terminal-bench/terminal-bench-2",

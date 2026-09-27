@@ -4,11 +4,11 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 HARBOR="$ROOT/.termagent/harbor-venv/bin/harbor"
 TERMAGENT="$ROOT/.venv/bin/termagent"
-DATASET="$ROOT/.termagent/milestone23-registry/terminal-bench-2"
+DATASET="$ROOT/.termagent/discovery-transition-registry/terminal-bench-2"
 JOBS="$ROOT/.termagent/harbor-jobs"
-WHEELS="$ROOT/.termagent/milestone23-wheel"
-MANIFEST="$ROOT/bench/campaigns/milestone23.json"
-REPORT="$ROOT/.termagent/milestone23-results.md"
+WHEELS="$ROOT/.termagent/discovery-transition-wheel"
+MANIFEST="$ROOT/bench/campaigns/discovery-transition.json"
+REPORT="$ROOT/.termagent/discovery-transition-results.md"
 
 ENV_ARGS=()
 if [[ -z "${OPENAI_API_KEY:-}" ]]; then
@@ -34,7 +34,7 @@ run_termagent() {
   if [[ "$planning" == "true" ]]; then
     suffix="planning-on"
   fi
-  local job="milestone23-${task}-${suffix}"
+  local job="discovery-transition-${task}-${suffix}"
   if [[ -e "$JOBS/$job" ]]; then
     echo "Refusing to overwrite existing frozen trial: $JOBS/$job" >&2
     exit 1
@@ -53,7 +53,7 @@ run_termagent() {
 
 run_codex() {
   local task=$1
-  local job="milestone23-${task}-codex"
+  local job="discovery-transition-${task}-codex"
   if [[ -e "$JOBS/$job" ]]; then
     echo "Refusing to overwrite existing frozen trial: $JOBS/$job" >&2
     exit 1
@@ -78,4 +78,4 @@ run_task kv-store-grpc "python3 -m compileall -q /app"
 run_task multi-source-data-merger "python3 -m compileall -q /app"
 
 "$TERMAGENT" campaign-report --manifest "$MANIFEST" --jobs-dir "$JOBS" --report "$REPORT"
-echo "Milestone 23 live campaign complete: $REPORT"
+echo "Discovery transition campaign complete: $REPORT"

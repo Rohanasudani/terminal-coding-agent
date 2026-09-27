@@ -1,0 +1,14 @@
+{
+  "job_name": "discovery-transition-controls",
+  "jobs_dir": ".termagent/harbor-jobs",
+  "n_concurrent_trials": 1,
+  "agents": [
+    {"name": "oracle"},
+    {"name": "nop"}
+  ],
+  "tasks": [
+    {"path": ".termagent/discovery-transition-registry/terminal-bench-2/polyglot-c-py"},
+    {"path": ".termagent/discovery-transition-registry/terminal-bench-2/kv-store-grpc"},
+    {"path": ".termagent/discovery-transition-registry/terminal-bench-2/multi-source-data-merger"}
+  ]
+}

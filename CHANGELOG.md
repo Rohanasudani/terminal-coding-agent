@@ -2,7 +2,7 @@
 
 All notable changes to TermAgent are recorded here.
 
-## 1.0.0 - Unreleased
+## 1.0.0 - 2026-09-26
 
 ### Added
 
@@ -37,5 +37,6 @@ All notable changes to TermAgent are recorded here.
 
 - The local deterministic suite passes 8/8 tasks.
 - The frozen v1 revision-2 TermAgent arm passes 4/8 independent graders with zero setup
-  errors and $0.161075 recorded model usage. The same-model comparator remains pending
-  until the final release report is generated.
+  errors and $0.161075 recorded model usage.
+- The matched Codex CLI arm passes 7/8 with zero setup errors and $0.216275 recorded
+  model usage. The comparison and its limitations are documented in the experiment log.

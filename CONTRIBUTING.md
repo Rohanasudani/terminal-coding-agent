@@ -1,6 +1,7 @@
 # Contributing
 
-TermAgent is benchmark-first. Changes should either improve capability, improve safety, improve observability, or make benchmark behavior easier to reproduce.
+TermAgent changes should improve the developer workflow, safety, reliability, or the
+quality of the evidence used to evaluate a behavior.
 
 Read [DESIGN.md](DESIGN.md) for the runtime principles and
 [docs/benchmarking.md](docs/benchmarking.md) before changing evaluation behavior.

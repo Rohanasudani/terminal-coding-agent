@@ -178,7 +178,23 @@ run_task pytorch-model-cli /app "/app/cli_tool /app/weights.json /app/image.png"
 run_task regex-log /app "test -s /app/regex.txt"
 run_task schemelike-metacircular-eval /app "test -s /app/eval.scm"
 
-if [[ "$ARM" == "all" ]]; then
+all_jobs_complete() {
+  local task
+  for task in \
+    gcode-to-text \
+    custom-memory-heap-crash \
+    distribution-search \
+    git-leak-recovery \
+    llm-inference-batching-scheduler \
+    pytorch-model-cli \
+    regex-log \
+    schemelike-metacircular-eval; do
+    completed_job "$JOBS/v1finalr2-${task}-termagent-strict-1" || return 1
+    completed_job "$JOBS/v1finalr2-${task}-codex-baseline-1" || return 1
+  done
+}
+
+if [[ "$ARM" == "all" ]] || all_jobs_complete; then
   "$TERMAGENT" campaign-report --manifest "$MANIFEST" --jobs-dir "$JOBS" --report "$REPORT"
   echo "V1 final revision 2 campaign complete: $REPORT"
 else

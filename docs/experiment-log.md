@@ -101,13 +101,13 @@ The wheel hash was
 The result found no benefit on the scripted fixture suite. It was useful as a plumbing
 check, not evidence about live-model generalization.
 
-## Frozen External Campaign 1
+## Planning Strategy Probe
 
 This campaign used Harbor 0.22.0, `openai/gpt-5.6-luna`, Codex CLI 0.153.4, and
 TermAgent wheel
 `7b87bdd9b50c0f4ed49fb6cc9d83cb0f60903dce1500e86a11ed6bd30bc8a157`.
 There was one trial per task and arm. The exact manifest is
-`bench/campaigns/milestone20.json`.
+`bench/campaigns/planning-ablation.json`.
 
 | Task | Codex | TermAgent, planning off | TermAgent, planning on |
 | --- | ---: | ---: | ---: |
@@ -138,12 +138,12 @@ was repeated.
 Both arms cost $0. The experiment confirmed the controller telemetry and preserved the
 baseline, but it did not show a fixture-quality improvement.
 
-## Frozen External Campaign 2
+## Discovery Transition Probe
 
 The follow-up campaign used Harbor 0.22.0, `openai/gpt-5.6-luna`, Codex CLI 0.153.4,
 and TermAgent wheel
 `3fdae22aa295150db68db592934e628915d3da5977effde3b07ec25ccf8e021e`.
-The exact manifest is `bench/campaigns/milestone23.json`.
+The exact manifest is `bench/campaigns/discovery-transition.json`.
 
 | Task | Codex | TermAgent, transition off | TermAgent, transition on |
 | --- | ---: | ---: | ---: |
@@ -223,24 +223,32 @@ not distinguish agent quality from benchmark failure. The frozen manifest remain
 matrix. All eight revision-2 oracles scored 1, all eight no-op controls scored 0, and
 none raised an exception.
 
-The revision-2 TermAgent arm used Harbor 0.22.0, `openai/gpt-5.6-luna`, source commit
+The revision-2 campaign used Harbor 0.22.0 and `openai/gpt-5.6-luna` for both arms.
+The TermAgent arm used source commit
 `edc6f548a863e66dcaff85838f08305777c58f71`, TermAgent wheel
 `5c52bee27586d21ea0422c68aefcd8e3c240038127286b85264a2de406d99136`,
 strict completion, no retries, 50 steps, and a $0.10 estimated-cost ceiling per trial.
 Tasks were selected from public instructions, metadata, and container manifests before
 grader inspection. The exact manifest is `bench/campaigns/v1-final-r2.json`.
 
-| Task | Reward | Error | Input tokens | Output tokens | Known cost | Duration |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| `gcode-to-text` | 0 | no | 103,988 | 6,921 | $0.029105 | 133.8 s |
-| `custom-memory-heap-crash` | 1 | no | 56,792 | 7,834 | $0.020759 | 158.0 s |
-| `distribution-search` | 1 | no | 54,051 | 12,300 | $0.025571 | 192.6 s |
-| `git-leak-recovery` | 1 | no | 36,120 | 9,946 | $0.019159 | 204.6 s |
-| `llm-inference-batching-scheduler` | 0 | no | 67,438 | 6,707 | $0.021536 | 130.3 s |
-| `pytorch-model-cli` | 0 | no | 9,055 | 1,748 | $0.003909 | 177.5 s |
-| `regex-log` | 1 | no | 25,188 | 5,530 | $0.011673 | 165.6 s |
-| `schemelike-metacircular-eval` | 0 | no | 39,007 | 17,968 | $0.029363 | 289.1 s |
-| **Aggregate** | **4/8** | **0** | **391,639** | **68,954** | **$0.161075** | **1,451.5 s** |
+| Task | TermAgent | Codex CLI |
+| --- | ---: | ---: |
+| `gcode-to-text` | 0 | 0 |
+| `custom-memory-heap-crash` | 1 | 1 |
+| `distribution-search` | 1 | 1 |
+| `git-leak-recovery` | 1 | 1 |
+| `llm-inference-batching-scheduler` | 0 | 1 |
+| `pytorch-model-cli` | 0 | 1 |
+| `regex-log` | 1 | 1 |
+| `schemelike-metacircular-eval` | 0 | 1 |
+| **Aggregate** | **4/8** | **7/8** |
+
+Neither arm raised an exception. The aggregate usage and runtime were:
+
+| Arm | Input tokens | Output tokens | Known cost | Duration | Cost per pass |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| TermAgent strict | 391,639 | 68,954 | $0.161075 | 1,451.5 s | $0.0403 |
+| Codex CLI | 3,056,788 | 70,681 | $0.216275 | 4,670.7 s | $0.0309 |
 
 Python bootstrap was exercised successfully on `git-leak-recovery` and `regex-log`.
 The passes establish independent evidence across C++ memory debugging, numerical
@@ -248,13 +256,23 @@ optimization, Git security recovery, and parsing. The failures remain in the
 denominator and identify harder work in spatial/file interpretation, constrained
 scheduling, cross-language model conversion, and language implementation.
 
-The retained outputs make those failures more specific. The G-code trial wrote an
+The retained TermAgent outputs make those failures more specific. The G-code trial wrote an
 incorrect decoded value. The scheduler repeatedly violated the final-diff-before-review
 ordering contract. The native model trial tried inline interpreter execution, which the
 safety policy blocks, instead of writing and running a reviewable script. The Scheme
 trial ended after repeated responses without a structured tool call. These are v1
 limitations; none was patched or rerun against this held-out set.
 
-This table is a partial campaign until the frozen same-model Codex arm is run. One
-trial per task supports a broad engineering checkpoint, not a stable leaderboard score
-or a claim that TermAgent matches another agent.
+The comparison sharpens that diagnosis. Both agents failed the visual G-code task, but
+Codex solved the scheduler, model-conversion, and Scheme tasks that TermAgent missed.
+Those three gaps point to controller behavior rather than model capability: TermAgent's
+completion ordering rejected progress on the scheduler, its inline-interpreter policy
+blocked the quickest reviewable path for model conversion, and its strict tool-call
+boundary did not recover when the model returned prose during the Scheme task.
+
+TermAgent used 87.2% fewer recorded input tokens, cost 25.5% less, and finished 68.9%
+faster across the eight trials. It produced nearly the same number of output tokens,
+however, and its lower success rate made cost per passing task worse. The result supports
+a concrete v1 tradeoff: the controller bounds context and execution effectively, but it
+currently over-constrains some successful workflows. One trial per arm supports this
+failure analysis, not a stable leaderboard score or a general claim about either agent.

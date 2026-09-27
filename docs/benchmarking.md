@@ -81,14 +81,13 @@ use public Terminal-Bench tasks resolved from Harbor's registry. Before live cal
 
 The committed manifests are:
 
-- `bench/campaigns/milestone20.json`
-- `bench/campaigns/milestone23.json`
+- `bench/campaigns/planning-ablation.json`
+- `bench/campaigns/discovery-transition.json`
 - `bench/campaigns/v1-diagnostic.json`
 - `bench/campaigns/v1-final.json` (rejected after its oracle gate failed)
 - `bench/campaigns/v1-final-r2.json`
 
-The names are historical identifiers. Consolidated outcomes are in
-[experiment-log.md](experiment-log.md).
+Consolidated outcomes are in [experiment-log.md](experiment-log.md).
 
 The v1 diagnostic campaign is a five-task held-out run with one strict TermAgent trial
 and one same-model Codex trial per task. It is intentionally a failure-analysis pass,
@@ -131,6 +130,7 @@ requires an explicit external budget decision before execution. The runner check
 Codex usage between trials, stops at $1.00 by default, stops immediately after unknown
 usage, and resumes by skipping validated completed jobs. Set a different staged limit
 explicitly with `--codex-max-known-cost-usd`; one in-flight trial can still overshoot it.
+The completed matched result is recorded in [experiment-log.md](experiment-log.md).
 
 ## Campaign Commands
 
@@ -138,15 +138,15 @@ Verify task bytes:
 
 ```bash
 termagent campaign-verify \
-  --manifest bench/campaigns/milestone23.json \
-  --dataset-dir .termagent/milestone23-registry/terminal-bench-2
+  --manifest bench/campaigns/discovery-transition.json \
+  --dataset-dir .termagent/discovery-transition-registry/terminal-bench-2
 ```
 
 Verify oracle/no-op controls:
 
 ```bash
 termagent campaign-controls \
-  --manifest bench/campaigns/milestone23.json \
+  --manifest bench/campaigns/discovery-transition.json \
   --jobs-dir .termagent/harbor-jobs
 ```
 
@@ -154,9 +154,9 @@ Render a report from completed jobs:
 
 ```bash
 termagent campaign-report \
-  --manifest bench/campaigns/milestone23.json \
+  --manifest bench/campaigns/discovery-transition.json \
   --jobs-dir .termagent/harbor-jobs \
-  --report .termagent/milestone23-results.md
+  --report .termagent/discovery-transition-results.md
 ```
 
 Run output remains ignored because Harbor trajectories can contain provider responses,
