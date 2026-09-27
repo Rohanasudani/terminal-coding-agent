@@ -79,11 +79,13 @@ def test_mutating_git_command_requires_approval():
         "git diff --output=changes.patch",
     ],
 )
-def test_mutating_options_cannot_bypass_suggest_approval(command: str):
-    decision = classify_command(command, "suggest")
+def test_known_file_mutations_are_blocked_in_every_approval_mode(command: str):
+    for approval_mode in ("never", "suggest", "auto"):
+        decision = classify_command(command, approval_mode)
 
-    assert decision.allowed is False
-    assert decision.needs_approval is True
+        assert decision.allowed is False
+        assert decision.needs_approval is False
+        assert decision.reason == "file-mutating command option blocked; use the patch tools"
 
 
 def test_nonmutating_sed_command_remains_read_only():
@@ -106,3 +108,24 @@ def test_find_exec_is_blocked_as_a_shell_control_sequence():
 
     assert decision.allowed is False
     assert decision.needs_approval is False
+
+
+def test_nul_byte_is_rejected_before_subprocess_execution():
+    decision = classify_command("pytest\x00-q", "auto")
+
+    assert decision.allowed is False
+    assert decision.reason == "NUL byte blocked by safety policy"
+
+
+@pytest.mark.parametrize("command", ["cat .env", "sed -n 1,5p config/.env.local", "git show HEAD:.env"])
+def test_shell_commands_cannot_read_private_credential_paths(command: str):
+    decision = classify_command(command, "auto")
+
+    assert decision.allowed is False
+    assert decision.reason == "private credential file blocked by safety policy"
+
+
+def test_shell_commands_can_read_environment_templates():
+    decision = classify_command("cat .env.example", "suggest")
+
+    assert decision.allowed is True

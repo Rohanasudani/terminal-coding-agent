@@ -19,10 +19,17 @@ MODEL_PRICES: dict[str, ModelPrice] = {
 }
 
 
+def require_model_price(model: str) -> ModelPrice:
+    try:
+        return MODEL_PRICES[model]
+    except KeyError as exc:
+        raise ValueError(
+            f"no pricing configured for model {model!r}; cannot enforce a cost limit"
+        ) from exc
+
+
 def estimate_cost_usd(model: str, usage: TokenUsage) -> float:
-    price = MODEL_PRICES.get(model)
-    if not price:
-        return 0.0
+    price = require_model_price(model)
 
     input_cost = usage.input_tokens / 1_000_000 * price.input_per_mtok_usd
     output_cost = usage.output_tokens / 1_000_000 * price.output_per_mtok_usd

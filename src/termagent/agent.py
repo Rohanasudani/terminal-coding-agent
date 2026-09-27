@@ -16,7 +16,7 @@ from .logging import TraceLogger
 from .models import AgentConfig, AgentState, TokenUsage, ToolCall
 from .observations import first_code_map_symbol_path, first_search_path
 from .planning import ProgressLedger
-from .pricing import estimate_cost_usd
+from .pricing import estimate_cost_usd, require_model_price
 from .provider import ProviderError, build_provider
 from .safety import resolve_inside_root
 from .tools import ToolRegistry, sha256_text
@@ -30,6 +30,7 @@ class TerminalAgent:
             raise ValueError("max_discovery_actions must be at least 1")
         if config.strict_completion and not config.task_planning:
             raise ValueError("strict_completion requires task_planning")
+        require_model_price(config.model)
         self.config = config
         self.tools = ToolRegistry(
             config.repo,

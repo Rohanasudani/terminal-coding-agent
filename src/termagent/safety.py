@@ -5,6 +5,7 @@ from pathlib import Path
 from shlex import split
 
 from .models import ApprovalMode
+from .privacy import is_private_path
 
 
 @dataclass(frozen=True)
@@ -106,6 +107,9 @@ def classify_command(
     approval_mode: ApprovalMode,
     allow_network: bool = False,
 ) -> SafetyDecision:
+    if "\x00" in command:
+        return SafetyDecision(False, False, "NUL byte blocked by safety policy")
+
     try:
         parts = split(command)
     except ValueError as exc:
@@ -113,6 +117,9 @@ def classify_command(
 
     if not parts:
         return SafetyDecision(False, False, "empty command")
+
+    if any(command_argument_references_private_file(part) for part in parts[1:]):
+        return SafetyDecision(False, False, "private credential file blocked by safety policy")
 
     executable = Path(parts[0]).name
     tokens = {Path(part).name if "/" in part else part for part in parts}
@@ -134,17 +141,22 @@ def classify_command(
 
     mutates_files = has_mutating_option(executable, parts[1:])
 
+    if mutates_files:
+        return SafetyDecision(
+            False,
+            False,
+            "file-mutating command option blocked; use the patch tools",
+        )
+
     if (
         executable == "git"
         and len(parts) > 1
         and parts[1] in READ_ONLY_GIT_SUBCOMMANDS
-        and not mutates_files
     ):
         return SafetyDecision(True, False, "read-only git command allowed")
 
     if (
         executable in READ_ONLY_COMMANDS
-        and not mutates_files
         and not tokens.intersection(WRITE_HINTS)
     ):
         return SafetyDecision(True, False, "read-only command allowed")
@@ -160,6 +172,15 @@ def classify_command(
 
 def is_inline_interpreter(executable: str) -> bool:
     return executable in INLINE_EXECUTABLES or executable.startswith("python")
+
+
+def command_argument_references_private_file(argument: str) -> bool:
+    candidates = [argument]
+    if argument.startswith("-") and "=" in argument:
+        candidates.append(argument.split("=", 1)[1])
+    if ":" in argument and not argument.startswith(("http://", "https://")):
+        candidates.append(argument.rsplit(":", 1)[1])
+    return any(is_private_path(candidate) for candidate in candidates)
 
 
 def has_mutating_option(executable: str, arguments: list[str]) -> bool:

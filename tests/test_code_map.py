@@ -115,3 +115,17 @@ def test_validate_python_source_reports_syntax_errors():
 
     assert error is not None
     assert "broken.py" in error
+
+
+def test_build_code_map_does_not_follow_external_symlinks(tmp_path: Path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    outside = tmp_path / "outside.py"
+    outside.write_text("def leaked_secret():\n    return 'private'\n", encoding="utf-8")
+    (repo / "linked.py").symlink_to(outside)
+
+    code_map = build_code_map(repo)
+
+    assert code_map.symbols == []
+    assert code_map.imports == []
+    assert code_map.references == []

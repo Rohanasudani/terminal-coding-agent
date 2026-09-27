@@ -303,6 +303,22 @@ def test_agent_stops_before_tool_execution_when_cost_limit_is_exceeded(tmp_path:
     assert not (tmp_path / "module.py").exists()
 
 
+def test_agent_rejects_unpriced_model_before_provider_execution(tmp_path: Path, monkeypatch):
+    build_provider_called = False
+
+    def fake_build_provider(*args, **kwargs):
+        nonlocal build_provider_called
+        build_provider_called = True
+        raise AssertionError("provider must not be initialized")
+
+    monkeypatch.setattr(agent_module, "build_provider", fake_build_provider)
+
+    with pytest.raises(ValueError, match="cannot enforce a cost limit"):
+        TerminalAgent(AgentConfig(repo=tmp_path, task="test", model="custom-model"))
+
+    assert build_provider_called is False
+
+
 def test_agent_accounts_for_usage_when_provider_retries_fail(tmp_path: Path, monkeypatch):
     class FailedProvider:
         def next_action(self, task: str, observations: list[str]) -> ProviderOutput:

@@ -1,3 +1,5 @@
+import pytest
+
 from termagent.models import TokenUsage
 from termagent.pricing import estimate_cost_usd
 
@@ -11,5 +13,6 @@ def test_estimate_cost_for_known_model():
     assert cost == 1.4
 
 
-def test_unknown_model_cost_is_zero_but_safe():
-    assert estimate_cost_usd("custom-model", TokenUsage(input_tokens=10, output_tokens=10)) == 0.0
+def test_unknown_model_price_fails_closed():
+    with pytest.raises(ValueError, match="no pricing configured"):
+        estimate_cost_usd("custom-model", TokenUsage(input_tokens=10, output_tokens=10))

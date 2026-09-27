@@ -2,6 +2,20 @@
 
 All notable changes to TermAgent are recorded here.
 
+## 1.0.1 - 2026-09-27
+
+### Fixed
+
+- Prevented source indexing from following symbolic links outside the repository.
+- Rejected direct reads and patch operations for common local credential files.
+- Made cost accounting fail closed when a selected model has no configured price.
+- Rejected NUL bytes and known file-mutating command options before subprocess execution.
+
+### Changed
+
+- Removed an unused provider response schema and prose-coupled documentation tests.
+- Added Python 3.12 to the continuous-integration test matrix.
+
 ## 1.0.0 - 2026-09-26
 
 ### Added

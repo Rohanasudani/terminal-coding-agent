@@ -119,12 +119,19 @@ def build_code_map(repo: Path) -> CodeMap:
 
 
 def iter_source_files(repo: Path):
+    repo = repo.resolve()
     for path in sorted(repo.rglob("*")):
         if path.suffix not in SOURCE_SUFFIXES:
             continue
         if IGNORED_DIRS.intersection(path.relative_to(repo).parts):
             continue
-        if path.stat().st_size > 1_000_000:
+        try:
+            resolved = path.resolve()
+            if path.is_symlink() or (resolved != repo and repo not in resolved.parents):
+                continue
+            if not path.is_file() or path.stat().st_size > 1_000_000:
+                continue
+        except OSError:
             continue
         yield path
 

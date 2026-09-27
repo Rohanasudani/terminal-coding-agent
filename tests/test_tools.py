@@ -22,6 +22,46 @@ def test_read_and_write_file_stay_inside_repo(tmp_path: Path):
     assert "a/hello.py" in write.output
 
 
+def test_file_tools_block_private_credential_paths(tmp_path: Path):
+    target = tmp_path / ".env"
+    target.write_text("OPENAI_API_KEY=private\n", encoding="utf-8")
+    tools = ToolRegistry(tmp_path, "auto")
+
+    read = tools.call("read_file", {"path": ".env"})
+    plan = tools.call("plan_patch", {"path": ".env", "content": "redacted\n"})
+    write = tools.call("write_file", {"path": ".env", "content": "redacted\n"})
+
+    assert read.status == "error"
+    assert plan.status == "error"
+    assert write.status == "error"
+    assert "private credential file blocked" in read.output
+    assert "OPENAI_API_KEY=private" not in plan.output
+    assert target.read_text(encoding="utf-8") == "OPENAI_API_KEY=private\n"
+
+
+def test_file_tools_block_private_path_that_is_an_internal_symlink(tmp_path: Path):
+    target = tmp_path / "local-secrets.txt"
+    target.write_text("TOKEN=private\n", encoding="utf-8")
+    (tmp_path / ".env").symlink_to(target)
+    tools = ToolRegistry(tmp_path, "auto")
+
+    result = tools.call("read_file", {"path": ".env"})
+
+    assert result.status == "error"
+    assert "TOKEN=private" not in result.output
+
+
+def test_file_tools_allow_environment_templates(tmp_path: Path):
+    target = tmp_path / ".env.example"
+    target.write_text("OPENAI_API_KEY=\n", encoding="utf-8")
+    tools = ToolRegistry(tmp_path, "auto")
+
+    result = tools.call("read_file", {"path": ".env.example"})
+
+    assert result.status == "ok"
+    assert "OPENAI_API_KEY=" in result.output
+
+
 def test_plan_patch_previews_without_writing(tmp_path: Path):
     repo = tmp_path / "repo"
     repo.mkdir()

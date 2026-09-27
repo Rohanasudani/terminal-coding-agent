@@ -13,7 +13,6 @@ from termagent.provider import (
     openai_tool_definitions,
     parse_tool_call,
     provider_system_prompt,
-    tool_call_response_format,
 )
 
 
@@ -29,20 +28,6 @@ class FakeResponse:
 
     def read(self) -> bytes:
         return json.dumps(self.payload).encode("utf-8")
-
-
-def test_tool_call_response_format_uses_strict_schema():
-    response_format = tool_call_response_format()
-    schema = response_format["schema"]
-
-    assert response_format["type"] == "json_schema"
-    assert response_format["strict"] is True
-    assert "code_map" in schema["properties"]["name"]["enum"]
-    assert "find_references" in schema["properties"]["name"]["enum"]
-    assert "plan_patch" in schema["properties"]["name"]["enum"]
-    assert "plan_patch_set" in schema["properties"]["name"]["enum"]
-    assert "write_patch_set" in schema["properties"]["name"]["enum"]
-    assert_openai_strict_objects(schema)
 
 
 def test_openai_function_tools_are_strict():

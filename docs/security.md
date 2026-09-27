@@ -32,12 +32,15 @@ and malformed calls become bounded observations rather than code.
 
 File paths are resolved against the configured repository root. Absolute paths and
 parent traversal that escape the root are rejected. Search and code-map operations skip
-dependency, build, trace, and version-control directories.
+dependency, build, trace, and version-control directories. Code-map discovery ignores
+symbolic links and verifies that each indexed source resolves inside the repository.
 
 Ignored-file search is opt-in and intended for tasks such as repository credential
 remediation. Even in that mode, local credential filenames such as `.env`, `.npmrc`,
 private key names, and certificate-key containers remain excluded from search and file
-listing output.
+listing output. Direct reads, patch previews, and writes to those paths are rejected;
+shell commands that name them are also blocked. Environment templates such as
+`.env.example` remain available.
 
 ### Command boundary
 
@@ -46,8 +49,9 @@ operators, command substitution, inline interpreter execution, destructive execu
 and network utilities are blocked or require explicit policy changes.
 
 The classifier examines flags as well as command names. In-place `sed`, mutating
-`find`, and Git output options cannot pass through the read-only path. Destructive
-`find -delete` remains blocked in automatic approval mode.
+`find`, and Git output options are blocked in every approval mode so source changes go
+through the previewed patch tools. Destructive `find -delete` and commands containing
+NUL bytes are also blocked before subprocess execution.
 
 ### Evaluation boundary
 
@@ -96,14 +100,16 @@ publishing it.
 
 The model price table is an estimate for local controls and reporting. Provider pricing
 can change, and an API response may exceed the remaining local budget before its usage
-is known.
+is known. A model without a configured price is rejected before provider initialization;
+this prevents an unknown model from silently bypassing the local cost ceiling.
 
 ## Known Limitations
 
 - Candidate tests run with the current process user's permissions.
 - Command classification is policy enforcement, not process isolation.
 - An allowed executable may still have an unsafe option that is not yet classified.
-- `approval_mode=auto` permits policy-approved mutating commands.
+- `approval_mode=auto` permits commands that are not categorically blocked. It is not a
+  complete classifier for every executable or option available on the host.
 - Network access is a command-level policy and not a host firewall.
 - Prompt injection in repository text can influence the model even though it cannot
   bypass tool validation directly.

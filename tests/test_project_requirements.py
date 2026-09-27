@@ -85,31 +85,3 @@ def test_required_project_docs_exist():
 
     missing = [path for path in REQUIRED_DOCS if not (repo_root / path).exists()]
     assert missing == []
-
-
-def test_experiment_log_mentions_boundaries():
-    repo_root = Path(__file__).parents[1]
-    content = (repo_root / "docs" / "experiment-log.md").read_text(encoding="utf-8")
-
-    assert "not a Terminal-Bench leaderboard score" in content
-    assert "Every failed or errored trial remains in the denominator" in content
-
-
-def test_readme_and_security_docs_reference_current_boundaries():
-    repo_root = Path(__file__).parents[1]
-    readme = (repo_root / "README.md").read_text(encoding="utf-8")
-    security = (repo_root / "docs" / "security.md").read_text(encoding="utf-8")
-
-    assert "termagent app" in readme
-    assert "experiment-log.md" in readme
-    assert "not an operating-system sandbox" in security
-
-
-def test_design_covers_runtime_decisions():
-    repo_root = Path(__file__).parents[1]
-    content = (repo_root / "DESIGN.md").read_text(encoding="utf-8")
-
-    assert "## Problem" in content
-    assert "## Design Principles" in content
-    assert "## Evaluation Policy" in content
-    assert "## Current Tradeoffs" in content

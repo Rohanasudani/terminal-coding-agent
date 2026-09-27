@@ -13,6 +13,7 @@ from .code_map import build_code_map, format_code_map, format_references, valida
 from .completion import validate_completion_review
 from .models import ApprovalMode, ToolResult
 from .planning import validate_task_plan
+from .privacy import is_private_path
 from .safety import classify_command, resolve_inside_root
 
 SNAPSHOT_IGNORED_DIRS = frozenset({
@@ -20,11 +21,6 @@ SNAPSHOT_IGNORED_DIRS = frozenset({
     ".mypy_cache", ".ruff_cache", ".tox", "__pycache__",
     "node_modules", "dist", "build", "coverage", "target",
 })
-SNAPSHOT_PRIVATE_NAMES = frozenset({
-    ".env", ".npmrc", ".pypirc", ".netrc", "id_rsa", "id_ed25519",
-})
-
-
 @dataclass(frozen=True)
 class ToolSpec:
     name: str
@@ -345,6 +341,7 @@ class ToolRegistry:
 
     def read_file(self, path: str, start: int = 1, limit: int = 200) -> ToolResult:
         target = resolve_inside_root(self.repo, path)
+        self._reject_private_path(target, requested=path)
         if not target.is_file():
             return ToolResult("error", f"file not found: {path}")
 
@@ -377,6 +374,7 @@ class ToolRegistry:
 
     def plan_patch(self, path: str, content: str) -> ToolResult:
         target = resolve_inside_root(self.repo, path)
+        self._reject_private_path(target, requested=path)
         relative_path = os.fspath(target.relative_to(self.repo))
         syntax_error = validate_python_source(relative_path, content)
         if syntax_error:
@@ -396,6 +394,7 @@ class ToolRegistry:
         metadata_files: list[dict[str, str]] = []
         for patch_file in patch_files:
             target = resolve_inside_root(self.repo, patch_file.path)
+            self._reject_private_path(target, requested=patch_file.path)
             relative_path = os.fspath(target.relative_to(self.repo))
             syntax_error = validate_python_source(relative_path, patch_file.content)
             if syntax_error:
@@ -415,6 +414,7 @@ class ToolRegistry:
 
     def write_file(self, path: str, content: str) -> ToolResult:
         target = resolve_inside_root(self.repo, path)
+        self._reject_private_path(target, requested=path)
         relative_path = os.fspath(target.relative_to(self.repo))
         syntax_error = validate_python_source(relative_path, content)
         if syntax_error:
@@ -436,6 +436,7 @@ class ToolRegistry:
         planned: list[tuple[PatchFile, Path, str, list[str], list[str]]] = []
         for patch_file in patch_files:
             target = resolve_inside_root(self.repo, patch_file.path)
+            self._reject_private_path(target, requested=patch_file.path)
             relative_path = os.fspath(target.relative_to(self.repo))
             syntax_error = validate_python_source(relative_path, patch_file.content)
             if syntax_error:
@@ -637,15 +638,20 @@ class ToolRegistry:
 
     @staticmethod
     def _skip_snapshot_path(path: Path) -> bool:
-        name = path.name.lower()
         if SNAPSHOT_IGNORED_DIRS.intersection(path.parts[:-1]):
             return True
-        if name in SNAPSHOT_PRIVATE_NAMES or (
-            name.startswith(".env.")
-            and name not in {".env.example", ".env.sample", ".env.template"}
-        ):
-            return True
-        return path.suffix.lower() in {".pem", ".p12", ".pfx"}
+        return is_private_path(path)
+
+    def _reject_private_path(self, path: Path, *, requested: str) -> None:
+        relative = path.relative_to(self.repo)
+        requested_path = Path(requested)
+        requested_relative = (
+            requested_path.relative_to(self.repo)
+            if requested_path.is_absolute()
+            else requested_path
+        )
+        if is_private_path(relative) or is_private_path(requested_relative):
+            raise ValueError(f"private credential file blocked: {relative}")
 
     def _walk_snapshot_paths(self):
         for root, dirs, files in os.walk(self.repo, followlinks=False):
